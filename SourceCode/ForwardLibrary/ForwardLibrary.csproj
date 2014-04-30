@@ -42,7 +42,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BNAC_Server.cs" />
+    <Compile Include="WinSIPserver.cs" />
     <Compile Include="Class1.cs" />
     <Compile Include="CommandHandler.cs" />
     <Compile Include="Communications.cs" />

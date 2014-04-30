@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 
 namespace ForwardLibrary
 {
-    namespace BNAC_Server
+    namespace WinSIPserver
     {
 
         #region Exceptions
