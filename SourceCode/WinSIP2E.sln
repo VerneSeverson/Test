@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WinSIP2E", "WinSIP2E\WinSIP2E.csproj", "{7AB38B8F-66AB-4A02-9969-1584C25433F3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ForwardLibrary", "ForwardLibrary\ForwardLibrary\ForwardLibrary.csproj", "{5B9D95B6-EE2F-4C2C-A385-DA0560FA5305}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ForwardLibrary", "ForwardVSLibrary\SourceCode\ForwardLibrary\ForwardLibrary.csproj", "{5B9D95B6-EE2F-4C2C-A385-DA0560FA5305}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

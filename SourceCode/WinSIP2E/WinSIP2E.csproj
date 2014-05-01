@@ -79,7 +79,7 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\ForwardLibrary\ForwardLibrary\ForwardLibrary.csproj">
+    <ProjectReference Include="..\ForwardVSLibrary\SourceCode\ForwardLibrary\ForwardLibrary.csproj">
       <Project>{5b9d95b6-ee2f-4c2c-a385-da0560fa5305}</Project>
       <Name>ForwardLibrary</Name>
     </ProjectReference>
