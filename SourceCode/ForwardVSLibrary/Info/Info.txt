@@ -1,0 +1,22 @@
+--------------Server SSH address--------------
+ssh://git_forwardpay@forwardpay.git.cloudforge.com/forwardvslibrary.git
+
+--------------Project configuration--------------
+
+--------------Release information--------------
+--> There are no releases made in this project
+
+ 
+--------------General Usage Guidelines--------------
+This project is intended to be included as a library in other projects as a subtree.  As such, only 
+one branch is necessary: master. The remote projects can push and pull from this branch. 
+
+If development work is being done directly in the ForwardLib project (i.e. not in a remote project),
+it should be done on feature branches that are merged back into master when complete. The master 
+branch must always be compilable. 
+
+Information about using subtrees:
+https://github.com/git/git/blob/master/contrib/subtree/git-subtree.txt
+
+
+
