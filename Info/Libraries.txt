@@ -1,0 +1,47 @@
+This project uses the following subtree library:
+
+--------------Library information--------------
+Local Folder: SourceCode/ForwardVSLibrary
+Repo SSH address: ssh://git_forwardpay@forwardpay.git.cloudforge.com/forwardvslibrary.git
+	
+--------------Library usage guidelines--------------
+--> Push/pull from the library's master branch
+--> Do not "squash" merges in either direction
+
+--------------SourceTree usage--------------
+-->To link to a subtree in SourceTree:
+---1) Repository Add/Link Subtree
+---2) In the URL field, enter the SSH address (given above)
+---3) In the Branch / Commit field, select master
+---4) In the Local Relative Path enter SourceCode/ForwardVSLibrary
+
+Subtree workflow in SourceTree:
+--> To pull in changes made in the library outside of this project:
+---1) Right click on Subtrees->SourceCode->ForwardVSLibrary
+---2) Click Pull ForwardVSLibrary
+
+--> To push in changes made to the library from inside this project:
+---1) Right click on Subtrees->SourceCode->ForwardVSLibrary
+---2) Click Push ForwardVSLibrary
+
+--------------Git Bash usage--------------
+-->To link to a subtree
+git remote add vslib ssh://git_forwardpay@forwardpay.git.cloudforge.com/forwardvslibrary.git
+#ONLY needed if subtree's files/folders doesn't currently exist in repo: git subtree add --prefix=SourceCode/ForwardVSLibrary vslib master
+
+Subtree workflow in Git Bash:
+--> To pull in changes made in the library outside of this project:
+git subtree pull --prefix=SourceCode/ForwardVSLibrary vslib master
+
+--> To push in changes made to the library from inside this project:
+git subtree push --prefix=SourceCode/ForwardVSLibrary vslib master
+
+--> To see differences before doing a pull:
+git fetch vslib
+git diff-tree vslib/master
+
+--------------References on Subtree--------------
+https://github.com/git/git/blob/master/contrib/subtree/git-subtree.txt
+http://makingsoftware.wordpress.com/2013/02/16/using-git-subtrees-for-repository-separation/
+http://blogs.atlassian.com/2013/05/alternatives-to-git-submodule-git-subtree/
+http://blog.sourcetreeapp.com/2014/04/07/sourcetree-for-windows-1-5/

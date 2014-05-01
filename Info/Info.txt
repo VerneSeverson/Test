@@ -1,0 +1,27 @@
+--------------Server SSH address--------------
+ssh://git_forwardpay@forwardpay.git.cloudforge.com/winsip2e.git
+
+--------------Project configuration--------------
+-->The project relies on subtree libraries described in Info/Libraries.txt.
+Immediately after cloning the repo, the subtree linking will need to be set up.
+See Libraries.txt for instructions.
+
+--> the folders AWS/dev-package and AWS/live-package contain the current versions of 
+the BNAC login server running on AWS web services
+
+--------------Release information--------------
+--> Note that in general, files generated during compile time should not be saved. The only exception to this is whenever a release is made. In the event of a release, the SourceCode/WinSIP2E/bin/Release folder is zipped and placed in SourceCode/CurrentRelease folder
+
+--> Tags applied to version releases should have a name of V followed by the assembly revision number:
+V[1 digit major].[2 digit minor][single revision letter]
+ - Example: V1.0.0.1
+
+ 
+--------------General Usage Guidelines--------------
+This repository follows the Git_UsageGuidelines.docx document that can be found in the forwardgit repository. 
+
+--> Workflow. Two branches are always present:
+  - master: a branch that should only consists of releases
+  - develop: a branch where ongoing development is taking place
+Separate release, hotfix, and topic branches are also used per the Git_UsageGuidelines.docx document.
+
