@@ -7,8 +7,11 @@ Repo SSH address: ssh://git_forwardpay@forwardpay.git.cloudforge.com/forwardvsli
 --------------Library usage guidelines--------------
 --> Push/pull from the library's master branch
 --> Do not "squash" merges in either direction
+--> When editing the library from within this project, use separate commits to the ForwardVSLibrary; for example, if you edit files in the FowardVSLibrary as well as in this project and you are ready to commit all of them, commit the ForwardVSLibrary files in one commit and the main project files in a separate commit.
 
 --------------SourceTree usage--------------
+SourceTree instructions with screenshots can also be found in Subtree.docx.
+
 -->To link to a subtree in SourceTree:
 ---1) Repository Add/Link Subtree
 ---2) In the URL field, enter the SSH address (given above)
@@ -18,11 +21,11 @@ Repo SSH address: ssh://git_forwardpay@forwardpay.git.cloudforge.com/forwardvsli
 Subtree workflow in SourceTree:
 --> To pull in changes made in the library outside of this project:
 ---1) Right click on Subtrees->SourceCode->ForwardVSLibrary
----2) Click Pull ForwardVSLibrary
+---2) Click Pull ForwardVSLibrary (deselect "Squash commits?")
 
 --> To push in changes made to the library from inside this project:
 ---1) Right click on Subtrees->SourceCode->ForwardVSLibrary
----2) Click Push ForwardVSLibrary
+---2) Click Push ForwardVSLibrary (deselect "Squash commits?")
 
 --------------Git Bash usage--------------
 -->To link to a subtree
