@@ -435,6 +435,8 @@ namespace ForwardLibrary
             public class Entry
             {
 
+                public const int SALT_SIZE = 32;
+
                 #region Fields                
                 private string __userName;
                 protected string _userName
@@ -558,6 +560,50 @@ namespace ForwardLibrary
                         PropertyChanged("privilegeCode", _privilegeCode);
                     }
                 }*/
+
+                private string __passwordOneTimeSalt = "";
+                protected string _passwordOneTimeSalt
+                {
+                    get { return __passwordOneTimeSalt; }
+                    set
+                    {
+                        __passwordOneTimeSalt = value;
+                        PropertyChanged("passwordOneTimeSalt", __passwordOneTimeSalt);
+                    }
+                }
+                public virtual string passwordOneTimeSalt
+                {
+                    get { return _passwordOneTimeSalt; }
+                }
+                protected string[] _pwSalts = new string[5] { "", "", "", "", "" };
+                public virtual string passwordSalt
+                {
+                    get { return _pwSalts[0]; }
+                }
+
+                public virtual string passwordSaltPrev1
+                {
+                    get { return _pwSalts[1]; }
+                }
+
+                public virtual string passwordSaltPrev2
+                {
+                    get { return _pwSalts[2]; }
+                    set { }
+                }
+
+                public virtual string passwordSaltPrev3
+                {
+                    get { return _pwSalts[3]; }
+                    set { }
+                }
+
+                public virtual string passwordSaltPrev4
+                {
+                    get { return _pwSalts[4]; }
+                    set { }
+                }
+
 
 
                 private string __passwordOneTimeHash = "";
@@ -745,7 +791,7 @@ namespace ForwardLibrary
                     //if there is a onetime password, only compare against that
 
                     //calculate the password hash
-                    string _passwordTempHash = GetPasswordHash(oldPassword);                    
+                    string _passwordTempHash = GetPasswordHash(oldPassword, passwordSalt);                    
 
                     if (_passwordOneTimeHash != "")
                         doChange = (_passwordOneTimeHash == _passwordTempHash);
@@ -782,7 +828,7 @@ namespace ForwardLibrary
                         throw new NoValidPasswordException("No valid password is on record. Please contact the system administrator to perform a password reset.");
 
                     //calculate the password hash
-                    string _passwordTempHash = GetPasswordHash(password);
+                    string _passwordTempHash = GetPasswordHash(password, passwordSalt);
 
                     if (_passwordTempHash != _pwHashes[0])
                     {
@@ -821,29 +867,22 @@ namespace ForwardLibrary
                 /// <param name="password"></param>
                 public virtual void SetOnetimePassword(string password)
                 {
-                    CheckPasswordRules(password);
+                    CheckPasswordRules(password);                    
 
-                    //save the new hash
-                    string _passwordTempHash = GetPasswordHash(password);
-
-                    if (!CheckAgainstOldPasswords(_passwordTempHash))
+                    if (!CheckAgainstOldPasswords(password))
                         throw new PasswordRuleException("Password must be different from the last four passwords.");
+
+                    //save the new hash (do this first in case an exception occurs)
+                    string _passwordTempSalt = CreateSalt();
+                    string _passwordTempHash = GetPasswordHash(password, _passwordTempSalt);
 
                     //update the change time
                     _passwordChangeDate = DateTime.Now;
 
                     //update the old hashes
-                    _pwHashes[4] = _pwHashes[3];
-                    _pwHashes[3] = _pwHashes[2];
-                    _pwHashes[2] = _pwHashes[1];
+                    PushHashAndSalt();
 
-                    if (_passwordOneTimeHash != null)
-                    {
-                        _pwHashes[1] = _passwordOneTimeHash;                        
-                    }
-                    else
-                        _pwHashes[1] = _pwHashes[0];
-
+                    _passwordOneTimeSalt = _passwordTempSalt;
                     _passwordOneTimeHash = _passwordTempHash;
                     PasswordHashesChanged();
                 }
@@ -856,29 +895,21 @@ namespace ForwardLibrary
                 public virtual void SetPassword(string password)
                 {
                     CheckPasswordRules(password);
-
-                    //save the new hash
-                    string _passwordTempHash = GetPasswordHash(password);
-
-                    if (!CheckAgainstOldPasswords(_passwordTempHash))
+                    
+                    if (!CheckAgainstOldPasswords(password))
                         throw new PasswordRuleException("Password must be different from the last four passwords.");
+
+                    //save the new hash (do this first in case an exception occurs)
+                    string _passwordTempSalt = CreateSalt();
+                    string _passwordTempHash = GetPasswordHash(password, _passwordTempSalt);
 
                     //update the change time
                     _passwordChangeDate = DateTime.Now;
 
-                    //update the old hashes
-                    _pwHashes[4] = _pwHashes[3];
-                    _pwHashes[3] = _pwHashes[2];
-                    _pwHashes[2] = _pwHashes[1];
-                    
-                    if (_passwordOneTimeHash != null)
-                    {
-                        _pwHashes[1] = _passwordOneTimeHash;
-                        _passwordOneTimeHash = "";
-                    }
-                    else
-                        _pwHashes[1] = _pwHashes[0];
+                    //update the old hashes and salts
+                    PushHashAndSalt();                    
 
+                    _pwSalts[0] = _passwordTempSalt;
                     _pwHashes[0] = _passwordTempHash;
                     PasswordHashesChanged();
                 }
@@ -886,20 +917,59 @@ namespace ForwardLibrary
 
                 #region Private helper functions
 
-                private bool CheckAgainstOldPasswords(string pwHash)
+                /// <summary>
+                /// this function pushes the hash and salt arrays back one (frees up the entry at index 0)
+                /// </summary>
+                protected virtual void PushHashAndSalt()
+                {
+                    _pwHashes[4] = _pwHashes[3];
+                    _pwHashes[3] = _pwHashes[2];
+                    _pwHashes[2] = _pwHashes[1];
+                    _pwSalts[4] = _pwSalts[3];
+                    _pwSalts[3] = _pwSalts[2];
+                    _pwSalts[2] = _pwSalts[1];
+
+                    if (_passwordOneTimeHash != null)
+                    {
+                        _pwHashes[1] = _passwordOneTimeHash;
+                        _pwSalts[1] = _passwordOneTimeSalt;
+                        _passwordOneTimeHash = "";
+                    }
+                    else
+                    {
+                        _pwHashes[1] = _pwHashes[0];
+                        _pwSalts[1] = _pwSalts[0];
+                    }                    
+                }
+                private string CreateSalt()
+                {
+                    RNGCryptoServiceProvider rng = new RNGCryptoServiceProvider();
+                    byte[] buff = new byte[SALT_SIZE];
+                    rng.GetBytes(buff);
+                    return Convert.ToBase64String(buff);
+                }
+
+                private bool CheckAgainstOldPasswords(string password)
                 {
                     bool unique = true;
                     foreach (string _pwh in _pwHashes)
-                        if (pwHash == _pwh)
+                    {
+                        foreach (string _salt in _pwSalts)
                         {
-                            unique = false;
-                            break;
+                            string pwHash = GetPasswordHash(password, _salt);
+                            if (pwHash == _pwh)
+                            {
+                                unique = false;
+                                break;
+                            }
                         }
-
+                    }
                     if (_passwordOneTimeHash != null)
+                    {
+                        string pwHash = GetPasswordHash(_passwordOneTimeHash, _passwordOneTimeSalt);
                         if (_passwordOneTimeHash == pwHash)
                             unique = false;
-
+                    }
                     return unique;
                 }
 
@@ -918,12 +988,33 @@ namespace ForwardLibrary
 
                     return true;
                 }
-                
-                protected virtual string GetPasswordHash(string password)
+
+                /// <summary>
+                /// return in bytes the password pre-pended by the salt
+                /// </summary>
+                /// <param name="password">plain text string</param>
+                /// <param name="salt">base 64 encoded string</param>
+                /// <returns></returns>
+                protected virtual Byte[] ConcatStringSalt(string password, string salt)
+                {
+                    byte[] plainTextWithSaltBytes = new byte[password.Length + salt.Length];
+                    byte[] saltBytes = Convert.FromBase64String(salt);
+                    byte[] plainText = Encoding.ASCII.GetBytes(password);
+                    int i;
+
+                    for (i = 0; i < saltBytes.Length; i++)
+                        plainTextWithSaltBytes[i] = saltBytes[i];
+                    for (int n = 0; n < plainText.Length; n++)
+                        plainTextWithSaltBytes[i++] = plainText[n];
+
+                    return plainTextWithSaltBytes;
+                }
+
+                protected virtual string GetPasswordHash(string password, string salt)
                 {
                     //calculate the new hash
                     SHA256 thesha = SHA256Managed.Create();
-                    byte[] hashValue = thesha.ComputeHash(Encoding.ASCII.GetBytes(password));
+                    byte[] hashValue = thesha.ComputeHash(ConcatStringSalt(password, salt));
                     StringBuilder hex = new StringBuilder(hashValue.Length * 2);
                     foreach (byte h in hashValue)
                         hex.AppendFormat("{0:x2}", h);
@@ -939,6 +1030,12 @@ namespace ForwardLibrary
                     Properties.Add("passwordHashPrev2", passwordHashPrev2);
                     Properties.Add("passwordHashPrev3", passwordHashPrev3);
                     Properties.Add("passwordHashPrev4", passwordHashPrev4);
+
+                    Properties.Add("passwordSalt", passwordSalt);
+                    Properties.Add("passwordSaltPrev1", passwordSaltPrev1);
+                    Properties.Add("passwordSaltPrev2", passwordSaltPrev2);
+                    Properties.Add("passwordSaltPrev3", passwordSaltPrev3);
+                    Properties.Add("passwordSaltPrev4", passwordSaltPrev4);
                     PropertiesChanged(Properties);
                 }
 
