@@ -8,12 +8,14 @@ ssh://git_forwardpay@forwardpay.git.cloudforge.com/forwardvslibrary.git
 
  
 --------------General Usage Guidelines--------------
-This project is intended to be included as a library in other projects as a subtree.  As such, only 
+-->This project is intended to be included as a library in other projects as a subtree.  As such, only 
 one branch is necessary: master. The remote projects can push and pull from this branch. 
 
-If development work is being done directly in the ForwardLib project (i.e. not in a remote project),
+-->If development work is being done directly in the ForwardLib project (i.e. not in a remote project),
 it should be done on feature branches that are merged back into master when complete. The master 
 branch must always be compilable. 
+
+-->When editing the ForwardLib project from within another project, use separate commits for changes to the ForwardVSLibrary; for example, if you edit files in the FowardVSLibrary as well as in the parent project, commit the ForwardVSLibrary files in one commit and the main project files in a separate commit.
 
 Information about using subtrees:
 https://github.com/git/git/blob/master/contrib/subtree/git-subtree.txt
