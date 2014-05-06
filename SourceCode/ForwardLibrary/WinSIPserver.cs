@@ -791,7 +791,11 @@ namespace ForwardLibrary
                     //if there is a onetime password, only compare against that
 
                     //calculate the password hash
-                    string _passwordTempHash = GetPasswordHash(oldPassword, passwordSalt);                    
+                    string _salt = passwordSalt;
+                    if (_passwordOneTimeSalt != "")
+                        _salt = _passwordOneTimeSalt;
+
+                    string _passwordTempHash = GetPasswordHash(oldPassword, _salt);                    
 
                     if (_passwordOneTimeHash != "")
                         doChange = (_passwordOneTimeHash == _passwordTempHash);
@@ -929,11 +933,12 @@ namespace ForwardLibrary
                     _pwSalts[3] = _pwSalts[2];
                     _pwSalts[2] = _pwSalts[1];
 
-                    if (_passwordOneTimeHash != null)
+                    if (_passwordOneTimeHash != "")
                     {
                         _pwHashes[1] = _passwordOneTimeHash;
                         _pwSalts[1] = _passwordOneTimeSalt;
                         _passwordOneTimeHash = "";
+                        _passwordOneTimeSalt = "";
                     }
                     else
                     {
@@ -964,7 +969,7 @@ namespace ForwardLibrary
                             }
                         }
                     }
-                    if (_passwordOneTimeHash != null)
+                    if (_passwordOneTimeHash != "")
                     {
                         string pwHash = GetPasswordHash(_passwordOneTimeHash, _passwordOneTimeSalt);
                         if (_passwordOneTimeHash == pwHash)
