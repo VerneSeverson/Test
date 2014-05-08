@@ -678,6 +678,31 @@ namespace ForwardLibrary
             }
 
             /// <summary>
+            /// This function takes a certificate signing request in a PEM file 
+            /// (in a string format) and returns an X509Certificate2 object.
+            /// </summary>
+            /// <param name="PEM_string"></param>
+            /// <returns></returns>
+            public static X509Certificate2 GetCertificateReqFromPEM(string PEM_string)
+            {
+                PEM_string.Replace("CERTIFICATE REQUEST", "CERTIFICATE");
+                X509Certificate2Collection collection = GetCertCollectionFromPEM(PEM_string);
+                return collection[0];
+            }
+
+            /// <summary>
+            /// This function takes a certificate in a PEM file (in a string 
+            /// format) and returns an X509Certificate2 object.
+            /// </summary>
+            /// <param name="PEM_string"></param>
+            /// <returns></returns>
+            public static X509Certificate2 GetCertificateFromPEM(string PEM_string)
+            {
+                X509Certificate2Collection collection = GetCertCollectionFromPEM(PEM_string);
+                return collection[0];
+            }
+
+            /// <summary>
             /// Export the public portion of a certificate to a PEM string.
             /// </summary>
             /// <param name="cert"></param>
