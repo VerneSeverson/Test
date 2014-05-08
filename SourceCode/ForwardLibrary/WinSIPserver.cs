@@ -1,8 +1,11 @@
-﻿using System;
+﻿using ForwardLibrary.Crypto;
+using ForwardLibrary.Default;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -1541,6 +1544,233 @@ namespace ForwardLibrary
 
             }
 
+        }
+
+        public class CertificateRequestTable
+        {
+            public class Entry
+            {
+                protected TimeSpan PinLifeTime = new TimeSpan(2, 0, 0);
+
+                #region Properties
+                protected X509Certificate2 __SignedCertificate = null;
+                protected X509Certificate2 _SignedCertificate
+                {
+                    set
+                    {
+                        __SignedCertificate = value;
+                        PropertyChanged("SignedCertificate", _SignedCertificate);
+                    }
+                    get { return __SignedCertificate; }
+                }
+                /// <summary>
+                /// The signed certificate.
+                /// </summary>            
+                public X509Certificate2 SignedCertificate
+                {
+                    get { return _SignedCertificate; }
+                }
+
+                protected X509Certificate2 __CertificateRequest = null;
+                protected X509Certificate2 _CertificateRequest
+                {
+                    set
+                    {
+                        __CertificateRequest = value;
+                        PropertyChanged("CertificateRequest", _CertificateRequest);
+                    }
+                    get { return __CertificateRequest; }
+                }
+                /// <summary>
+                /// The signed certificate.
+                /// </summary>            
+                public X509Certificate2 CertificateRequest
+                {
+                    get { return _CertificateRequest; }
+                }
+
+                protected int _PinCode;
+                /// <summary>
+                /// The pin number for this entry
+                /// </summary>
+                public int PinCode
+                {
+                    get { return _PinCode; }
+                }
+
+                protected DateTime _PinCodeCreated = DateTime.Now;
+                /// <summary>
+                /// The pin number for this entry
+                /// </summary>
+                public DateTime PinCodeCreated
+                {
+                    get { return _PinCodeCreated; }
+                }
+
+                /// <summary>
+                /// when the current entry expires
+                /// </summary>
+                protected DateTime PinCodeExpires
+                {
+                    get { return PinCodeCreated + PinLifeTime; }
+                }
+
+                protected string _CertificateID;
+
+                /// <summary>
+                /// The certificate ID
+                /// </summary>
+                public string CertificateID
+                {
+                    get
+                    {    
+                        if ( (CertificateID == null) && (MachineID != null) )
+                            GenerateCertificateID();
+
+                        return _CertificateID;
+                    }
+                }
+
+                protected string __MachineID = null;
+                protected string _MachineID
+                {
+                    set
+                    {
+                        _MachineID = value;
+                        PropertyChanged("MachineID", _MachineID);
+                    }
+                    get { return _MachineID; }
+                }
+
+                /// <summary>
+                /// The machine descriptive ID. This can only be set if 
+                /// SignedCertificate and CertificateRequest are both null,
+                /// otherwise an exception is thrown.
+                /// </summary>
+                public string MachineID
+                {
+                    set
+                    {
+                        if ((SignedCertificate != null) || (CertificateRequest != null))
+                            throw new InvalidOperationException("Cannot set MachineID when a certificate already exists");
+                        else
+                        {
+                            _MachineID = value;                            
+                        }
+                    }
+                    get
+                    {
+                        return _MachineID;
+                    }
+                }
+
+                #endregion
+
+                public Entry()
+                {
+                    CryptoRandom rng = new CryptoRandom();
+                    _PinCode = rng.Next(0, 999999);                                            
+                }
+
+                /// <summary>
+                /// Load the certificate request
+                /// </summary>
+                /// <param name="certReq">PEM formatted certificate request ("BEGIN CERTIFICATE REQUEST...")</param>
+                public virtual void CertRequest(string certReq)
+                {
+                     X509Certificate2 tempCert = CStoredCertificate.GetCertificateReqFromPEM(certReq);
+
+                    //check to make sure it has the right CN
+                    if (tempCert.GetNameInfo(X509NameType.SimpleName, false) != DesiredCN() )
+                        throw new ArgumentException("Invalid common name. Expected: " + DesiredCN() );
+
+                    _CertificateRequest = tempCert;
+
+                }
+
+                /// <summary>
+                /// Load the signed certificate
+                /// </summary>
+                /// <param name="cert">PEM formatted signed certificate ("BEGIN CERTIFICATE...")</param>
+                public virtual void CertResponse(string cert)
+                {
+                    X509Certificate2 tempCert = CStoredCertificate.GetCertificateFromPEM(cert);
+
+                    if (CertificateRequest == null)
+                        throw new InvalidOperationException("Cannot set a certificate response if a request has not been made");
+
+                    //check to make sure it has the right CN
+                    if (tempCert.GetNameInfo(X509NameType.SimpleName, false) != DesiredCN())
+                        throw new ArgumentException("Invalid common name. Expected: " + DesiredCN());
+
+                    if (tempCert.Thumbprint != CertificateRequest.Thumbprint)
+                        throw new ArgumentException("Certificate thumbprint does not match the certificate request thumbprint.");
+
+                    _SignedCertificate = tempCert;
+                }
+
+                
+
+                //private helper functions
+
+                protected string DesiredCN()
+                {
+                    return "PIN" + PinCode + "-MID" + MachineID + "-CID" + CertificateID;
+                }
+
+                /// <summary>
+                /// Make a certificate ID (uses the MachineID and a random number)
+                /// </summary>
+                protected void GenerateCertificateID()
+                {
+                    byte[] rand_buff = new byte[32];                    
+                    byte[] full_buff = new byte[32 + MachineID.Length];
+                    byte[] MachineIDbytes = Encoding.ASCII.GetBytes(MachineID);
+                    CryptoRandom rng = new CryptoRandom();
+                    
+                    while (true)
+                    {
+                        rng.NextBytes(rand_buff);
+                        int i;
+                        for (i = 0; i < rand_buff.Length; i++)
+                            full_buff[i] = rand_buff[i];
+                        for (int n = 0; n < MachineID.Length; n++)
+                            full_buff[i++] = MachineIDbytes[n];
+
+                        //calculate the new hash
+                        SHA256 thesha = SHA256Managed.Create();
+                        byte[] hashValue = thesha.ComputeHash(full_buff);
+
+                        string temp = Base32Encoding.ToString(hashValue);
+                        string tID = temp.Substring(0, 12);
+                        if (IsCertificateID_Unique(tID))
+                        {
+                            _CertificateID = tID;
+                            PropertyChanged("CertificateID", _CertificateID);
+                            break;
+                        }
+                    }       
+                }
+
+                protected virtual void PropertiesChanged(Dictionary<string, object> Properties)
+                {
+
+                }
+                protected virtual void PropertyChanged(string name, object newVal)
+                {
+
+                }
+
+                /// <summary>
+                /// Override to provide uniqueness checking of the certificate ID
+                /// </summary>
+                /// <param name="certID"></param>
+                /// <returns></returns>
+                protected virtual bool IsCertificateID_Unique(string certID)
+                {
+                    return true;
+                }
+            }
         }
     }
     
