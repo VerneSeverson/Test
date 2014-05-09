@@ -720,6 +720,23 @@ namespace ForwardLibrary
             }
 
             /// <summary>
+            /// Export the public portion of a certificate request to a PEM string.
+            /// </summary>
+            /// <param name="cert"></param>
+            /// <returns></returns>
+            public static string ExportCertificateRequestToPEM(X509Certificate req)
+            {
+                StringBuilder builder = new StringBuilder();
+
+                builder.AppendLine("-----BEGIN CERTIFICATE REQUEST-----");
+                //specify X509ContentType.Cert to get only the public key
+                builder.AppendLine(Convert.ToBase64String(req.Export(X509ContentType.Cert), Base64FormattingOptions.InsertLineBreaks));
+                builder.Append("-----END CERTIFICATE REQUEST-----");
+
+                return builder.ToString();
+            }
+
+            /// <summary>
             /// This is a way to get a regular string into a secure string
             /// NOTE that this is bad form. It negates the security gained
             /// by using a secure string.
