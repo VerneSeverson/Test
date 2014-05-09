@@ -22,6 +22,12 @@ namespace ForwardLibrary
             { }
         }
 
+        public class CredentialMismatchException : Exception
+        {
+            public CredentialMismatchException(string message)
+                : base(message)
+            { }
+        }
 
         /// <summary>
         /// Thrown when there is no valid password.
@@ -1550,6 +1556,7 @@ namespace ForwardLibrary
         {
             public class Entry
             {
+                
                 protected TimeSpan PinLifeTime = new TimeSpan(2, 0, 0);
 
                 #region Properties
@@ -1559,7 +1566,7 @@ namespace ForwardLibrary
                     set
                     {
                         __SignedCertificate = value;
-                        PropertyChanged("SignedCertificate", _SignedCertificate);
+                        PropertyChanged("SignedCertificate", __SignedCertificate);
                     }
                     get { return __SignedCertificate; }
                 }
@@ -1577,7 +1584,7 @@ namespace ForwardLibrary
                     set
                     {
                         __CertificateRequest = value;
-                        PropertyChanged("CertificateRequest", _CertificateRequest);
+                        PropertyChanged("CertificateRequest", __CertificateRequest);
                     }
                     get { return __CertificateRequest; }
                 }
@@ -1597,25 +1604,30 @@ namespace ForwardLibrary
                 {
                     get { return _PinCode; }
                 }
+                
 
-                protected DateTime _PinCodeCreated = DateTime.Now;
+                protected DateTime _PinCodeExpires;
                 /// <summary>
                 /// The pin number for this entry
                 /// </summary>
-                public DateTime PinCodeCreated
+                public DateTime PinCodeExpires
                 {
-                    get { return _PinCodeCreated; }
-                }
+                    get { return _PinCodeExpires; }
+                }                
 
-                /// <summary>
-                /// when the current entry expires
-                /// </summary>
-                protected DateTime PinCodeExpires
+                protected string __CertificateID;
+                protected string _CertificateID
                 {
-                    get { return PinCodeCreated + PinLifeTime; }
+                    set
+                    {
+                        __CertificateID = value;
+                        PropertyChanged("CertificateID", __CertificateID);
+                    }
+                    get
+                    {                            
+                        return __CertificateID;
+                    }
                 }
-
-                protected string _CertificateID;
 
                 /// <summary>
                 /// The certificate ID
@@ -1624,8 +1636,8 @@ namespace ForwardLibrary
                 {
                     get
                     {    
-                        if ( (CertificateID == null) && (MachineID != null) )
-                            GenerateCertificateID();
+                        //if ( (CertificateID == null) && (MachineID != null) )
+                        //    GenerateCertificateID();
 
                         return _CertificateID;
                     }
@@ -1638,6 +1650,7 @@ namespace ForwardLibrary
                     {
                         _MachineID = value;
                         PropertyChanged("MachineID", _MachineID);
+                        GenerateCertificateID();
                     }
                     get { return _MachineID; }
                 }
@@ -1669,7 +1682,8 @@ namespace ForwardLibrary
                 public Entry()
                 {
                     CryptoRandom rng = new CryptoRandom();
-                    _PinCode = rng.Next(0, 999999);                                            
+                    _PinCode = rng.Next(0, 999999);
+                    _PinCodeExpires = DateTime.Now + PinLifeTime;                
                 }
 
                 /// <summary>
@@ -1678,13 +1692,31 @@ namespace ForwardLibrary
                 /// <param name="certReq">PEM formatted certificate request ("BEGIN CERTIFICATE REQUEST...")</param>
                 public virtual void CertRequest(string certReq)
                 {
-                     X509Certificate2 tempCert = CStoredCertificate.GetCertificateReqFromPEM(certReq);
+                    if (PinCodeExpires > DateTime.Now)
+                        throw new InvalidOperationException("Pin code is no longer valid");
 
-                    //check to make sure it has the right CN
-                    if (tempCert.GetNameInfo(X509NameType.SimpleName, false) != DesiredCN() )
-                        throw new ArgumentException("Invalid common name. Expected: " + DesiredCN() );
+                    if (CertificateRequest != null)
+                        throw new InvalidOperationException("Certificate request already uploaded");
 
-                    _CertificateRequest = tempCert;
+                    try
+                    {
+                        X509Certificate2 tempCert = CStoredCertificate.GetCertificateReqFromPEM(certReq);
+
+                        //check to make sure it has the right CN
+                        if (tempCert.GetNameInfo(X509NameType.SimpleName, false) != DesiredCN())
+                            throw new CredentialMismatchException("Invalid common name. Expected: " + DesiredCN());
+
+                        _CertificateRequest = tempCert;
+                    }
+                    catch (Exception e)
+                    {
+                        _CertificateRequest = new X509Certificate2(); //give it a dummy certificate to prevent the certifcate request from being uploaded again
+                        //(you only get one try with a pin code)
+
+                        throw e;
+                    }
+
+                    
 
                 }
 
@@ -1694,19 +1726,35 @@ namespace ForwardLibrary
                 /// <param name="cert">PEM formatted signed certificate ("BEGIN CERTIFICATE...")</param>
                 public virtual void CertResponse(string cert)
                 {
-                    X509Certificate2 tempCert = CStoredCertificate.GetCertificateFromPEM(cert);
+                    if (PinCodeExpires > DateTime.Now)
+                        throw new InvalidOperationException("Pin code is no longer valid");
 
-                    if (CertificateRequest == null)
-                        throw new InvalidOperationException("Cannot set a certificate response if a request has not been made");
+                    if (CertificateRequest != null)
+                        throw new InvalidOperationException("Certificate already uploaded");
 
-                    //check to make sure it has the right CN
-                    if (tempCert.GetNameInfo(X509NameType.SimpleName, false) != DesiredCN())
-                        throw new ArgumentException("Invalid common name. Expected: " + DesiredCN());
+                    try
+                    {
+                        X509Certificate2 tempCert = CStoredCertificate.GetCertificateFromPEM(cert);
 
-                    if (tempCert.Thumbprint != CertificateRequest.Thumbprint)
-                        throw new ArgumentException("Certificate thumbprint does not match the certificate request thumbprint.");
+                        if (CertificateRequest == null)
+                            throw new InvalidOperationException("Cannot set a certificate response if a request has not been made");
 
-                    _SignedCertificate = tempCert;
+                        //check to make sure it has the right CN
+                        if (tempCert.GetNameInfo(X509NameType.SimpleName, false) != DesiredCN())
+                            throw new CredentialMismatchException("Invalid common name. Expected: " + DesiredCN());
+
+                        if (tempCert.Thumbprint != CertificateRequest.Thumbprint)
+                            throw new CredentialMismatchException("Certificate thumbprint does not match the certificate request thumbprint.");
+
+                        _SignedCertificate = tempCert;
+                    }
+                    catch (Exception e)
+                    {
+                        _CertificateRequest = new X509Certificate2(); //give it a dummy certificate to prevent another certifcate from being uploaded
+                        //(you only get one try with a pin code)
+
+                        throw e;
+                    }
                 }
 
                 
@@ -1724,8 +1772,9 @@ namespace ForwardLibrary
                 protected void GenerateCertificateID()
                 {
                     byte[] rand_buff = new byte[32];                    
-                    byte[] full_buff = new byte[32 + MachineID.Length];
-                    byte[] MachineIDbytes = Encoding.ASCII.GetBytes(MachineID);
+                    
+                    byte[] MachineIDbytes = Encoding.ASCII.GetBytes(MachineID + PinCode.ToString());
+                    byte[] full_buff = new byte[32 + MachineIDbytes.Length];
                     CryptoRandom rng = new CryptoRandom();
                     
                     while (true)
@@ -1734,7 +1783,7 @@ namespace ForwardLibrary
                         int i;
                         for (i = 0; i < rand_buff.Length; i++)
                             full_buff[i] = rand_buff[i];
-                        for (int n = 0; n < MachineID.Length; n++)
+                        for (int n = 0; n < MachineIDbytes.Length; n++)
                             full_buff[i++] = MachineIDbytes[n];
 
                         //calculate the new hash
@@ -1763,6 +1812,8 @@ namespace ForwardLibrary
 
                 /// <summary>
                 /// Override to provide uniqueness checking of the certificate ID
+                /// The likelyhood of a repeated certificate ID is extremely low
+                /// since it generated with random data.
                 /// </summary>
                 /// <param name="certID"></param>
                 /// <returns></returns>
