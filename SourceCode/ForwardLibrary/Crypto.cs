@@ -646,7 +646,7 @@ namespace ForwardLibrary
                 X509Certificate2Collection collection = new X509Certificate2Collection();
 
                 string[] lines;
-                PEM_string.Replace("\r\n", "\n");
+                PEM_string = PEM_string.Replace("\r\n", "\n");
                 lines = PEM_string.Split('\n');
 
                 StringBuilder strCertB = new StringBuilder();
@@ -685,7 +685,7 @@ namespace ForwardLibrary
             /// <returns></returns>
             public static X509Certificate2 GetCertificateReqFromPEM(string PEM_string)
             {
-                PEM_string.Replace("CERTIFICATE REQUEST", "CERTIFICATE");
+                PEM_string = PEM_string.Replace("CERTIFICATE REQUEST", "CERTIFICATE");
                 X509Certificate2Collection collection = GetCertCollectionFromPEM(PEM_string);
                 return collection[0];
             }
