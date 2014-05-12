@@ -1648,11 +1648,16 @@ namespace ForwardLibrary
                 {
                     set
                     {
-                        _MachineID = value;
-                        PropertyChanged("MachineID", _MachineID);
-                        GenerateCertificateID();
+                        if (__MachineID == null)
+                        {
+                            __MachineID = value;
+                            PropertyChanged("MachineID", _MachineID);
+                            GenerateCertificateID();
+                        }
+                        else
+                            throw new InvalidOperationException("MachineID already defined for this pin code.");
                     }
-                    get { return _MachineID; }
+                    get { return __MachineID; }
                 }
 
                 /// <summary>
@@ -1692,7 +1697,8 @@ namespace ForwardLibrary
                 /// <param name="certReq">PEM formatted certificate request ("BEGIN CERTIFICATE REQUEST...")</param>
                 public virtual void CertRequest(string certReq)
                 {
-                    if (PinCodeExpires > DateTime.Now)
+                    //if (PinCodeExpires > DateTime.Now)
+                    if (DateTime.Compare(PinCodeExpires, DateTime.Now) < 0)
                         throw new InvalidOperationException("Pin code is no longer valid");
 
                     if (CertificateRequest != null)
@@ -1726,7 +1732,7 @@ namespace ForwardLibrary
                 /// <param name="cert">PEM formatted signed certificate ("BEGIN CERTIFICATE...")</param>
                 public virtual void CertResponse(string cert)
                 {
-                    if (PinCodeExpires > DateTime.Now)
+                    if (DateTime.Compare(PinCodeExpires, DateTime.Now) < 0)
                         throw new InvalidOperationException("Pin code is no longer valid");
 
                     if (CertificateRequest != null)
