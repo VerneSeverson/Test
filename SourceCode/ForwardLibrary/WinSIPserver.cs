@@ -1,4 +1,5 @@
-﻿using ForwardLibrary.Crypto;
+﻿using CERTENROLLLib;
+using ForwardLibrary.Crypto;
 using ForwardLibrary.Default;
 using System;
 using System.Collections.Generic;
@@ -1578,8 +1579,8 @@ namespace ForwardLibrary
                     get { return _SignedCertificate; }
                 }
 
-                protected X509Certificate2 __CertificateRequest = null;
-                protected X509Certificate2 _CertificateRequest
+                protected string __CertificateRequest = null;
+                protected string _CertificateRequest
                 {
                     set
                     {
@@ -1591,7 +1592,7 @@ namespace ForwardLibrary
                 /// <summary>
                 /// The signed certificate.
                 /// </summary>            
-                public X509Certificate2 CertificateRequest
+                public string CertificateRequest
                 {
                     get { return _CertificateRequest; }
                 }
@@ -1671,6 +1672,8 @@ namespace ForwardLibrary
                     {
                         if ((SignedCertificate != null) || (CertificateRequest != null))
                             throw new InvalidOperationException("Cannot set MachineID when a certificate already exists");
+                        else if (DateTime.Compare(PinCodeExpires, DateTime.Now) < 0)
+                            throw new InvalidOperationException("Pin code has expired");
                         else
                         {
                             _MachineID = value;                            
@@ -1706,17 +1709,32 @@ namespace ForwardLibrary
 
                     try
                     {
-                        X509Certificate2 tempCert = CStoredCertificate.GetCertificateReqFromPEM(certReq);
+                        //X509Certificate2 tempCert = CStoredCertificate.GetCertificateReqFromPEM(certReq);
+                        CX509CertificateRequestPkcs10 request;
+
+                        try
+                        {
+                            request = new CX509CertificateRequestPkcs10();
+                            request.InitializeDecode(certReq, EncodingType.XCN_CRYPT_STRING_BASE64_ANY);
+                            request.CheckSignature();
+                        }
+                        catch (Exception e)
+                        {
+                            throw new CryptographicException("Unable to create the CSR from the PEM-formatted string", e);
+                        }
+                        string subject = ((CX500DistinguishedName)request.Subject).Name;
 
                         //check to make sure it has the right CN
-                        if (tempCert.GetNameInfo(X509NameType.SimpleName, false) != DesiredCN())
+                        if (!subject.Contains(DesiredCN())) //tempCert.GetNameInfo(X509NameType.SimpleName, false) != DesiredCN())
                             throw new CredentialMismatchException("Invalid common name. Expected: " + DesiredCN());
+                        if (request.PublicKey.Length < 2048)
+                            throw new CryptographicException("Public key does not meet minumum requirements (too short)");
 
-                        _CertificateRequest = tempCert;
+                        _CertificateRequest = certReq;
                     }
                     catch (Exception e)
                     {
-                        _CertificateRequest = new X509Certificate2(); //give it a dummy certificate to prevent the certifcate request from being uploaded again
+                        _CertificateRequest = "invalidated"; //give it a dummy certificate to prevent the certifcate request from being uploaded again
                         //(you only get one try with a pin code)
 
                         throw e;
@@ -1735,7 +1753,7 @@ namespace ForwardLibrary
                     if (DateTime.Compare(PinCodeExpires, DateTime.Now) < 0)
                         throw new InvalidOperationException("Pin code is no longer valid");
 
-                    if (CertificateRequest != null)
+                    if (SignedCertificate != null)
                         throw new InvalidOperationException("Certificate already uploaded");
 
                     try
@@ -1749,14 +1767,14 @@ namespace ForwardLibrary
                         if (tempCert.GetNameInfo(X509NameType.SimpleName, false) != DesiredCN())
                             throw new CredentialMismatchException("Invalid common name. Expected: " + DesiredCN());
 
-                        if (tempCert.Thumbprint != CertificateRequest.Thumbprint)
-                            throw new CredentialMismatchException("Certificate thumbprint does not match the certificate request thumbprint.");
+                        //if (tempCert.Thumbprint != CertificateRequest.Thumbprint)
+                        //    throw new CredentialMismatchException("Certificate thumbprint does not match the certificate request thumbprint.");
 
                         _SignedCertificate = tempCert;
                     }
                     catch (Exception e)
                     {
-                        _CertificateRequest = new X509Certificate2(); //give it a dummy certificate to prevent another certifcate from being uploaded
+                        _SignedCertificate = new X509Certificate2(); //give it a dummy certificate to prevent another certifcate from being uploaded
                         //(you only get one try with a pin code)
 
                         throw e;

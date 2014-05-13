@@ -736,6 +736,8 @@ namespace ForwardLibrary
                 return builder.ToString();
             }
 
+            
+
             /// <summary>
             /// This is a way to get a regular string into a secure string
             /// NOTE that this is bad form. It negates the security gained
@@ -845,5 +847,7 @@ namespace ForwardLibrary
             }
             #endregion
         }
+
+
     }
 }
