@@ -1110,6 +1110,8 @@ namespace ForwardLibrary
                     return new RuleGroupDatabaseRule(rule);
                 else if (RuleParams[0] == "UDR")
                     return new UserDatabaseRule(rule);
+                else if (RuleParams[0] == "CCR")
+                    return new ClientCertRule(rule);
                 else
                     throw new ArgumentException("No rule exists for rule code '" + RuleParams[0] + "'");
             }
@@ -1432,6 +1434,39 @@ namespace ForwardLibrary
                     return true;
                 }
 
+            }
+
+            public class ClientCertRule : Rule
+            {
+                public override string RuleName { get { return "CCR"; } }       //child classes must give a name
+                //override public static const string RuleName = "CCR";
+                
+
+                /// <summary>
+                /// Constructor string format: "CCR"                
+                /// </summary>
+                /// <param name="rule"></param>
+                public ClientCertRule(string rule)
+                    : base(rule)
+                {                    
+                    if (rule.Trim() != RuleName)
+                        throw new ArgumentException("Wrong rule type -- ClientCert rule expects 'CCR' rule");
+
+                    _rule = "CCR";
+                }
+
+                public override bool PermissionForCMD(string incmd, BNAC_UserTable.Entry user)
+                {
+                    //only applicable to these commands: CSP, CDSR, CUCC, CCDB
+                    if ((incmd.StartsWith("CSP") == false)
+                            && (incmd.StartsWith("CDSR") == false)
+                            && (incmd.StartsWith("CUCC") == false)
+                            && (incmd.StartsWith("CCDB") == false))
+                        return false;
+                    else  //weeded out all other options, must be a match
+                        return true;
+                                                                                
+                }
             }
 
             public class Entry
