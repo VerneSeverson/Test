@@ -1,8 +1,12 @@
-﻿using System;
+﻿using CERTENROLLLib;
+using ForwardLibrary.Crypto;
+using ForwardLibrary.Default;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -19,6 +23,12 @@ namespace ForwardLibrary
             { }
         }
 
+        public class CredentialMismatchException : Exception
+        {
+            public CredentialMismatchException(string message)
+                : base(message)
+            { }
+        }
 
         /// <summary>
         /// Thrown when there is no valid password.
@@ -435,6 +445,8 @@ namespace ForwardLibrary
             public class Entry
             {
 
+                public const int SALT_SIZE = 32;
+
                 #region Fields                
                 private string __userName;
                 protected string _userName
@@ -558,6 +570,50 @@ namespace ForwardLibrary
                         PropertyChanged("privilegeCode", _privilegeCode);
                     }
                 }*/
+
+                private string __passwordOneTimeSalt = "";
+                protected string _passwordOneTimeSalt
+                {
+                    get { return __passwordOneTimeSalt; }
+                    set
+                    {
+                        __passwordOneTimeSalt = value;
+                        PropertyChanged("passwordOneTimeSalt", __passwordOneTimeSalt);
+                    }
+                }
+                public virtual string passwordOneTimeSalt
+                {
+                    get { return _passwordOneTimeSalt; }
+                }
+                protected string[] _pwSalts = new string[5] { "", "", "", "", "" };
+                public virtual string passwordSalt
+                {
+                    get { return _pwSalts[0]; }
+                }
+
+                public virtual string passwordSaltPrev1
+                {
+                    get { return _pwSalts[1]; }
+                }
+
+                public virtual string passwordSaltPrev2
+                {
+                    get { return _pwSalts[2]; }
+                    set { }
+                }
+
+                public virtual string passwordSaltPrev3
+                {
+                    get { return _pwSalts[3]; }
+                    set { }
+                }
+
+                public virtual string passwordSaltPrev4
+                {
+                    get { return _pwSalts[4]; }
+                    set { }
+                }
+
 
 
                 private string __passwordOneTimeHash = "";
@@ -745,7 +801,11 @@ namespace ForwardLibrary
                     //if there is a onetime password, only compare against that
 
                     //calculate the password hash
-                    string _passwordTempHash = GetPasswordHash(oldPassword);                    
+                    string _salt = passwordSalt;
+                    if (_passwordOneTimeSalt != "")
+                        _salt = _passwordOneTimeSalt;
+
+                    string _passwordTempHash = GetPasswordHash(oldPassword, _salt);                    
 
                     if (_passwordOneTimeHash != "")
                         doChange = (_passwordOneTimeHash == _passwordTempHash);
@@ -782,7 +842,7 @@ namespace ForwardLibrary
                         throw new NoValidPasswordException("No valid password is on record. Please contact the system administrator to perform a password reset.");
 
                     //calculate the password hash
-                    string _passwordTempHash = GetPasswordHash(password);
+                    string _passwordTempHash = GetPasswordHash(password, passwordSalt);
 
                     if (_passwordTempHash != _pwHashes[0])
                     {
@@ -821,29 +881,22 @@ namespace ForwardLibrary
                 /// <param name="password"></param>
                 public virtual void SetOnetimePassword(string password)
                 {
-                    CheckPasswordRules(password);
+                    CheckPasswordRules(password);                    
 
-                    //save the new hash
-                    string _passwordTempHash = GetPasswordHash(password);
-
-                    if (!CheckAgainstOldPasswords(_passwordTempHash))
+                    if (!CheckAgainstOldPasswords(password))
                         throw new PasswordRuleException("Password must be different from the last four passwords.");
+
+                    //save the new hash (do this first in case an exception occurs)
+                    string _passwordTempSalt = CreateSalt();
+                    string _passwordTempHash = GetPasswordHash(password, _passwordTempSalt);
 
                     //update the change time
                     _passwordChangeDate = DateTime.Now;
 
                     //update the old hashes
-                    _pwHashes[4] = _pwHashes[3];
-                    _pwHashes[3] = _pwHashes[2];
-                    _pwHashes[2] = _pwHashes[1];
+                    PushHashAndSalt();
 
-                    if (_passwordOneTimeHash != null)
-                    {
-                        _pwHashes[1] = _passwordOneTimeHash;                        
-                    }
-                    else
-                        _pwHashes[1] = _pwHashes[0];
-
+                    _passwordOneTimeSalt = _passwordTempSalt;
                     _passwordOneTimeHash = _passwordTempHash;
                     PasswordHashesChanged();
                 }
@@ -856,29 +909,21 @@ namespace ForwardLibrary
                 public virtual void SetPassword(string password)
                 {
                     CheckPasswordRules(password);
-
-                    //save the new hash
-                    string _passwordTempHash = GetPasswordHash(password);
-
-                    if (!CheckAgainstOldPasswords(_passwordTempHash))
+                    
+                    if (!CheckAgainstOldPasswords(password))
                         throw new PasswordRuleException("Password must be different from the last four passwords.");
+
+                    //save the new hash (do this first in case an exception occurs)
+                    string _passwordTempSalt = CreateSalt();
+                    string _passwordTempHash = GetPasswordHash(password, _passwordTempSalt);
 
                     //update the change time
                     _passwordChangeDate = DateTime.Now;
 
-                    //update the old hashes
-                    _pwHashes[4] = _pwHashes[3];
-                    _pwHashes[3] = _pwHashes[2];
-                    _pwHashes[2] = _pwHashes[1];
-                    
-                    if (_passwordOneTimeHash != null)
-                    {
-                        _pwHashes[1] = _passwordOneTimeHash;
-                        _passwordOneTimeHash = "";
-                    }
-                    else
-                        _pwHashes[1] = _pwHashes[0];
+                    //update the old hashes and salts
+                    PushHashAndSalt();                    
 
+                    _pwSalts[0] = _passwordTempSalt;
                     _pwHashes[0] = _passwordTempHash;
                     PasswordHashesChanged();
                 }
@@ -886,20 +931,60 @@ namespace ForwardLibrary
 
                 #region Private helper functions
 
-                private bool CheckAgainstOldPasswords(string pwHash)
+                /// <summary>
+                /// this function pushes the hash and salt arrays back one (frees up the entry at index 0)
+                /// </summary>
+                protected virtual void PushHashAndSalt()
+                {
+                    _pwHashes[4] = _pwHashes[3];
+                    _pwHashes[3] = _pwHashes[2];
+                    _pwHashes[2] = _pwHashes[1];
+                    _pwSalts[4] = _pwSalts[3];
+                    _pwSalts[3] = _pwSalts[2];
+                    _pwSalts[2] = _pwSalts[1];
+
+                    if (_passwordOneTimeHash != "")
+                    {
+                        _pwHashes[1] = _passwordOneTimeHash;
+                        _pwSalts[1] = _passwordOneTimeSalt;
+                        _passwordOneTimeHash = "";
+                        _passwordOneTimeSalt = "";
+                    }
+                    else
+                    {
+                        _pwHashes[1] = _pwHashes[0];
+                        _pwSalts[1] = _pwSalts[0];
+                    }                    
+                }
+                private string CreateSalt()
+                {
+                    RNGCryptoServiceProvider rng = new RNGCryptoServiceProvider();
+                    byte[] buff = new byte[SALT_SIZE];
+                    rng.GetBytes(buff);
+                    return Convert.ToBase64String(buff);
+                }
+
+                private bool CheckAgainstOldPasswords(string password)
                 {
                     bool unique = true;
                     foreach (string _pwh in _pwHashes)
-                        if (pwHash == _pwh)
+                    {
+                        foreach (string _salt in _pwSalts)
                         {
-                            unique = false;
-                            break;
+                            string pwHash = GetPasswordHash(password, _salt);
+                            if (pwHash == _pwh)
+                            {
+                                unique = false;
+                                break;
+                            }
                         }
-
-                    if (_passwordOneTimeHash != null)
+                    }
+                    if (_passwordOneTimeHash != "")
+                    {
+                        string pwHash = GetPasswordHash(_passwordOneTimeHash, _passwordOneTimeSalt);
                         if (_passwordOneTimeHash == pwHash)
                             unique = false;
-
+                    }
                     return unique;
                 }
 
@@ -918,12 +1003,33 @@ namespace ForwardLibrary
 
                     return true;
                 }
-                
-                protected virtual string GetPasswordHash(string password)
+
+                /// <summary>
+                /// return in bytes the password pre-pended by the salt
+                /// </summary>
+                /// <param name="password">plain text string</param>
+                /// <param name="salt">base 64 encoded string</param>
+                /// <returns></returns>
+                protected virtual Byte[] ConcatStringSalt(string password, string salt)
+                {
+                    byte[] plainTextWithSaltBytes = new byte[password.Length + salt.Length];
+                    byte[] saltBytes = Convert.FromBase64String(salt);
+                    byte[] plainText = Encoding.ASCII.GetBytes(password);
+                    int i;
+
+                    for (i = 0; i < saltBytes.Length; i++)
+                        plainTextWithSaltBytes[i] = saltBytes[i];
+                    for (int n = 0; n < plainText.Length; n++)
+                        plainTextWithSaltBytes[i++] = plainText[n];
+
+                    return plainTextWithSaltBytes;
+                }
+
+                protected virtual string GetPasswordHash(string password, string salt)
                 {
                     //calculate the new hash
                     SHA256 thesha = SHA256Managed.Create();
-                    byte[] hashValue = thesha.ComputeHash(Encoding.ASCII.GetBytes(password));
+                    byte[] hashValue = thesha.ComputeHash(ConcatStringSalt(password, salt));
                     StringBuilder hex = new StringBuilder(hashValue.Length * 2);
                     foreach (byte h in hashValue)
                         hex.AppendFormat("{0:x2}", h);
@@ -939,6 +1045,12 @@ namespace ForwardLibrary
                     Properties.Add("passwordHashPrev2", passwordHashPrev2);
                     Properties.Add("passwordHashPrev3", passwordHashPrev3);
                     Properties.Add("passwordHashPrev4", passwordHashPrev4);
+
+                    Properties.Add("passwordSalt", passwordSalt);
+                    Properties.Add("passwordSaltPrev1", passwordSaltPrev1);
+                    Properties.Add("passwordSaltPrev2", passwordSaltPrev2);
+                    Properties.Add("passwordSaltPrev3", passwordSaltPrev3);
+                    Properties.Add("passwordSaltPrev4", passwordSaltPrev4);
                     PropertiesChanged(Properties);
                 }
 
@@ -998,6 +1110,8 @@ namespace ForwardLibrary
                     return new RuleGroupDatabaseRule(rule);
                 else if (RuleParams[0] == "UDR")
                     return new UserDatabaseRule(rule);
+                else if (RuleParams[0] == "CCR")
+                    return new ClientCertRule(rule);
                 else
                     throw new ArgumentException("No rule exists for rule code '" + RuleParams[0] + "'");
             }
@@ -1322,6 +1436,39 @@ namespace ForwardLibrary
 
             }
 
+            public class ClientCertRule : Rule
+            {
+                public override string RuleName { get { return "CCR"; } }       //child classes must give a name
+                //override public static const string RuleName = "CCR";
+                
+
+                /// <summary>
+                /// Constructor string format: "CCR"                
+                /// </summary>
+                /// <param name="rule"></param>
+                public ClientCertRule(string rule)
+                    : base(rule)
+                {                    
+                    if (rule.Trim() != RuleName)
+                        throw new ArgumentException("Wrong rule type -- ClientCert rule expects 'CCR' rule");
+
+                    _rule = "CCR";
+                }
+
+                public override bool PermissionForCMD(string incmd, BNAC_UserTable.Entry user)
+                {
+                    //only applicable to these commands: CSP, CDSR, CUCC, CCDB
+                    if ((incmd.StartsWith("CSP") == false)
+                            && (incmd.StartsWith("CDSR") == false)
+                            && (incmd.StartsWith("CUCC") == false)
+                            && (incmd.StartsWith("CCDB") == false))
+                        return false;
+                    else  //weeded out all other options, must be a match
+                        return true;
+                                                                                
+                }
+            }
+
             public class Entry
             {
 
@@ -1439,6 +1586,310 @@ namespace ForwardLibrary
 
             }
 
+        }
+
+        public class CertificateRequestTable
+        {
+            public class Entry
+            {
+                
+                protected TimeSpan PinLifeTime = new TimeSpan(2, 0, 0);
+
+                #region Properties
+                protected X509Certificate2 __SignedCertificate = null;
+                protected X509Certificate2 _SignedCertificate
+                {
+                    set
+                    {
+                        __SignedCertificate = value;
+                        PropertyChanged("SignedCertificate", __SignedCertificate);
+                    }
+                    get { return __SignedCertificate; }
+                }
+                /// <summary>
+                /// The signed certificate.
+                /// </summary>            
+                public X509Certificate2 SignedCertificate
+                {
+                    get { return _SignedCertificate; }
+                }
+
+                protected string __CertificateRequest = null;
+                protected string _CertificateRequest
+                {
+                    set
+                    {
+                        __CertificateRequest = value;
+                        PropertyChanged("CertificateRequest", __CertificateRequest);
+                    }
+                    get { return __CertificateRequest; }
+                }
+                /// <summary>
+                /// The signed certificate.
+                /// </summary>            
+                public string CertificateRequest
+                {
+                    get { return _CertificateRequest; }
+                }
+
+                protected int _PinCode;
+                /// <summary>
+                /// The pin number for this entry
+                /// </summary>
+                public int PinCode
+                {
+                    get { return _PinCode; }
+                }
+                
+
+                protected DateTime _PinCodeExpires;
+                /// <summary>
+                /// The pin number for this entry
+                /// </summary>
+                public DateTime PinCodeExpires
+                {
+                    get { return _PinCodeExpires; }
+                }                
+
+                protected string __CertificateID;
+                protected string _CertificateID
+                {
+                    set
+                    {
+                        __CertificateID = value;
+                        PropertyChanged("CertificateID", __CertificateID);
+                    }
+                    get
+                    {                            
+                        return __CertificateID;
+                    }
+                }
+
+                /// <summary>
+                /// The certificate ID
+                /// </summary>
+                public string CertificateID
+                {
+                    get
+                    {    
+                        //if ( (CertificateID == null) && (MachineID != null) )
+                        //    GenerateCertificateID();
+
+                        return _CertificateID;
+                    }
+                }
+
+                protected string __MachineID = null;
+                protected string _MachineID
+                {
+                    set
+                    {
+                        if (__MachineID == null)
+                        {
+                            __MachineID = value;
+                            PropertyChanged("MachineID", _MachineID);
+                            GenerateCertificateID();
+                        }
+                        else
+                            throw new InvalidOperationException("MachineID already defined for this pin code.");
+                    }
+                    get { return __MachineID; }
+                }
+
+                /// <summary>
+                /// The machine descriptive ID. This can only be set if 
+                /// SignedCertificate and CertificateRequest are both null,
+                /// otherwise an exception is thrown.
+                /// </summary>
+                public string MachineID
+                {
+                    set
+                    {
+                        if ((SignedCertificate != null) || (CertificateRequest != null))
+                            throw new InvalidOperationException("Cannot set MachineID when a certificate already exists");
+                        else if (DateTime.Compare(PinCodeExpires, DateTime.Now) < 0)
+                            throw new InvalidOperationException("Pin code has expired");
+                        else
+                        {
+                            _MachineID = value;                            
+                        }
+                    }
+                    get
+                    {
+                        return _MachineID;
+                    }
+                }
+
+                #endregion
+
+                public Entry()
+                {
+                    CryptoRandom rng = new CryptoRandom();
+                    _PinCode = rng.Next(0, 999999);
+                    _PinCodeExpires = DateTime.Now + PinLifeTime;                
+                }
+
+                /// <summary>
+                /// Load the certificate request
+                /// </summary>
+                /// <param name="certReq">PEM formatted certificate request ("BEGIN CERTIFICATE REQUEST...")</param>
+                public virtual void CertRequest(string certReq)
+                {
+                    //if (PinCodeExpires > DateTime.Now)
+                    if (DateTime.Compare(PinCodeExpires, DateTime.Now) < 0)
+                        throw new InvalidOperationException("Pin code is no longer valid");
+
+                    if (CertificateRequest != null)
+                        throw new InvalidOperationException("Certificate request already uploaded");
+
+                    try
+                    {
+                        //X509Certificate2 tempCert = CStoredCertificate.GetCertificateReqFromPEM(certReq);
+                        CX509CertificateRequestPkcs10 request;
+                        string subject;
+                        try
+                        {
+                            request = new CX509CertificateRequestPkcs10();
+                            request.InitializeDecode(certReq, EncodingType.XCN_CRYPT_STRING_BASE64_ANY);
+                            request.CheckSignature();
+                            subject = ((CX500DistinguishedName)request.Subject).Name;
+                        }
+                        catch (Exception e)
+                        {
+                            throw new CryptographicException("Unable to create the CSR from the PEM-formatted string", e);
+                        }
+                        
+
+                        //check to make sure it has the right CN
+                        if (!subject.Contains(DesiredCN())) //tempCert.GetNameInfo(X509NameType.SimpleName, false) != DesiredCN())
+                            throw new CredentialMismatchException("Invalid common name. Expected: " + DesiredCN());
+                        if (request.PublicKey.Length < 2048)
+                            throw new CryptographicException("Public key does not meet minumum requirements (too short)");
+
+                        _CertificateRequest = certReq;
+                    }
+                    catch (Exception e)
+                    {
+                        _CertificateRequest = "invalidated"; //give it a dummy certificate to prevent the certifcate request from being uploaded again
+                        //(you only get one try with a pin code)
+
+                        throw e;
+                    }
+
+                    
+
+                }
+
+                /// <summary>
+                /// Load the signed certificate
+                /// </summary>
+                /// <param name="cert">PEM formatted signed certificate ("BEGIN CERTIFICATE...")</param>
+                public virtual void CertResponse(string cert)
+                {
+                    if (DateTime.Compare(PinCodeExpires, DateTime.Now) < 0)
+                        throw new InvalidOperationException("Pin code is no longer valid");
+
+                    if (SignedCertificate != null)
+                        throw new InvalidOperationException("Certificate already uploaded");
+
+                    try
+                    {
+                        X509Certificate2 tempCert;
+                        try
+                        {
+                            tempCert = CStoredCertificate.GetCertificateFromPEM(cert);
+                        }
+                        catch (Exception ex)
+                        {
+                            throw new CryptographicException("Unable to convert PEM formatted string into a certificate", ex);
+                        }
+
+                        if (CertificateRequest == null)
+                            throw new InvalidOperationException("Cannot set a certificate response if a request has not been made");
+
+                        //check to make sure it has the right CN
+                        if (tempCert.GetNameInfo(X509NameType.SimpleName, false) != DesiredCN())
+                            throw new CredentialMismatchException("Invalid common name. Expected: " + DesiredCN());
+
+                        //if (tempCert.Thumbprint != CertificateRequest.Thumbprint)
+                        //    throw new CredentialMismatchException("Certificate thumbprint does not match the certificate request thumbprint.");
+
+                        _SignedCertificate = tempCert;
+                    }
+                    catch (Exception e)
+                    {
+                        _SignedCertificate = new X509Certificate2(); //give it a dummy certificate to prevent another certifcate from being uploaded
+                        //(you only get one try with a pin code)
+
+                        throw e;
+                    }
+                }
+
+                
+
+                //private helper functions
+
+                public string DesiredCN()
+                {
+                    return "PIN" + PinCode.ToString("D6") + "-MID" + MachineID + "-CID" + CertificateID;
+                }
+
+                /// <summary>
+                /// Make a certificate ID (uses the MachineID and a random number)
+                /// </summary>
+                protected void GenerateCertificateID()
+                {
+                    byte[] rand_buff = new byte[32];                    
+                    
+                    byte[] MachineIDbytes = Encoding.ASCII.GetBytes(MachineID + PinCode.ToString());
+                    byte[] full_buff = new byte[32 + MachineIDbytes.Length];
+                    CryptoRandom rng = new CryptoRandom();
+                    
+                    while (true)
+                    {
+                        rng.NextBytes(rand_buff);
+                        int i;
+                        for (i = 0; i < rand_buff.Length; i++)
+                            full_buff[i] = rand_buff[i];
+                        for (int n = 0; n < MachineIDbytes.Length; n++)
+                            full_buff[i++] = MachineIDbytes[n];
+
+                        //calculate the new hash
+                        SHA256 thesha = SHA256Managed.Create();
+                        byte[] hashValue = thesha.ComputeHash(full_buff);
+
+                        string temp = Base32Encoding.ToString(hashValue);
+                        string tID = temp.Substring(0, 12);
+                        if (IsCertificateID_Unique(tID))
+                        {
+                            _CertificateID = tID;
+                            PropertyChanged("CertificateID", _CertificateID);
+                            break;
+                        }
+                    }       
+                }
+
+                protected virtual void PropertiesChanged(Dictionary<string, object> Properties)
+                {
+
+                }
+                protected virtual void PropertyChanged(string name, object newVal)
+                {
+
+                }
+
+                /// <summary>
+                /// Override to provide uniqueness checking of the certificate ID
+                /// The likelyhood of a repeated certificate ID is extremely low
+                /// since it generated with random data.
+                /// </summary>
+                /// <param name="certID"></param>
+                /// <returns></returns>
+                protected virtual bool IsCertificateID_Unique(string certID)
+                {
+                    return true;
+                }
+            }
         }
     }
     
