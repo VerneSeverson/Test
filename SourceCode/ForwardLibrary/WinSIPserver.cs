@@ -1746,18 +1746,19 @@ namespace ForwardLibrary
                     {
                         //X509Certificate2 tempCert = CStoredCertificate.GetCertificateReqFromPEM(certReq);
                         CX509CertificateRequestPkcs10 request;
-
+                        string subject;
                         try
                         {
                             request = new CX509CertificateRequestPkcs10();
                             request.InitializeDecode(certReq, EncodingType.XCN_CRYPT_STRING_BASE64_ANY);
                             request.CheckSignature();
+                            subject = ((CX500DistinguishedName)request.Subject).Name;
                         }
                         catch (Exception e)
                         {
                             throw new CryptographicException("Unable to create the CSR from the PEM-formatted string", e);
                         }
-                        string subject = ((CX500DistinguishedName)request.Subject).Name;
+                        
 
                         //check to make sure it has the right CN
                         if (!subject.Contains(DesiredCN())) //tempCert.GetNameInfo(X509NameType.SimpleName, false) != DesiredCN())
@@ -1793,7 +1794,15 @@ namespace ForwardLibrary
 
                     try
                     {
-                        X509Certificate2 tempCert = CStoredCertificate.GetCertificateFromPEM(cert);
+                        X509Certificate2 tempCert;
+                        try
+                        {
+                            tempCert = CStoredCertificate.GetCertificateFromPEM(cert);
+                        }
+                        catch (Exception ex)
+                        {
+                            throw new CryptographicException("Unable to convert PEM formatted string into a certificate", ex);
+                        }
 
                         if (CertificateRequest == null)
                             throw new InvalidOperationException("Cannot set a certificate response if a request has not been made");
@@ -1820,9 +1829,9 @@ namespace ForwardLibrary
 
                 //private helper functions
 
-                protected string DesiredCN()
+                public string DesiredCN()
                 {
-                    return "PIN" + PinCode + "-MID" + MachineID + "-CID" + CertificateID;
+                    return "PIN" + PinCode.ToString("D6") + "-MID" + MachineID + "-CID" + CertificateID;
                 }
 
                 /// <summary>
