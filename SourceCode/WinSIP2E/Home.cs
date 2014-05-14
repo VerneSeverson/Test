@@ -106,6 +106,12 @@ namespace WinSIP2E
 
         }
 
+        override protected void OnClosing(CancelEventArgs e)
+        {
+            Properties.Settings.Default.Save();     //save the application settings
+            base.OnClosing(e);
+        }
+
         private void groupBox2_Enter(object sender, EventArgs e)
         {
 
@@ -244,6 +250,12 @@ namespace WinSIP2E
         private void cmdDisconnect_Click(object sender, EventArgs e)
         {
 
+        }
+
+        private void cmdSettings_Click(object sender, EventArgs e)
+        {
+            Settings frm = new Settings();
+            frm.ShowDialog();
         }
     }
 
