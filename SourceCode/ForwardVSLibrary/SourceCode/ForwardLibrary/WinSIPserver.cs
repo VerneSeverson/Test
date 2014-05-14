@@ -1590,10 +1590,12 @@ namespace ForwardLibrary
 
         public class CertificateRequestTable
         {
+            public const int MachineID_MaxLen = 32;
+
             public class Entry
             {
                 
-                protected TimeSpan PinLifeTime = new TimeSpan(2, 0, 0);
+                protected TimeSpan PinLifeTime = new TimeSpan(2, 0, 0);                
 
                 #region Properties
                 protected X509Certificate2 __SignedCertificate = null;
@@ -1709,9 +1711,11 @@ namespace ForwardLibrary
                             throw new InvalidOperationException("Cannot set MachineID when a certificate already exists");
                         else if (DateTime.Compare(PinCodeExpires, DateTime.Now) < 0)
                             throw new InvalidOperationException("Pin code has expired");
+                        else if (value.Length > MachineID_MaxLen)
+                            throw new ArgumentException("Machine ID value is too long");
                         else
                         {
-                            _MachineID = value;                            
+                            _MachineID = value;
                         }
                     }
                     get
