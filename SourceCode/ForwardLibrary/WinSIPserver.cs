@@ -1591,6 +1591,8 @@ namespace ForwardLibrary
         public class CertificateRequestTable
         {
             public const int MachineID_MaxLen = 32;
+            public const int PinCodeLen = 6;
+            public const int CertificateID_Len = 12;
 
             public class Entry
             {
