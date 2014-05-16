@@ -30,27 +30,27 @@
         {
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
-            this.txtServerAddress = new System.Windows.Forms.TextBox();
-            this.txtServerPort = new System.Windows.Forms.TextBox();
             this.gbConnSettings = new System.Windows.Forms.GroupBox();
             this.txtCertExpires = new System.Windows.Forms.TextBox();
             this.label9 = new System.Windows.Forms.Label();
             this.textBox2 = new System.Windows.Forms.TextBox();
             this.label4 = new System.Windows.Forms.Label();
-            this.chkOverrideName = new System.Windows.Forms.CheckBox();
             this.label3 = new System.Windows.Forms.Label();
-            this.txtManualServerName = new System.Windows.Forms.TextBox();
             this.gbClientSettings = new System.Windows.Forms.GroupBox();
             this.textBox4 = new System.Windows.Forms.TextBox();
             this.label8 = new System.Windows.Forms.Label();
             this.cmdLoadCertificate = new System.Windows.Forms.Button();
-            this.button1 = new System.Windows.Forms.Button();
+            this.cmdRequestCert = new System.Windows.Forms.Button();
             this.textBox3 = new System.Windows.Forms.TextBox();
             this.label7 = new System.Windows.Forms.Label();
             this.txtMachineID = new System.Windows.Forms.TextBox();
             this.label6 = new System.Windows.Forms.Label();
             this.txtPinCode = new System.Windows.Forms.TextBox();
             this.label5 = new System.Windows.Forms.Label();
+            this.chkOverrideName = new System.Windows.Forms.CheckBox();
+            this.txtManualServerName = new System.Windows.Forms.TextBox();
+            this.txtServerAddress = new System.Windows.Forms.TextBox();
+            this.txtServerPort = new System.Windows.Forms.TextBox();
             this.gbConnSettings.SuspendLayout();
             this.gbClientSettings.SuspendLayout();
             this.SuspendLayout();
@@ -73,25 +73,6 @@
             this.label2.Size = new System.Drawing.Size(29, 13);
             this.label2.TabIndex = 4;
             this.label2.Text = "Port:";
-            // 
-            // txtServerAddress
-            // 
-            this.txtServerAddress.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::WinSIP2E.Properties.Settings.Default, "ServerAddress", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
-            this.txtServerAddress.Location = new System.Drawing.Point(120, 22);
-            this.txtServerAddress.Name = "txtServerAddress";
-            this.txtServerAddress.Size = new System.Drawing.Size(340, 20);
-            this.txtServerAddress.TabIndex = 5;
-            this.txtServerAddress.Text = global::WinSIP2E.Properties.Settings.Default.ServerAddress;
-            this.txtServerAddress.TextChanged += new System.EventHandler(this.txtServerAddress_TextChanged);
-            // 
-            // txtServerPort
-            // 
-            this.txtServerPort.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::WinSIP2E.Properties.Settings.Default, "ServerPort", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
-            this.txtServerPort.Location = new System.Drawing.Point(120, 48);
-            this.txtServerPort.Name = "txtServerPort";
-            this.txtServerPort.Size = new System.Drawing.Size(62, 20);
-            this.txtServerPort.TabIndex = 6;
-            this.txtServerPort.Text = global::WinSIP2E.Properties.Settings.Default.ServerPort;
             // 
             // gbConnSettings
             // 
@@ -147,19 +128,6 @@
             this.label4.TabIndex = 10;
             this.label4.Text = "Certificate ID:";
             // 
-            // chkOverrideName
-            // 
-            this.chkOverrideName.AutoSize = true;
-            this.chkOverrideName.Checked = global::WinSIP2E.Properties.Settings.Default.ManuallySetCN;
-            this.chkOverrideName.DataBindings.Add(new System.Windows.Forms.Binding("Checked", global::WinSIP2E.Properties.Settings.Default, "ManuallySetCN", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
-            this.chkOverrideName.Location = new System.Drawing.Point(354, 77);
-            this.chkOverrideName.Name = "chkOverrideName";
-            this.chkOverrideName.Size = new System.Drawing.Size(146, 17);
-            this.chkOverrideName.TabIndex = 9;
-            this.chkOverrideName.Text = "Manually set server name";
-            this.chkOverrideName.UseVisualStyleBackColor = true;
-            this.chkOverrideName.CheckedChanged += new System.EventHandler(this.chkOverrideName_CheckedChanged);
-            // 
             // label3
             // 
             this.label3.AutoSize = true;
@@ -169,22 +137,12 @@
             this.label3.TabIndex = 8;
             this.label3.Text = "Name:";
             // 
-            // txtManualServerName
-            // 
-            this.txtManualServerName.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::WinSIP2E.Properties.Settings.Default, "ServerCN", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
-            this.txtManualServerName.Enabled = false;
-            this.txtManualServerName.Location = new System.Drawing.Point(120, 74);
-            this.txtManualServerName.Name = "txtManualServerName";
-            this.txtManualServerName.Size = new System.Drawing.Size(214, 20);
-            this.txtManualServerName.TabIndex = 7;
-            this.txtManualServerName.Text = global::WinSIP2E.Properties.Settings.Default.ServerCN;
-            // 
             // gbClientSettings
             // 
             this.gbClientSettings.Controls.Add(this.textBox4);
             this.gbClientSettings.Controls.Add(this.label8);
             this.gbClientSettings.Controls.Add(this.cmdLoadCertificate);
-            this.gbClientSettings.Controls.Add(this.button1);
+            this.gbClientSettings.Controls.Add(this.cmdRequestCert);
             this.gbClientSettings.Controls.Add(this.textBox3);
             this.gbClientSettings.Controls.Add(this.label7);
             this.gbClientSettings.Controls.Add(this.txtMachineID);
@@ -228,14 +186,15 @@
             this.cmdLoadCertificate.Text = "Download Response";
             this.cmdLoadCertificate.UseVisualStyleBackColor = true;
             // 
-            // button1
+            // cmdRequestCert
             // 
-            this.button1.Location = new System.Drawing.Point(400, 85);
-            this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(117, 25);
-            this.button1.TabIndex = 13;
-            this.button1.Text = "Request Certificate";
-            this.button1.UseVisualStyleBackColor = true;
+            this.cmdRequestCert.Location = new System.Drawing.Point(400, 85);
+            this.cmdRequestCert.Name = "cmdRequestCert";
+            this.cmdRequestCert.Size = new System.Drawing.Size(117, 25);
+            this.cmdRequestCert.TabIndex = 13;
+            this.cmdRequestCert.Text = "Request Certificate";
+            this.cmdRequestCert.UseVisualStyleBackColor = true;
+            this.cmdRequestCert.Click += new System.EventHandler(this.cmdRequestCert_Click);
             // 
             // textBox3
             // 
@@ -287,6 +246,48 @@
             this.label5.TabIndex = 6;
             this.label5.Text = "Pin code:";
             // 
+            // chkOverrideName
+            // 
+            this.chkOverrideName.AutoSize = true;
+            this.chkOverrideName.Checked = global::WinSIP2E.Properties.Settings.Default.ManuallySetCN;
+            this.chkOverrideName.DataBindings.Add(new System.Windows.Forms.Binding("Checked", global::WinSIP2E.Properties.Settings.Default, "ManuallySetCN", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
+            this.chkOverrideName.Location = new System.Drawing.Point(354, 77);
+            this.chkOverrideName.Name = "chkOverrideName";
+            this.chkOverrideName.Size = new System.Drawing.Size(146, 17);
+            this.chkOverrideName.TabIndex = 9;
+            this.chkOverrideName.Text = "Manually set server name";
+            this.chkOverrideName.UseVisualStyleBackColor = true;
+            this.chkOverrideName.CheckedChanged += new System.EventHandler(this.chkOverrideName_CheckedChanged);
+            // 
+            // txtManualServerName
+            // 
+            this.txtManualServerName.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::WinSIP2E.Properties.Settings.Default, "ServerCN", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
+            this.txtManualServerName.Enabled = false;
+            this.txtManualServerName.Location = new System.Drawing.Point(120, 74);
+            this.txtManualServerName.Name = "txtManualServerName";
+            this.txtManualServerName.Size = new System.Drawing.Size(214, 20);
+            this.txtManualServerName.TabIndex = 7;
+            this.txtManualServerName.Text = global::WinSIP2E.Properties.Settings.Default.ServerCN;
+            // 
+            // txtServerAddress
+            // 
+            this.txtServerAddress.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::WinSIP2E.Properties.Settings.Default, "ServerAddress", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
+            this.txtServerAddress.Location = new System.Drawing.Point(120, 22);
+            this.txtServerAddress.Name = "txtServerAddress";
+            this.txtServerAddress.Size = new System.Drawing.Size(340, 20);
+            this.txtServerAddress.TabIndex = 5;
+            this.txtServerAddress.Text = global::WinSIP2E.Properties.Settings.Default.ServerAddress;
+            this.txtServerAddress.TextChanged += new System.EventHandler(this.txtServerAddress_TextChanged);
+            // 
+            // txtServerPort
+            // 
+            this.txtServerPort.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::WinSIP2E.Properties.Settings.Default, "ServerPort", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
+            this.txtServerPort.Location = new System.Drawing.Point(120, 48);
+            this.txtServerPort.Name = "txtServerPort";
+            this.txtServerPort.Size = new System.Drawing.Size(62, 20);
+            this.txtServerPort.TabIndex = 6;
+            this.txtServerPort.Text = global::WinSIP2E.Properties.Settings.Default.ServerPort;
+            // 
             // Settings
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -323,7 +324,7 @@
         private System.Windows.Forms.TextBox textBox4;
         private System.Windows.Forms.Label label8;
         private System.Windows.Forms.Button cmdLoadCertificate;
-        private System.Windows.Forms.Button button1;
+        private System.Windows.Forms.Button cmdRequestCert;
         private System.Windows.Forms.TextBox textBox3;
         private System.Windows.Forms.Label label7;
         private System.Windows.Forms.TextBox txtMachineID;
