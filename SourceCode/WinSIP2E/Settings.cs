@@ -70,5 +70,10 @@ namespace WinSIP2E
                 txtManualServerName.DataBindings.Add("Text", global::WinSIP2E.Properties.Settings.Default, "ServerAddress");
             }*/
         }
+
+        private void cmdRequestCert_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 }
