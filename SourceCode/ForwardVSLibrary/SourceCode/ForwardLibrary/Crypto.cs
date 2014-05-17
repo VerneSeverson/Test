@@ -249,6 +249,7 @@ namespace ForwardLibrary
             /// Load the response from the CA -- just the signed certificate, not the signers.
             /// </summary>
             /// <param name="pem_response">Signed certificate</param>
+            /// <param name="loc">Note that a service app can install to LocalMachine, while a regular app can only install to CurrentUser</param>
             /// <returns>The full certificate</returns>
             public static X509Certificate2 LoadResponse(string pem_response, StoreLocation loc)
             {
