@@ -555,7 +555,26 @@ namespace ForwardLibrary
                 return pem_strb.ToString();
             }
 
+            /// <summary>
+            /// Call this function to remove the attached certificate from the windows certificate store
+            /// </summary>
+            public void RemoveTheCert()
+            {
+                if (Certificate == null)
+                    throw new InvalidOperationException("There is currently no certificate.");
+                RemoveCert(Certificate, Location, StoreName.My);
+                
+            }
+
             #region Public static supporting functions
+            public static void RemoveCert(X509Certificate2 cert, StoreLocation location, StoreName name)
+            {
+                X509Store store = new X509Store(name, location);
+                store.Open(OpenFlags.ReadWrite);
+                store.Remove(cert);
+                store.Close();
+            }
+
             /// <summary>
             /// This function constructs the X509Chain for the primary_certificate from the signers passed in,
             /// ignoring any revoked certificates and key usage intentions. This can be used to verify that these
@@ -798,13 +817,7 @@ namespace ForwardLibrary
                 store.Close();
             }
 
-            protected void RemoveCert(X509Certificate2 cert, StoreLocation location, StoreName name)
-            {
-                X509Store store = new X509Store(name, location);
-                store.Open(OpenFlags.ReadWrite);
-                store.Remove(cert);
-                store.Close();
-            }
+            
 
             private void InstallCertificateChain(StoreLocation location, X509Certificate2Collection collection)
             {
