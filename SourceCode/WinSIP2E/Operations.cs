@@ -7,7 +7,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -16,11 +18,14 @@ namespace WinSIP2E
     namespace Operations
     {
 
-        abstract class Operation
+
+        abstract public class Operation
         {
+            
+
             protected object SyncObject = new object();
 
-            protected abstract TraceSource LogTS;
+            protected TraceSource LogTS;            
 
             public int LogID = 1000;
 
@@ -46,6 +51,12 @@ namespace WinSIP2E
             /// The current status of the operation (user-readable)
             /// </summary>
             public abstract string StatusMessage { get; }
+
+            /// <summary>
+            /// This is a short string describing the operation. 
+            /// It is used as the form text for OperationStatusDialog.
+            /// </summary>
+            public abstract string SubjectLine { get; }
 
             public enum CompletionCode
             {
@@ -81,6 +92,91 @@ namespace WinSIP2E
                 LogTS.TraceEvent(type, LogID, msg);
             }
 
+
+            #region classes for enum
+            protected class StatusCompletionPercent : System.Attribute
+            {
+                private int _value;
+
+                public StatusCompletionPercent(int value)
+                {
+                    _value = value;
+                }
+
+                public int Value
+                {
+                    get {return _value; }
+                }
+            }
+            protected class StatusOkMsg : System.Attribute
+            {
+                private string _value;
+
+                public StatusOkMsg(string value)
+                {
+                    _value = value;
+                }
+
+                public string Value
+                {
+                    get {return _value; }
+                }
+            }
+            protected class StatusErrorMsg : System.Attribute
+            {
+                private string _value;
+
+                public StatusErrorMsg(string value)
+                {
+                    _value = value;
+                }
+
+                public string Value
+                {
+                    get {return _value; }
+                }
+            }
+            protected static int GetStatusCompletionPercent(Enum value)
+            {
+                int output = 0;
+                Type type = value.GetType();
+                FieldInfo fi = type.GetField(value.ToString());
+                StatusCompletionPercent[] attrs = 
+                    fi.GetCustomAttributes(typeof(StatusCompletionPercent),
+                                   false) as StatusCompletionPercent[];
+                if(attrs.Length > 0)
+                    output = attrs[0].Value;
+
+                return output;
+            }
+            protected static string GetStatusOkMsg(Enum value)
+            {
+                string output = null;
+                Type type = value.GetType();
+                FieldInfo fi = type.GetField(value.ToString());
+                StatusOkMsg[] attrs = 
+                    fi.GetCustomAttributes(typeof(StatusOkMsg),
+                                   false) as StatusOkMsg[];
+                if(attrs.Length > 0)
+                    output = attrs[0].Value;
+
+                return output;
+            }
+            protected static string GetStatusErrorMsg(Enum value)
+            {
+                string output = null;
+                Type type = value.GetType();
+                FieldInfo fi = type.GetField(value.ToString());
+                StatusErrorMsg[] attrs = 
+                    fi.GetCustomAttributes(typeof(StatusErrorMsg),
+                                   false) as StatusErrorMsg[];
+                if(attrs.Length > 0)
+                    output = attrs[0].Value;
+
+                return output;
+            }
+            #endregion
+
         }
 
         public class RequestCertificate : Operation
@@ -103,20 +199,21 @@ namespace WinSIP2E
                         return true;
                 }
             }
-
-            private string __StatusMessage = "";
-            private string _StatusMessage
-            {
-                get { return __StatusMessage; }
-                set
-                {
-                    __StatusMessage = value;
-                    LogMsg(TraceEventType.Verbose, value);
-                }
-            }
+            
+            private string _StatusErrorMessage = null;            
             public override string StatusMessage
             {
-                get { return _StatusMessage; }
+                get { 
+                    if (_StatusErrorMessage == null)
+                        return GetStatusOkMsg(CurrentState); 
+                    else
+                        return _StatusErrorMessage;
+                }
+            }
+
+            public override string SubjectLine
+            {
+                get { return "Generating a certificate signing request..."; }
             }
 
             private CompletionCode _Status = CompletionCode.NotStarted;
@@ -124,16 +221,21 @@ namespace WinSIP2E
             {
                 get { return _Status; }
             }
+           
+            public override int StatusPercent { get { return GetStatusCompletionPercent(CurrentState); } }
 
-            private int _StatusPercent = 0;
-            public override int StatusPercent { get { return _StatusPercent; } }
+            private string _CertificateID;
+            public string CertificateID
+            {
+                get { return _CertificateID; }
+            }
 
             //Certificate fields
             public string Country = "US";
             public string State = "Minnesota";
             public string Locality = "Eden Prairie";
             public string Organization = "Forward Pay Systems, Inc.";
-            public string OrganizationalUnit = "Forward Pay";
+            public string OrganizationalUnit = "WinSIP";
 
             //private internal properties
             private string PinCode;
@@ -142,7 +244,21 @@ namespace WinSIP2E
             private int ServerPort;
             private WinSIPserver ServerHandler;
             private bool CloseUponCompletion = true;
-            private string CertificateID;
+            
+
+            private string CommonName = null;
+            private string CSR = null;
+            private WorkState _CurrentState = WorkState.Idle;
+            private WorkState CurrentState 
+            {
+                get { return _CurrentState;}
+                set 
+                {
+                    CheckUserCancel();
+                    _CurrentState = value;                    
+                    LogMsg(TraceEventType.Verbose, StatusMessage);
+                }
+            }
             #endregion
 
             #region API
@@ -179,9 +295,12 @@ namespace WinSIP2E
                 this.ServerPort = serverPort;            
             }
 
-            public override void Start()
-            {
+            private delegate void VoidDel();
 
+            public override void Start()
+            {                
+                VoidDel caller = this.DoTheWork;
+                caller.BeginInvoke(delegate(IAsyncResult arr) { caller.EndInvoke(arr); }, null);
             }
 
             public override void Cancel()
@@ -194,62 +313,59 @@ namespace WinSIP2E
             #endregion
 
             #region Main helper functions
+
             enum WorkState
             {
+                [StatusOkMsg("Preparing to start certificate generation operation."),
+                StatusErrorMsg("Failed to start certificate generation operation."),
+                StatusCompletionPercent(0)]
                 Idle,
+                [StatusOkMsg("Connecting to WinSIP server."),
+                StatusErrorMsg("Failed to connect to the WinSIP server."),
+                StatusCompletionPercent(1)]
                 ConnectToServer,
+                [StatusOkMsg("Obtaining a certificate ID."),
+                StatusErrorMsg("Failed to obtain a certificate ID from the WinSIP server."),
+                StatusCompletionPercent(25)]
                 ObtainCertID,
+                [StatusOkMsg("Generating a certificate signing request."),
+                StatusErrorMsg("Failed to generate a certificate signing request on the local PC."),
+                StatusCompletionPercent(50)]
                 GenerateCSR,
+                [StatusOkMsg("Uploading the certificate signing request."),
+                StatusErrorMsg("Failed to upload the certificate signing request to the WinSIP server."),
+                StatusCompletionPercent(75)]
                 UploadCSR,
+                [StatusOkMsg("Successfully generated and uploaded the request. The certificate must now be signed by a Forward Pay employee. \r\nPlease present the Certificate ID to a Forward Pay employee and follow their instructions to retrieve the signed certificate."),
+                StatusErrorMsg("Should not see this message."),
+                StatusCompletionPercent(100)]
                 Finish
             }
 
             private void DoTheWork()
             {
-                WorkState state = WorkState.Idle;
+                
                 try
                 {
                     //1. Connect to server if not already connected:   
-                    if (ServerHandler == null)
-                    {
-                        state = WorkState.ConnectToServer;
-                        _StatusMessage = "Connecting to WinSIP server.";
-                        ConnectToServer();
-                    }
-
-                    CheckUserCancel();
+                    CurrentState = WorkState.ConnectToServer;     
+                    if (ServerHandler == null)                                                               
+                        ConnectToServer();                                        
 
                     //2. Obtain a certificate ID:                                        
-                    state = WorkState.ObtainCertID;
-                    _StatusMessage = "Obtaining a certificate ID.";
-                    _StatusPercent = 25;
-                    ServerHandler.CID(PinCode, MachineID, out CertificateID);
-                    
-
-                    CheckUserCancel();
+                    CurrentState = WorkState.ObtainCertID;                                        
+                    ServerHandler.CID(PinCode, MachineID, out _CertificateID);                    
 
                     //3. Create a new certificate   
-                    state = WorkState.GenerateCSR;
-                    _StatusMessage = "Generating a certificate signing request.";
-                    _StatusPercent = 50;
-                    string CSR = GenerateCertificateRequest();
-
-                    CheckUserCancel();
+                    CurrentState = WorkState.GenerateCSR;
+                    CSR = GenerateCertificateRequest();                    
 
                     //4. Upload the certificate request
-                    state = WorkState.UploadCSR;
-                    _StatusMessage = "Uploading the certificate signing request.";
-                    _StatusPercent = 75;
+                    CurrentState = WorkState.UploadCSR;
                     ServerHandler.CCSR(CSR);
 
-                    CheckUserCancel();
-
                     //5. Done
-                    state = WorkState.Finish;
-                    _StatusMessage = "Successfully generated and uploaded request. Closing the connection to the server.";
-                    _StatusPercent = 100;
-
-                    CheckUserCancel();
+                    CurrentState = WorkState.Finish;
 
                     //6. Mark completed
                     _Status = CompletionCode.FinishedSuccess;
@@ -257,19 +373,17 @@ namespace WinSIP2E
                 }
                 catch (OperationCanceledException ex)
                 {
-                    //clean up in here: delete the CSR from the PC if created
+                    RemoveCSR(); //clean up in here: delete the CSR from the PC if created
+                    _StatusErrorMessage = "User canceled the operation.";
+                    _Status = CompletionCode.UserCancelFinish;
+                    LogMsg(TraceEventType.Verbose, ex.ToString());
                 }
                 catch (Exception ex)
                 {
-                    //clean up in here: delete the CSR from the PC if created
-                    switch(state)
-                    {
-                        case WorkState.ConnectToServer:
-                            _StatusMessage = "Failed to connect to the WinSIP server. Error: " + ex.Message;
-                            break;
-                        case WorkState.GenerateCSR
-                            _StatusMessage = "Failed to connect to the WinSIP server. Error: " + ex.Message;
-                    LogMsg(TraceEventType.Warning, e.ToString());
+                    RemoveCSR(); //clean up in here: delete the CSR from the PC if created
+                    _StatusErrorMessage = GetStatusErrorMsg(CurrentState) + " Error: " + ex.Message;
+                    _Status = CompletionCode.FinishedError;
+                    LogMsg(TraceEventType.Warning, ex.ToString());
                 }
                 finally
                 {
@@ -285,12 +399,49 @@ namespace WinSIP2E
             #endregion
 
             #region private helper functions
+            private void RemoveCSR()
+            {
+                X509Store store = null;
+                if (CSR != null)
+                {
+                    try
+                    {
+                        bool deleteSuccess = false;
+                        store = new X509Store("REQUEST", StoreLocation.CurrentUser);
+                        store.Open(OpenFlags.ReadWrite);
+                        foreach (X509Certificate2 cert in store.Certificates)
+                        {
+                            if (cert.GetNameInfo(X509NameType.SimpleName, false) ==
+                                CommonName)
+                            {
+                                store.Remove(cert);
+                                deleteSuccess = true;
+                                break;
+                            }
+                        }
+
+                        if (!deleteSuccess)
+                            LogMsg(TraceEventType.Warning, "Unable to delete the generated certificate request from the store because it could not be found. Expecting to find a certificate with this common name: " + CommonName);
+                    }
+                    catch (Exception e)
+                    {
+                        LogMsg(TraceEventType.Warning, "Failed to delete the generated certificate request from the store. Error: " + e.ToString());
+                    }
+                    finally
+                    {
+                        if (store != null)
+                        {
+                            try { store.Close(); }
+                            catch { }
+                        }
+                    }
+                }
+            }
 
             private void CheckUserCancel()
             {
                 if (Status == CompletionCode.UserCancelReq)
-                {
-                    _StatusMessage = "User canceled the operation.";
+                {                    
                     throw new OperationCanceledException("User canceled the operation");
                 }
             }
@@ -302,11 +453,11 @@ namespace WinSIP2E
 
             private string GenerateCertificateRequest()
             {
-                string commonName = "PIN" + PinCode + "-MID" + MachineID + "-CID" + CertificateID;
+                CommonName = "PIN" + PinCode + "-MID" + MachineID + "-CID" + CertificateID;
 
                 CCertificateRequest req = new CCertificateRequest
                 {
-                    CommonName = commonName,
+                    CommonName = this.CommonName,
                     Country = this.Country,
                     State = this.State,
                     Locality = this.Locality,
@@ -361,6 +512,136 @@ namespace WinSIP2E
 
             #endregion 
 
+        }
+
+        public class DownloadCertificate : Operation
+        {
+            #region properties
+            /// <summary>
+            /// Recommended interval to check Status in
+            /// milliseconds
+            /// </summary>
+            public override int RefreshInterval { get { return 100; } }
+
+            /// <summary>
+            /// Whether or not the operation can be canceled
+            /// </summary>
+            public override bool AllowCancel { get { return true; } }
+
+            /// <summary>
+            /// If this is set to true, it is requested that the user acknowledge
+            /// the final status message. (i.e. OperationStatusDialog should 
+            /// make the user press OK to close the dialog box)
+            /// </summary>
+            public override bool RequireUserOK
+            {
+                get
+                {
+                    if (Status != CompletionCode.FinishedError)
+                        return false;
+                    else
+                        return true;
+                }
+            }
+
+            private string _StatusErrorMessage = null;
+            public override string StatusMessage
+            {
+                get
+                {
+                    if (_StatusErrorMessage == null)
+                        return GetStatusOkMsg(CurrentState);
+                    else
+                        return _StatusErrorMessage;
+                }
+            }
+
+            public override string SubjectLine
+            {
+                get { return "Downloading signed certificate..."; }
+            }
+
+            private CompletionCode _Status = CompletionCode.NotStarted;
+            public override CompletionCode Status
+            {
+                get { return _Status; }
+            }
+
+            public override int StatusPercent { get { return GetStatusCompletionPercent(CurrentState); } }
+
+
+            private string PinCode;            
+            private string ServerAddress, ServerCN;
+            private int ServerPort;
+            private WinSIPserver ServerHandler;
+            private bool CloseUponCompletion = true;
+
+            private WorkState _CurrentState = WorkState.Idle;
+            private WorkState CurrentState
+            {
+                get { return _CurrentState; }
+                set
+                {
+                    CheckUserCancel();
+                    _CurrentState = value;
+                    LogMsg(TraceEventType.Verbose, StatusMessage);
+                }
+            }
+
+            #endregion
+            /// <summary>
+            /// Function to start the operation
+            /// Will throw InvalidOperation exception if Status != NotStarted
+            /// </summary>
+            public abstract void Start();
+
+            /// <summary>
+            /// Function to cancel the operation
+            /// Will throw InvalidOperation exception if Status != InProgress
+            /// OR if AllowCancel == false
+            /// </summary>
+            public abstract void Cancel();
+
+
+
+            enum WorkState
+            {
+                [StatusOkMsg("Preparing to start downloading the signed certificate."),
+                StatusErrorMsg("Failed to start downloading the signed certificate."),
+                StatusCompletionPercent(0)]
+                Idle,
+                [StatusOkMsg("Connecting to WinSIP server."),
+                StatusErrorMsg("Failed to connect to the WinSIP server."),
+                StatusCompletionPercent(1)]
+                ConnectToServer,
+                [StatusOkMsg("Downloading the certificate."),
+                StatusErrorMsg("Failed to download the certificate from the WinSIP server."),
+                StatusCompletionPercent(33)]
+                DownloadCert,
+                [StatusOkMsg("Installing the certificate."),
+                StatusErrorMsg("Failed to install the certificate on the local PC."),
+                StatusCompletionPercent(67)]
+                InstallCert,                
+                [StatusOkMsg("Successfully downloaded and installed the signed certificate."),
+                StatusErrorMsg("Should not see this message."),
+                StatusCompletionPercent(100)]
+                Finish
+            }
+
+            #region private helper functions
+            private void CheckUserCancel()
+            {
+                if (Status == CompletionCode.UserCancelReq)
+                {
+                    throw new OperationCanceledException("User canceled the operation");
+                }
+            }
+
+            private void CloseConnection()
+            {
+                ServerHandler.Dispose();
+            }
+            #endregion
         }
     }
 

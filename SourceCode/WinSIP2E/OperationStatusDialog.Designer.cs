@@ -44,12 +44,13 @@
             // 
             // cmdOKCancel
             // 
-            this.cmdOKCancel.Location = new System.Drawing.Point(147, 200);
+            this.cmdOKCancel.Location = new System.Drawing.Point(175, 208);
             this.cmdOKCancel.Name = "cmdOKCancel";
-            this.cmdOKCancel.Size = new System.Drawing.Size(116, 31);
+            this.cmdOKCancel.Size = new System.Drawing.Size(100, 23);
             this.cmdOKCancel.TabIndex = 1;
             this.cmdOKCancel.Text = "Cancel";
             this.cmdOKCancel.UseVisualStyleBackColor = true;
+            this.cmdOKCancel.Click += new System.EventHandler(this.cmdOKCancel_Click);
             // 
             // txtStatus
             // 
@@ -58,20 +59,25 @@
             this.txtStatus.Location = new System.Drawing.Point(28, 86);
             this.txtStatus.Multiline = true;
             this.txtStatus.Name = "txtStatus";
-            this.txtStatus.Size = new System.Drawing.Size(381, 84);
+            this.txtStatus.Size = new System.Drawing.Size(381, 102);
             this.txtStatus.TabIndex = 2;
             this.txtStatus.TextChanged += new System.EventHandler(this.txtStatus_TextChanged);
+            // 
+            // tmrCheckStatus
+            // 
+            this.tmrCheckStatus.Tick += new System.EventHandler(this.tmrCheckStatus_Tick);
             // 
             // OperationStatusDialog
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(433, 243);
+            this.ClientSize = new System.Drawing.Size(434, 243);
             this.Controls.Add(this.txtStatus);
             this.Controls.Add(this.cmdOKCancel);
             this.Controls.Add(this.prgProgressBar);
             this.Name = "OperationStatusDialog";
             this.Text = "OperationStatusDialog";
+            this.Load += new System.EventHandler(this.OperationStatusDialog_Load);
             this.ResumeLayout(false);
             this.PerformLayout();
 

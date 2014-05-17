@@ -47,6 +47,7 @@
             this.btnConnect = new System.Windows.Forms.Button();
             this.textBox1 = new System.Windows.Forms.TextBox();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.cmdSettings = new System.Windows.Forms.Button();
             this.label167 = new System.Windows.Forms.Label();
             this.label10 = new System.Windows.Forms.Label();
             this.label8 = new System.Windows.Forms.Label();
@@ -553,7 +554,7 @@
             this.label46 = new System.Windows.Forms.Label();
             this.cmdDisconnect = new System.Windows.Forms.Button();
             this.cmdLogOut = new System.Windows.Forms.Button();
-            this.cmdSettings = new System.Windows.Forms.Button();
+            this.cmdConsole = new System.Windows.Forms.Button();
             this.tabControl_Main.SuspendLayout();
             this.tabMainConnect.SuspendLayout();
             this.groupBox3.SuspendLayout();
@@ -804,6 +805,7 @@
             // 
             // groupBox1
             // 
+            this.groupBox1.Controls.Add(this.cmdConsole);
             this.groupBox1.Controls.Add(this.cmdSettings);
             this.groupBox1.Controls.Add(this.label167);
             this.groupBox1.Controls.Add(this.label10);
@@ -819,6 +821,16 @@
             this.groupBox1.TabIndex = 4;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Login";
+            // 
+            // cmdSettings
+            // 
+            this.cmdSettings.Location = new System.Drawing.Point(186, 107);
+            this.cmdSettings.Name = "cmdSettings";
+            this.cmdSettings.Size = new System.Drawing.Size(90, 22);
+            this.cmdSettings.TabIndex = 8;
+            this.cmdSettings.Text = "Settings";
+            this.cmdSettings.UseVisualStyleBackColor = true;
+            this.cmdSettings.Click += new System.EventHandler(this.cmdSettings_Click);
             // 
             // label167
             // 
@@ -5779,15 +5791,15 @@
             this.cmdLogOut.UseVisualStyleBackColor = true;
             this.cmdLogOut.Click += new System.EventHandler(this.cmdLogOut_Click);
             // 
-            // cmdSettings
+            // cmdConsole
             // 
-            this.cmdSettings.Location = new System.Drawing.Point(187, 113);
-            this.cmdSettings.Name = "cmdSettings";
-            this.cmdSettings.Size = new System.Drawing.Size(89, 22);
-            this.cmdSettings.TabIndex = 8;
-            this.cmdSettings.Text = "Settings";
-            this.cmdSettings.UseVisualStyleBackColor = true;
-            this.cmdSettings.Click += new System.EventHandler(this.cmdSettings_Click);
+            this.cmdConsole.Location = new System.Drawing.Point(186, 132);
+            this.cmdConsole.Name = "cmdConsole";
+            this.cmdConsole.Size = new System.Drawing.Size(90, 22);
+            this.cmdConsole.TabIndex = 9;
+            this.cmdConsole.Text = "Console";
+            this.cmdConsole.UseVisualStyleBackColor = true;
+            this.cmdConsole.Click += new System.EventHandler(this.cmdConsole_Click);
             // 
             // Home
             // 
@@ -6477,6 +6489,7 @@
         private System.Windows.Forms.Button button32;
         private System.Windows.Forms.Button button31;
         private System.Windows.Forms.Button cmdSettings;
+        private System.Windows.Forms.Button cmdConsole;
     }
 }
 

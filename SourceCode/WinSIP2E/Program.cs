@@ -1,4 +1,5 @@
 ﻿using ForwardLibrary.Communications;
+using ForwardLibrary.Log;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -11,8 +12,8 @@ namespace WinSIP2E
     static class Program
     {
         //Look at using this in ForwardLog object...
-        TraceSource WinSIP_TS = new TraceSource("WinSIP");        
-
+        public static TraceSource WinSIP_TS = new TraceSource("WinSIP");
+        
         /// <summary>
         /// The main entry point for the application.
         /// </summary>

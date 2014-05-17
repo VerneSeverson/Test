@@ -70,5 +70,17 @@ namespace WinSIP2E.Properties {
                 this["ManuallySetCN"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool ManuallySetPort {
+            get {
+                return ((bool)(this["ManuallySetPort"]));
+            }
+            set {
+                this["ManuallySetPort"] = value;
+            }
+        }
     }
 }

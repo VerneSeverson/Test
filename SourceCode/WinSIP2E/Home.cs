@@ -257,6 +257,12 @@ namespace WinSIP2E
             Settings frm = new Settings();
             frm.ShowDialog();
         }
+
+        private void cmdConsole_Click(object sender, EventArgs e)
+        {
+            frmConsole frm = new frmConsole();
+            frm.Show();
+        }
     }
 
 }

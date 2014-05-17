@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using WinSIP2E.Operations;
 
 namespace WinSIP2E
 {
@@ -35,6 +36,11 @@ namespace WinSIP2E
                 txtManualServerName.Enabled = true;
             else
                 txtManualServerName.Enabled = false;
+
+            if (WinSIP2E.Properties.Settings.Default.ManuallySetPort)
+                txtServerPort.Enabled = true;
+            else
+                txtServerPort.Enabled = false;
         }
 
         private void chkOverrideName_CheckedChanged(object sender, EventArgs e)
@@ -72,6 +78,41 @@ namespace WinSIP2E
         }
 
         private void cmdRequestCert_Click(object sender, EventArgs e)
+        {            
+             
+
+            RequestCertificate req = new RequestCertificate(txtPinCode.Text, txtMachineID.Text,
+                WinSIP2E.Properties.Settings.Default.ServerAddress, 
+                WinSIP2E.Properties.Settings.Default.ManuallySetCN ? WinSIP2E.Properties.Settings.Default.ServerCN : WinSIP2E.Properties.Settings.Default.ServerAddress,
+                WinSIP2E.Properties.Settings.Default.ManuallySetPort ? Convert.ToInt32(WinSIP2E.Properties.Settings.Default.ServerPort) : 1101, 
+                Program.WinSIP_TS);
+
+            req.State = txtState.Text;
+            req.Organization = txtCompany.Text;
+            req.Locality = txtCity.Text;
+            req.Country = txtCountry.Text;
+
+            OperationStatusDialog frm = new OperationStatusDialog();
+            frm.operation = req;
+            frm.ShowDialog();
+
+            txtStatus.Text = req.StatusMessage;
+            if (req.Status == Operation.CompletionCode.FinishedSuccess)
+            {
+                txtNewCertID.Text = req.CertificateID;
+                cmdRequestCert.Enabled = false;
+                cmdLoadCertificate.Enabled = true;
+                txtPinCode.Enabled = false;
+            }
+
+        }
+
+        private void chkOverridePort_CheckedChanged(object sender, EventArgs e)
+        {            
+            txtServerPort.Enabled = chkOverridePort.Checked;            
+        }
+
+        private void cmdLoadCertificate_Click(object sender, EventArgs e)
         {
 
         }
