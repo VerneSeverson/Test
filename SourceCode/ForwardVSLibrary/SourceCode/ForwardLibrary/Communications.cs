@@ -679,6 +679,8 @@ namespace ForwardLibrary
                         //any excption means that the SSL negotiation failed.
                         Client.Close();
                         Stream.Dispose();
+
+                        throw e;
                     }
                 }
                 //start reading immediately
