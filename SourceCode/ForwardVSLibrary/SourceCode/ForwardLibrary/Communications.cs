@@ -332,7 +332,7 @@ namespace ForwardLibrary
                     CStoredCertificate.ChainCertificateAndSigners(remoteCert, peerSigners, true);
                     signersOk = true;
                 }
-                catch (Exception e)
+                catch
                 {
                     signersOk = false;
                 }

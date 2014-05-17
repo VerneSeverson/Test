@@ -769,12 +769,13 @@ namespace ForwardLibrary
                     try
                     {
                         string[] Vals = resps[0].Split('=');
-                        if (Vals.Length != 2)
-                            throw new ResponseException("Invalid response received.", command, resps);                            
-                        
-                        string response = Vals[1].Trim();
+                        if (resps.Count != 1)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        string response = resps[0].Trim().Substring(5);             
+                                                
                         if (response == "C")
-                            throw new ResponseErrorCodeException("The certificate request is not ready to be downloaded.", command, resps);
+                            throw new ResponseErrorCodeException("The certificate request has not yet been uploaded. Please trye again later.", command, resps);
                         else if (response == "P")
                             throw new ResponseErrorCodeException("The pin code is invalid.", command, resps);
                         else if (response == "E")
@@ -862,12 +863,12 @@ namespace ForwardLibrary
                     try
                     {
                         string[] Vals = resps[0].Split('=');
-                        if (Vals.Length != 2)                        
-                            throw new ResponseException("Invalid response received.", command, resps);                            
-                        
-                        string response = Vals[1].Trim();
+                        if (resps.Count != 1)                        
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        string response = resps[0].Trim().Substring(5);
                         if (response == "C")
-                            throw new ResponseErrorCodeException("The certificate response is not ready to be downloaded.", command, resps);
+                            throw new ResponseErrorCodeException("The certificate request has not yet been signed. Please try again later.", command, resps);
                         else if (response == "P")
                             throw new ResponseErrorCodeException("The pin code is invalid.", command, resps);
                         else if (response == "E")
