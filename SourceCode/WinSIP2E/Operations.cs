@@ -87,11 +87,65 @@ namespace WinSIP2E
             /// </summary>
             public abstract void Cancel();
 
+            #region protected helper functions common to several operations
+            protected delegate void StartDel();
+
             virtual protected void LogMsg(TraceEventType type, string msg)
             {
                 LogTS.TraceEvent(type, LogID, msg);
             }
 
+            virtual protected WinSIPserver ConnectToServerOneWaySSL(string ServerAddress, int ServerPort, string ServerCN)
+            {
+                CommLogMessages CommMsgs = new CommLogMessages
+                {
+                    msgNewTCP_Client = "CONNECTED " + ServerAddress + ":" + ServerPort.ToString(),
+                    msgTCP_DisconnectWithReason = "DISCONNECTED",
+                    msgSuppressTCP_DisconnectReason = true
+                };
+
+                TCPconnManager cm = new TCPconnManager
+                {
+                    LogTrace = LogTS,
+                    logMsgs = CommMsgs,
+                    sslSettings = new SSL_Settings
+                    {
+                        peerName = ServerCN,
+                        protocolsAllowed = SslProtocols.Tls12,
+                        server = false
+                    }
+                };
+
+                StxEtxHandler connection = new StxEtxHandler(cm.ConnectToServer(ServerAddress, ServerPort), true);
+                return new WinSIPserver(connection, LogTS);
+            }
+
+            virtual protected WinSIPserver ConnectToServerTwoWaySSL(string ServerAddress, int ServerPort, string ServerCN, X509Certificate2 clientCert)
+            {
+                CommLogMessages CommMsgs = new CommLogMessages
+                {
+                    msgNewTCP_Client = "CONNECTED " + ServerAddress + ":" + ServerPort.ToString(),
+                    msgTCP_DisconnectWithReason = "DISCONNECTED",
+                    msgSuppressTCP_DisconnectReason = true
+                };
+
+                TCPconnManager cm = new TCPconnManager
+                {
+                    LogTrace = LogTS,
+                    logMsgs = CommMsgs,
+                    sslSettings = new SSL_Settings
+                    {
+                        peerName = ServerCN,
+                        protocolsAllowed = SslProtocols.Tls12,
+                        localCert = clientCert,
+                        server = false
+                    }
+                };
+
+                StxEtxHandler connection = new StxEtxHandler(cm.ConnectToServer(ServerAddress, ServerPort), true);
+                return new WinSIPserver(connection, LogTS);
+            }
+            #endregion
 
             #region classes for enum
             protected class StatusCompletionPercent : System.Attribute
@@ -293,13 +347,11 @@ namespace WinSIP2E
                 this.ServerAddress = serverAddress;
                 this.ServerCN = serverCN;
                 this.ServerPort = serverPort;            
-            }
-
-            private delegate void VoidDel();
+            }            
 
             public override void Start()
-            {                
-                VoidDel caller = this.DoTheWork;
+            {
+                StartDel caller = this.DoTheWork;
                 caller.BeginInvoke(delegate(IAsyncResult arr) { caller.EndInvoke(arr); }, null);
             }
 
@@ -308,7 +360,48 @@ namespace WinSIP2E
                 _Status = CompletionCode.UserCancelReq;
             }
 
-            
+            /// <summary>
+            /// Call this function to remove a certificate signing request from the windows 
+            /// certificate store
+            /// </summary>
+            public void RemoveCSR()
+            {
+                X509Store store = null;
+                if (CSR != null)
+                {
+                    try
+                    {
+                        bool deleteSuccess = false;
+                        store = new X509Store("REQUEST", StoreLocation.CurrentUser);
+                        store.Open(OpenFlags.ReadWrite);
+                        foreach (X509Certificate2 cert in store.Certificates)
+                        {
+                            if (cert.GetNameInfo(X509NameType.SimpleName, false) ==
+                                CommonName)
+                            {
+                                store.Remove(cert);
+                                deleteSuccess = true;
+                                break;
+                            }
+                        }
+
+                        if (!deleteSuccess)
+                            LogMsg(TraceEventType.Warning, "Unable to delete the generated certificate request from the store because it could not be found. Expecting to find a certificate with this common name: " + CommonName);
+                    }
+                    catch (Exception e)
+                    {
+                        LogMsg(TraceEventType.Warning, "Failed to delete the generated certificate request from the store. Error: " + e.ToString());
+                    }
+                    finally
+                    {
+                        if (store != null)
+                        {
+                            try { store.Close(); }
+                            catch { }
+                        }
+                    }
+                }
+            }
 
             #endregion
 
@@ -349,8 +442,8 @@ namespace WinSIP2E
                 {
                     //1. Connect to server if not already connected:   
                     CurrentState = WorkState.ConnectToServer;     
-                    if (ServerHandler == null)                                                               
-                        ConnectToServer();                                        
+                    if (ServerHandler == null)
+                        ServerHandler = ConnectToServerOneWaySSL(ServerAddress, ServerPort, ServerCN);                                
 
                     //2. Obtain a certificate ID:                                        
                     CurrentState = WorkState.ObtainCertID;                                        
@@ -381,7 +474,7 @@ namespace WinSIP2E
                 catch (Exception ex)
                 {
                     RemoveCSR(); //clean up in here: delete the CSR from the PC if created
-                    _StatusErrorMessage = GetStatusErrorMsg(CurrentState) + " Error: " + ex.Message;
+                    _StatusErrorMessage = GetStatusErrorMsg(CurrentState) + " " + ex.Message;
                     _Status = CompletionCode.FinishedError;
                     LogMsg(TraceEventType.Warning, ex.ToString());
                 }
@@ -399,44 +492,7 @@ namespace WinSIP2E
             #endregion
 
             #region private helper functions
-            private void RemoveCSR()
-            {
-                X509Store store = null;
-                if (CSR != null)
-                {
-                    try
-                    {
-                        bool deleteSuccess = false;
-                        store = new X509Store("REQUEST", StoreLocation.CurrentUser);
-                        store.Open(OpenFlags.ReadWrite);
-                        foreach (X509Certificate2 cert in store.Certificates)
-                        {
-                            if (cert.GetNameInfo(X509NameType.SimpleName, false) ==
-                                CommonName)
-                            {
-                                store.Remove(cert);
-                                deleteSuccess = true;
-                                break;
-                            }
-                        }
-
-                        if (!deleteSuccess)
-                            LogMsg(TraceEventType.Warning, "Unable to delete the generated certificate request from the store because it could not be found. Expecting to find a certificate with this common name: " + CommonName);
-                    }
-                    catch (Exception e)
-                    {
-                        LogMsg(TraceEventType.Warning, "Failed to delete the generated certificate request from the store. Error: " + e.ToString());
-                    }
-                    finally
-                    {
-                        if (store != null)
-                        {
-                            try { store.Close(); }
-                            catch { }
-                        }
-                    }
-                }
-            }
+            
 
             private void CheckUserCancel()
             {
@@ -448,7 +504,9 @@ namespace WinSIP2E
 
             private void CloseConnection()
             {
-                ServerHandler.Dispose();
+                if (ServerHandler != null)
+                    ServerHandler.Dispose();
+                ServerHandler = null;
             }
 
             private string GenerateCertificateRequest()
@@ -466,32 +524,7 @@ namespace WinSIP2E
                 };
 
                 return req.GenerateRequest();
-            }
-
-            private void ConnectToServer()
-            {                
-                CommLogMessages CommMsgs = new CommLogMessages
-                {
-                    msgNewTCP_Client = "CONNECTED " + ServerAddress + ":" + ServerPort.ToString(),
-                    msgTCP_DisconnectWithReason = "DISCONNECTED",
-                    msgSuppressTCP_DisconnectReason = true
-                };
-
-                TCPconnManager cm = new TCPconnManager
-                {
-                    LogTrace = LogTS,
-                    logMsgs = CommMsgs,
-                    sslSettings = new SSL_Settings
-                    {
-                        peerName = ServerCN,
-                        protocolsAllowed = SslProtocols.Tls12,
-                        server = false
-                    }
-                };
-
-                StxEtxHandler connection = new StxEtxHandler(cm.ConnectToServer(ServerAddress, ServerPort), true);
-                ServerHandler = new WinSIPserver(connection, LogTS);
-            }
+            }            
 
 
             private void SetUpBasicFields(string pinCode, string machineID, TraceSource LogTS)
@@ -570,11 +603,13 @@ namespace WinSIP2E
             public override int StatusPercent { get { return GetStatusCompletionPercent(CurrentState); } }
 
 
-            private string PinCode;            
+            private string PinCode;
+            private string CertificateID;
             private string ServerAddress, ServerCN;
             private int ServerPort;
             private WinSIPserver ServerHandler;
             private bool CloseUponCompletion = true;
+            private string cert;
 
             private WorkState _CurrentState = WorkState.Idle;
             private WorkState CurrentState
@@ -593,17 +628,59 @@ namespace WinSIP2E
             /// Function to start the operation
             /// Will throw InvalidOperation exception if Status != NotStarted
             /// </summary>
-            public abstract void Start();
+            public override void Start()
+            {
+                StartDel caller = this.DoTheWork;
+                caller.BeginInvoke(delegate(IAsyncResult arr) { caller.EndInvoke(arr); }, null);
+            }            
 
             /// <summary>
             /// Function to cancel the operation
             /// Will throw InvalidOperation exception if Status != InProgress
             /// OR if AllowCancel == false
             /// </summary>
-            public abstract void Cancel();
+            public override void Cancel()
+            {
+                _Status = CompletionCode.UserCancelReq;
+            }
+
+            #region constructors
+            /// <summary>
+            /// Possible exceptions:
+            /// ArgumentException
+            /// </summary>
+            /// <param name="pinCode"></param>
+            /// <param name="machineID"></param>
+            /// <param name="serverHandler">A server command handler object.</param>
+            /// <param name="closeUponCompletion">Optional. Set to true if the command handler should be closed upon operation completion.</param>
+            public DownloadCertificate(string pinCode, string certificateID, WinSIPserver serverHandler, bool closeUponCompletion = false, TraceSource LogTS = null)
+            {
+                SetUpBasicFields(pinCode, certificateID, LogTS);
+                this.ServerHandler = serverHandler;
+                CloseUponCompletion = closeUponCompletion;
+            }
+
+            /// <summary>
+            /// Possible exceptions:
+            /// ArgumentException
+            /// </summary>
+            /// <param name="pinCode"></param>
+            /// <param name="machineID"></param>
+            /// <param name="serverAddress">A URL of the server to connect to.</param>            
+            /// <param name="serverCN">The common name of the server's certificate.</param>            
+            /// <param name="serverPort">The common name of the server's certificate.</param>            
+            public DownloadCertificate(string pinCode, string certificateID, string serverAddress, string serverCN, int serverPort, TraceSource LogTS = null)
+            {
+                SetUpBasicFields(pinCode, certificateID, LogTS);
+                this.ServerAddress = serverAddress;
+                this.ServerCN = serverCN;
+                this.ServerPort = serverPort;            
+            }
 
 
+            #endregion
 
+            #region main working functions
             enum WorkState
             {
                 [StatusOkMsg("Preparing to start downloading the signed certificate."),
@@ -628,18 +705,102 @@ namespace WinSIP2E
                 Finish
             }
 
+            private void DoTheWork()
+            {
+
+                try
+                {
+                    //1. Connect to server if not already connected:   
+                    CurrentState = WorkState.ConnectToServer;
+                    if (ServerHandler == null)
+                        ServerHandler = ConnectToServerOneWaySSL(ServerAddress, ServerPort, ServerCN);
+
+                    //2. Obtain a certificate ID:                                        
+                    CurrentState = WorkState.DownloadCert;
+                    ServerHandler.CDCC(PinCode, CertificateID, out cert);                    
+
+                    //3. Create a new certificate   
+                    CurrentState = WorkState.InstallCert;
+                    InstallResponse();
+                    
+
+                    //4. Done
+                    CurrentState = WorkState.Finish;
+
+                    //5. Mark completed
+                    _Status = CompletionCode.FinishedSuccess;
+
+                }
+                catch (OperationCanceledException ex)
+                {
+                    //I don't think we need to delete the CSR?
+                    _StatusErrorMessage = "User canceled the operation.";
+                    _Status = CompletionCode.UserCancelFinish;
+                    LogMsg(TraceEventType.Verbose, ex.ToString());
+                }
+                catch (Exception ex)
+                {
+                    //I don't think we need to delete the CSR?
+                    _StatusErrorMessage = GetStatusErrorMsg(CurrentState) + " " + ex.Message;
+                    _Status = CompletionCode.FinishedError;
+                    LogMsg(TraceEventType.Warning, ex.ToString());
+                }
+                finally
+                {
+                    try
+                    {
+                        if (CloseUponCompletion)
+                            CloseConnection();
+                    }
+                    catch { }   //don't care if this fails.
+                }
+            }
+            #endregion
+
+
             #region private helper functions
+
+            private void InstallResponse()
+            {
+                try
+                {
+                    CCertificateRequest.LoadResponse(cert, StoreLocation.CurrentUser);
+                }
+                catch (Exception ex)
+                {
+                    if (ex.Message.Contains("0x80092004"))  //error code for now pending request
+                        throw new InvalidOperationException("No request is pending for this certificate ID. \r\nPlease create a new request and try again.", ex);
+
+                    throw ex;
+                }
+            }
             private void CheckUserCancel()
             {
-                if (Status == CompletionCode.UserCancelReq)
-                {
-                    throw new OperationCanceledException("User canceled the operation");
-                }
+                if (Status == CompletionCode.UserCancelReq)                
+                    throw new OperationCanceledException("User canceled the operation");                
             }
 
             private void CloseConnection()
             {
-                ServerHandler.Dispose();
+                if (ServerHandler != null)
+                    ServerHandler.Dispose();
+                ServerHandler = null;
+            }
+
+            private void SetUpBasicFields(string pinCode, string certificateID, TraceSource LogTS)
+            {
+                if (certificateID.Length != CertificateRequestTable.CertificateID_Len)
+                    throw new ArgumentException("Argument is incorrect length.", "certificateID");
+                if (pinCode.Length != CertificateRequestTable.PinCodeLen)
+                    throw new ArgumentException("Argument is incorrect length.", "pinCode");
+
+                this.PinCode = pinCode;
+                this.CertificateID = certificateID;
+
+                if (LogTS != null)
+                    this.LogTS = LogTS;
+                else
+                    this.LogTS = new TraceSource("DummyTS");
             }
             #endregion
         }

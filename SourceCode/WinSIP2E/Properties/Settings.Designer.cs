@@ -82,5 +82,17 @@ namespace WinSIP2E.Properties {
                 this["ManuallySetPort"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string CertificateID {
+            get {
+                return ((string)(this["CertificateID"]));
+            }
+            set {
+                this["CertificateID"] = value;
+            }
+        }
     }
 }

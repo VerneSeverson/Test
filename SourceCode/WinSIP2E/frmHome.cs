@@ -10,9 +10,9 @@ using System.Windows.Forms;
 
 namespace WinSIP2E
 {
-    public partial class Home : Form
+    public partial class frmHome : Form
     {
-        public Home()
+        public frmHome()
         {
             InitializeComponent();
             //
@@ -101,9 +101,9 @@ namespace WinSIP2E
 
         }
 
-        private void Form1_Load(object sender, EventArgs e)
+        private void frmHome_Load(object sender, EventArgs e)
         {
-
+            Program.UpdateCertificate();
         }
 
         override protected void OnClosing(CancelEventArgs e)
@@ -254,7 +254,7 @@ namespace WinSIP2E
 
         private void cmdSettings_Click(object sender, EventArgs e)
         {
-            Settings frm = new Settings();
+            frmSettings frm = new frmSettings();
             frm.ShowDialog();
         }
 

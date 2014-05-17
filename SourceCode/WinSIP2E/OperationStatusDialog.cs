@@ -62,6 +62,7 @@ namespace WinSIP2E
                     cmdOKCancel.Enabled = true;
                     cmdOKCancel.Text = "OK";
                     tmrCheckStatus.Enabled = false;
+                    prgProgressBar.Value = 100;                    
                 }
                 else
                     this.Close();
