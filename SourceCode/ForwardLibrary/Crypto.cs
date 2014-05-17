@@ -556,7 +556,26 @@ namespace ForwardLibrary
                 return pem_strb.ToString();
             }
 
+            /// <summary>
+            /// Call this function to remove the attached certificate from the windows certificate store
+            /// </summary>
+            public void RemoveTheCert()
+            {
+                if (Certificate == null)
+                    throw new InvalidOperationException("There is currently no certificate.");
+                RemoveCert(Certificate, Location, StoreName.My);
+                
+            }
+
             #region Public static supporting functions
+            public static void RemoveCert(X509Certificate2 cert, StoreLocation location, StoreName name)
+            {
+                X509Store store = new X509Store(name, location);
+                store.Open(OpenFlags.ReadWrite);
+                store.Remove(cert);
+                store.Close();
+            }
+
             /// <summary>
             /// This function constructs the X509Chain for the primary_certificate from the signers passed in,
             /// ignoring any revoked certificates and key usage intentions. This can be used to verify that these
@@ -647,7 +666,7 @@ namespace ForwardLibrary
                 X509Certificate2Collection collection = new X509Certificate2Collection();
 
                 string[] lines;
-                PEM_string.Replace("\r\n", "\n");
+                PEM_string = PEM_string.Replace("\r\n", "\n");
                 lines = PEM_string.Split('\n');
 
                 StringBuilder strCertB = new StringBuilder();
@@ -679,6 +698,31 @@ namespace ForwardLibrary
             }
 
             /// <summary>
+            /// This function takes a certificate signing request in a PEM file 
+            /// (in a string format) and returns an X509Certificate2 object.
+            /// </summary>
+            /// <param name="PEM_string"></param>
+            /// <returns></returns>
+            public static X509Certificate2 GetCertificateReqFromPEM(string PEM_string)
+            {
+                PEM_string = PEM_string.Replace("CERTIFICATE REQUEST", "CERTIFICATE");
+                X509Certificate2Collection collection = GetCertCollectionFromPEM(PEM_string);
+                return collection[0];
+            }
+
+            /// <summary>
+            /// This function takes a certificate in a PEM file (in a string 
+            /// format) and returns an X509Certificate2 object.
+            /// </summary>
+            /// <param name="PEM_string"></param>
+            /// <returns></returns>
+            public static X509Certificate2 GetCertificateFromPEM(string PEM_string)
+            {
+                X509Certificate2Collection collection = GetCertCollectionFromPEM(PEM_string);
+                return collection[0];
+            }
+
+            /// <summary>
             /// Export the public portion of a certificate to a PEM string.
             /// </summary>
             /// <param name="cert"></param>
@@ -694,6 +738,25 @@ namespace ForwardLibrary
 
                 return builder.ToString();
             }
+
+            /// <summary>
+            /// Export the public portion of a certificate request to a PEM string.
+            /// </summary>
+            /// <param name="cert"></param>
+            /// <returns></returns>
+            public static string ExportCertificateRequestToPEM(X509Certificate req)
+            {
+                StringBuilder builder = new StringBuilder();
+
+                builder.AppendLine("-----BEGIN CERTIFICATE REQUEST-----");
+                //specify X509ContentType.Cert to get only the public key
+                builder.AppendLine(Convert.ToBase64String(req.Export(X509ContentType.Cert), Base64FormattingOptions.InsertLineBreaks));
+                builder.Append("-----END CERTIFICATE REQUEST-----");
+
+                return builder.ToString();
+            }
+
+            
 
             /// <summary>
             /// This is a way to get a regular string into a secure string
@@ -755,13 +818,7 @@ namespace ForwardLibrary
                 store.Close();
             }
 
-            protected void RemoveCert(X509Certificate2 cert, StoreLocation location, StoreName name)
-            {
-                X509Store store = new X509Store(name, location);
-                store.Open(OpenFlags.ReadWrite);
-                store.Remove(cert);
-                store.Close();
-            }
+            
 
             private void InstallCertificateChain(StoreLocation location, X509Certificate2Collection collection)
             {
@@ -804,5 +861,7 @@ namespace ForwardLibrary
             }
             #endregion
         }
+
+
     }
 }
