@@ -1,6 +1,6 @@
 ﻿namespace WinSIP2E
 {
-    partial class Home
+    partial class frmHome
     {
         /// <summary>
         /// Required designer variable.
@@ -28,7 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Home));
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(frmHome));
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
             this.txtUsername = new System.Windows.Forms.TextBox();
@@ -47,6 +47,8 @@
             this.btnConnect = new System.Windows.Forms.Button();
             this.textBox1 = new System.Windows.Forms.TextBox();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.cmdConsole = new System.Windows.Forms.Button();
+            this.cmdSettings = new System.Windows.Forms.Button();
             this.label167 = new System.Windows.Forms.Label();
             this.label10 = new System.Windows.Forms.Label();
             this.label8 = new System.Windows.Forms.Label();
@@ -803,6 +805,8 @@
             // 
             // groupBox1
             // 
+            this.groupBox1.Controls.Add(this.cmdConsole);
+            this.groupBox1.Controls.Add(this.cmdSettings);
             this.groupBox1.Controls.Add(this.label167);
             this.groupBox1.Controls.Add(this.label10);
             this.groupBox1.Controls.Add(this.label8);
@@ -817,6 +821,26 @@
             this.groupBox1.TabIndex = 4;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Login";
+            // 
+            // cmdConsole
+            // 
+            this.cmdConsole.Location = new System.Drawing.Point(186, 132);
+            this.cmdConsole.Name = "cmdConsole";
+            this.cmdConsole.Size = new System.Drawing.Size(90, 22);
+            this.cmdConsole.TabIndex = 9;
+            this.cmdConsole.Text = "Console";
+            this.cmdConsole.UseVisualStyleBackColor = true;
+            this.cmdConsole.Click += new System.EventHandler(this.cmdConsole_Click);
+            // 
+            // cmdSettings
+            // 
+            this.cmdSettings.Location = new System.Drawing.Point(186, 107);
+            this.cmdSettings.Name = "cmdSettings";
+            this.cmdSettings.Size = new System.Drawing.Size(90, 22);
+            this.cmdSettings.TabIndex = 8;
+            this.cmdSettings.Text = "Settings";
+            this.cmdSettings.UseVisualStyleBackColor = true;
+            this.cmdSettings.Click += new System.EventHandler(this.cmdSettings_Click);
             // 
             // label167
             // 
@@ -844,7 +868,7 @@
             // 
             this.label8.AutoSize = true;
             this.label8.BackColor = System.Drawing.SystemColors.Info;
-            this.label8.Location = new System.Drawing.Point(50, 112);
+            this.label8.Location = new System.Drawing.Point(8, 112);
             this.label8.Name = "label8";
             this.label8.Size = new System.Drawing.Size(192, 26);
             this.label8.TabIndex = 5;
@@ -5777,7 +5801,7 @@
             this.cmdLogOut.UseVisualStyleBackColor = true;
             this.cmdLogOut.Click += new System.EventHandler(this.cmdLogOut_Click);
             // 
-            // Home
+            // frmHome
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
@@ -5796,9 +5820,9 @@
             this.Controls.Add(this.label4);
             this.Controls.Add(this.label3);
             this.Controls.Add(this.tabControl_Main);
-            this.Name = "Home";
+            this.Name = "frmHome";
             this.Text = "WinSIP-IP  Version 1.0.0.0";
-            this.Load += new System.EventHandler(this.Form1_Load);
+            this.Load += new System.EventHandler(this.frmHome_Load);
             this.tabControl_Main.ResumeLayout(false);
             this.tabMainConnect.ResumeLayout(false);
             this.groupBox3.ResumeLayout(false);
@@ -6464,6 +6488,8 @@
         private System.Windows.Forms.GroupBox groupBox47;
         private System.Windows.Forms.Button button32;
         private System.Windows.Forms.Button button31;
+        private System.Windows.Forms.Button cmdSettings;
+        private System.Windows.Forms.Button cmdConsole;
     }
 }
 

@@ -332,7 +332,7 @@ namespace ForwardLibrary
                     CStoredCertificate.ChainCertificateAndSigners(remoteCert, peerSigners, true);
                     signersOk = true;
                 }
-                catch (Exception e)
+                catch
                 {
                     signersOk = false;
                 }
@@ -583,6 +583,8 @@ namespace ForwardLibrary
             public DateTime lastSent = DateTime.Now;
             public CommLogMessages logMsgs;
 
+            public Stream Stream;
+
             protected int _ConnectionID;
             public int ConnectionID { get { return _ConnectionID;  } }
 
@@ -616,8 +618,7 @@ namespace ForwardLibrary
             
 
             public TcpClient Client;
-            //public NetworkStream Stream;
-            public Stream Stream;
+            //public NetworkStream Stream;            
             
             
 
@@ -678,6 +679,8 @@ namespace ForwardLibrary
                         //any excption means that the SSL negotiation failed.
                         Client.Close();
                         Stream.Dispose();
+
+                        throw e;
                     }
                 }
                 //start reading immediately
