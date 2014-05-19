@@ -1597,7 +1597,7 @@ namespace ForwardLibrary
             public class Entry
             {
                 
-                protected TimeSpan PinLifeTime = new TimeSpan(2, 0, 0);                
+                protected TimeSpan PinLifeTime = new TimeSpan(24, 0, 0);  //temporarily make this 24 hours for diagnostic purposes              
 
                 #region Properties
                 protected X509Certificate2 __SignedCertificate = null;
