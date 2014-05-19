@@ -1751,11 +1751,11 @@ namespace ForwardLibrary
                     try
                     {
                         //X509Certificate2 tempCert = CStoredCertificate.GetCertificateReqFromPEM(certReq);
-                        CX509CertificateRequestPkcs10 request;
+                        IX509CertificateRequestPkcs10 request;
                         string subject;
                         try
-                        {
-                            request = new CX509CertificateRequestPkcs10();
+                        {                            
+                            request = (IX509CertificateRequestPkcs10)Activator.CreateInstance(Type.GetTypeFromProgID("X509Enrollment.CX509CertificateRequestPkcs10")); //new CX509CertificateRequestPkcs10();
                             request.InitializeDecode(certReq, EncodingType.XCN_CRYPT_STRING_BASE64_ANY);
                             request.CheckSignature();
                             subject = ((CX500DistinguishedName)request.Subject).Name;
