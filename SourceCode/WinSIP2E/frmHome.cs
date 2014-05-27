@@ -1,4 +1,6 @@
-﻿using System;
+﻿using ForwardLibrary.Communications.CommandHandlers;
+using ForwardLibrary.Crypto;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -7,11 +9,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using WinSIP2E.Operations;
 
 namespace WinSIP2E
 {
     public partial class frmHome : Form
     {
+        WinSIPserver activeConnection = null;
+
         public frmHome()
         {
             InitializeComponent();
@@ -92,11 +97,6 @@ namespace WinSIP2E
         }
 
         private void label2_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void button1_Click(object sender, EventArgs e)
         {
 
         }
@@ -262,6 +262,41 @@ namespace WinSIP2E
         {
             frmConsole frm = new frmConsole();
             frm.Show();
+        }
+
+        private void cmdLogIn_click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (activeConnection != null)
+                {
+                    try
+                    {
+                        activeConnection.Dispose();
+                    }
+                    catch { }
+                    activeConnection = null;
+                }
+
+                LoginToServer login = new LoginToServer(txtUsername.Text, CStoredCertificate.MakeSecureString(txtPassword.Text),
+                    WinSIP2E.Properties.Settings.Default.ServerAddress,
+                    WinSIP2E.Properties.Settings.Default.ManuallySetCN ? WinSIP2E.Properties.Settings.Default.ServerCN : WinSIP2E.Properties.Settings.Default.ServerAddress,
+                    WinSIP2E.Properties.Settings.Default.ManuallySetPort ? Convert.ToInt32(WinSIP2E.Properties.Settings.Default.ServerPort) : 1102,
+                    Program.WinSIP_Cert, Program.WinSIP_TS);
+
+                OperationStatusDialog frm = new OperationStatusDialog();
+                frm.operation = login;
+                frm.ShowDialog();
+                if (login.Status == Operation.CompletionCode.FinishedSuccess)
+                {
+                    activeConnection = login.ServerConnection;
+                    cmdLogIn.Enabled = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("An unexpected error occured: \r\n\r\n" + ex.ToString());
+            }
         }
     }
 

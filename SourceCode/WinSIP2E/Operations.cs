@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
+using System.Security;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -801,6 +802,248 @@ namespace WinSIP2E
                     this.LogTS = LogTS;
                 else
                     this.LogTS = new TraceSource("DummyTS");
+            }
+            #endregion
+        }
+
+        public class LoginToServer : Operation
+        {
+            #region Properties
+            /// <summary>
+            /// Recommended interval to check Status in
+            /// milliseconds
+            /// </summary>
+            public override int RefreshInterval { get { return 100; } }
+
+            /// <summary>
+            /// Whether or not the operation can be canceled
+            /// </summary>
+            public override bool AllowCancel { get { return true; } }
+
+            /// <summary>
+            /// If this is set to true, it is requested that the user acknowledge
+            /// the final status message. (i.e. OperationStatusDialog should 
+            /// make the user press OK to close the dialog box)
+            /// </summary>
+            public override bool RequireUserOK
+            {
+                get
+                {
+                    if (Status != CompletionCode.FinishedError)
+                        return false;
+                    else
+                        return true;
+                }
+            }
+
+            private string _StatusErrorMessage = null;
+            public override string StatusMessage
+            {
+                get
+                {
+                    if (_StatusErrorMessage == null)
+                        return GetStatusOkMsg(CurrentState);
+                    else
+                        return _StatusErrorMessage;
+                }
+            }
+
+            public override string SubjectLine
+            {
+                get { return "Connecting to server..."; }
+            }
+            
+
+            private CompletionCode _Status = CompletionCode.NotStarted;
+            public override CompletionCode Status
+            {
+                get { return _Status; }
+            }
+
+            public override int StatusPercent { get { return GetStatusCompletionPercent(CurrentState); } }
+
+            private WinSIPserver ServerHandler;
+
+            public WinSIPserver ServerConnection
+            {
+                get
+                {
+                    if (ReceivedServerHandler)
+                        return ServerHandler;
+                    else if (Status == CompletionCode.FinishedSuccess)
+                        return ServerHandler;
+                    else
+                        return null;
+                }
+            }
+            
+            private string ServerAddress, ServerCN;
+            private int ServerPort;
+            private CStoredCertificate ServerCert; 
+            
+            private bool ReceivedServerHandler = false; //set to true if the ServerHandler was passed in via the constructor (then we won't close the connection upon an operation failure)
+
+            private string UserName;
+            private SecureString Password;
+
+            private WorkState _CurrentState = WorkState.Idle;
+            private WorkState CurrentState
+            {
+                get { return _CurrentState; }
+                set
+                {
+                    CheckUserCancel();
+                    _CurrentState = value;
+                    LogMsg(TraceEventType.Verbose, StatusMessage);
+                }
+            }
+
+            #endregion
+
+            /// <summary>
+            /// Function to start the operation
+            /// Will throw InvalidOperation exception if Status != NotStarted
+            /// </summary>
+            public override void Start()
+            {
+                StartDel caller = this.DoTheWork;
+                caller.BeginInvoke(delegate(IAsyncResult arr) { caller.EndInvoke(arr); }, null);
+            }
+
+            /// <summary>
+            /// Function to cancel the operation
+            /// Will throw InvalidOperation exception if Status != InProgress
+            /// OR if AllowCancel == false
+            /// </summary>
+            public override void Cancel()
+            {
+                _Status = CompletionCode.UserCancelReq;
+            }
+
+            #region constructors
+            /// <summary>
+            /// Possible exceptions:
+            /// ArgumentException
+            /// </summary>
+            /// <param name="pinCode"></param>
+            /// <param name="machineID"></param>
+            /// <param name="serverHandler">A server command handler object.</param>
+            /// <param name="closeUponCompletion">Optional. Set to true if the command handler should be closed upon operation completion.</param>
+            public LoginToServer(string userName, SecureString password, WinSIPserver serverHandler, TraceSource LogTS = null)
+            {
+                SetUpBasicFields(userName, password, LogTS);
+                this.ServerHandler = serverHandler;
+                ReceivedServerHandler = true;
+            }
+
+            /// <summary>
+            /// Possible exceptions:
+            /// ArgumentException
+            /// </summary>
+            /// <param name="pinCode"></param>
+            /// <param name="machineID"></param>
+            /// <param name="serverAddress">A URL of the server to connect to.</param>            
+            /// <param name="serverCN">The common name of the server's certificate.</param>            
+            /// <param name="serverPort">The common name of the server's certificate.</param>            
+            public LoginToServer(string userName, SecureString password, string serverAddress, string serverCN, int serverPort, CStoredCertificate serverCert, TraceSource LogTS = null)
+            {
+                SetUpBasicFields(userName, password, LogTS);
+                this.ServerAddress = serverAddress;
+                this.ServerCN = serverCN;
+                this.ServerPort = serverPort;
+                this.ServerCert = serverCert;
+            }
+            #endregion
+
+            #region main working functions
+            enum WorkState
+            {
+                [StatusOkMsg("Preparing to connect to the server."),
+                StatusErrorMsg("Failed to initiate the server connection."),
+                StatusCompletionPercent(0)]
+                Idle,
+                [StatusOkMsg("Connecting to WinSIP server."),
+                StatusErrorMsg("Failed to connect to the WinSIP server."),
+                StatusCompletionPercent(33)]
+                ConnectToServer,
+                [StatusOkMsg("Sending user name and password."),
+                StatusErrorMsg("Failed to log into server."),
+                StatusCompletionPercent(67)]
+                LogIntoServer,
+                [StatusOkMsg("User login successful."),
+                StatusErrorMsg("Should not see this message."),
+                StatusCompletionPercent(100)]
+                Finish
+            }
+
+            private void DoTheWork()
+            {
+
+                try
+                {
+                    //1. Connect to server if not already connected:   
+                    CurrentState = WorkState.ConnectToServer;
+                    if (ServerHandler == null)
+                        ServerHandler = ConnectToServerTwoWaySSL(ServerAddress, ServerPort, ServerCN, ServerCert.Certificate);
+
+                    //2. Log in to server:                                        
+                    CurrentState = WorkState.LogIntoServer;
+                    ServerHandler.UDA(UserName, Password);
+
+                    //3. Done
+                    CurrentState = WorkState.Finish;
+                    
+                    //4. Mark completed
+                    _Status = CompletionCode.FinishedSuccess;
+
+                }
+                catch (OperationCanceledException ex)
+                {
+                    //I don't think we need to delete the CSR?
+                    _StatusErrorMessage = "User canceled the operation.";
+                    _Status = CompletionCode.UserCancelFinish;
+                    LogMsg(TraceEventType.Verbose, ex.ToString());
+                }
+                catch (Exception ex)
+                {
+                    //I don't think we need to delete the CSR?
+                    _StatusErrorMessage = GetStatusErrorMsg(CurrentState) + " " + ex.Message;
+                    _Status = CompletionCode.FinishedError;
+                    LogMsg(TraceEventType.Warning, ex.ToString());
+                    try
+                    {
+                        //only close the connection upon an error if we created the connection
+                        if (!ReceivedServerHandler)
+                            CloseConnection();
+                    }
+                    catch { }   //don't care if this fails.
+                }                
+            }
+            #endregion
+
+            #region private helper functions
+            private void SetUpBasicFields(string userName, SecureString password, TraceSource LogTS)
+            {
+                this.UserName = userName;
+                this.Password = password;
+
+                if (LogTS != null)
+                    this.LogTS = LogTS;
+                else
+                    this.LogTS = new TraceSource("DummyTS");
+            }
+
+            private void CheckUserCancel()
+            {
+                if (Status == CompletionCode.UserCancelReq)
+                    throw new OperationCanceledException("User canceled the operation");
+            }
+
+            private void CloseConnection()
+            {
+                if (ServerHandler != null)
+                    ServerHandler.Dispose();
+                ServerHandler = null;
             }
             #endregion
         }
