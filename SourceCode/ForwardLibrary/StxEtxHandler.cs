@@ -591,23 +591,29 @@ namespace ForwardLibrary
 
                     //moved up one level to get this message before ACK: CommContext.LogMsg(TraceEventType.Verbose, "STXETX RCVD: <STX>" + cmd + "<ETX>") ;
 
-                    bool inCmdTable = false;
+                    char inCmdTable = '0';
                     if (CommandTable != null)
                         inCmdTable = DoCmdTable(theCommand);
-                    if (!inCmdTable && bAllowAllCmds)
+                    if ((inCmdTable != '0') && bAllowAllCmds)
                     {
                         ReceivedMsgLog msglog = new ReceivedMsgLog(cmd);
                         RxMsgs.Enqueue(msglog);
                         NewMsgEvt.Set();
                     }
-                    else if (!inCmdTable && !bAllowAllCmds && cmd.Length > 0)
-                        AsyncSendCommand(System.Text.Encoding.ASCII.GetBytes("ERM"));
+                    else if ((inCmdTable != '0') && !bAllowAllCmds && cmd.Length > 0)
+                        AsyncSendCommand(System.Text.Encoding.ASCII.GetBytes("ER" + inCmdTable));
 
 
                     return true;
                 }
 
-                bool DoCmdTable(MemoryStream theCommand)
+
+                /// <summary>
+                /// Process a command
+                /// </summary>
+                /// <param name="theCommand"></param>
+                /// <returns>a 1 character error code. '0' for no error, 'M' is a generic error, 'L' for an communication link which is too insecure, 'P' for a user account which does not have permission</returns>
+                char DoCmdTable(MemoryStream theCommand)
                 {
                     String cmd = System.Text.Encoding.Default.GetString(theCommand.ToArray());
                     CommandAndFunction[] entries = CommandTable.ToArray<CommandAndFunction>();
@@ -615,7 +621,7 @@ namespace ForwardLibrary
                     bool bFound = false;
                     bool bSecurity = false;
                     bool bPermission = false;
-
+                    char errorCode = '0';
                     foreach (CommandAndFunction entry in entries)
                     {
                         String compare;
@@ -636,15 +642,19 @@ namespace ForwardLibrary
                                     bSecurity = true;
                                     if (entry.getPermission(theCommand, this))
                                         bPermission = true;
-                                }
+                                    else
+                                        errorCode = 'P';
+                                } 
+                                else 
+                                    errorCode = 'L';
 
                                 if (bSecurity && bPermission)
                                     entry.theFunction(theCommand, this);
                             }
                             catch (Exception e)
                             {
-                                CommContext.LogMsg(TraceEventType.Error, "Executing lookup table command " + cmd + " caused exception: " + e.ToString());
-                                AsyncSendCommand(System.Text.Encoding.ASCII.GetBytes("ERM"));
+                                CommContext.LogMsg(TraceEventType.Error, "Executing lookup table command " + cmd + " caused exception: " + e.ToString());                                
+                                errorCode = 'M';                                
                             }
 
                             break;
@@ -652,7 +662,10 @@ namespace ForwardLibrary
 
                     }
 
-                    return (bFound && bSecurity && bPermission);        //true indicates data was sent
+                    if (errorCode == '0' && !bFound)
+                        errorCode = 'M';
+
+                    return errorCode; // (bFound && bSecurity && bPermission);        //true indicates data was sent
                 }
             }
         }
