@@ -9,6 +9,7 @@ using System.Text;
 
 using CERTENROLLLib;
 using CERTCLILib;
+using System.Runtime.InteropServices;
 
 namespace ForwardLibrary
 {
@@ -772,6 +773,23 @@ namespace ForwardLibrary
                 foreach (char c in str)
                     pw.AppendChar(c);
                 return pw;
+            }
+
+            public static string ConvertToUnsecureString(SecureString securePassword)
+            {
+                if (securePassword == null)
+                    throw new ArgumentNullException("securePassword");
+
+                IntPtr unmanagedString = IntPtr.Zero;
+                try
+                {
+                    unmanagedString = Marshal.SecureStringToGlobalAllocUnicode(securePassword);
+                    return Marshal.PtrToStringUni(unmanagedString);
+                }
+                finally
+                {
+                    Marshal.ZeroFreeGlobalAllocUnicode(unmanagedString);
+                }
             }
             #endregion
 
