@@ -145,8 +145,9 @@ namespace ForwardLibrary
                 //here is the standard for certificates: http://www.ietf.org/rfc/rfc3280.txt
 
 
+                //NOTE: I think we're going to need to use this Activator thing for the rest of the CX509 objects... see: http://stackoverflow.com/questions/11421502/asp-net-certenroll-cx509certificaterequestpkcs10-exception and: http://social.technet.microsoft.com/Forums/windowsserver/en-US/45781b46-3eb7-4715-b877-883bf0dc2ae7/exception-calling-certenrolldll-api-on-win-2008-genral-not-r2-no-such-interface-supported?forum=winserversecurity
                 //the PKCS#10 certificate request (http://msdn.microsoft.com/en-us/library/windows/desktop/aa377505.aspx)
-                CX509CertificateRequestPkcs10 objPkcs10 = new CX509CertificateRequestPkcs10();
+                IX509CertificateRequestPkcs10 objPkcs10 = (IX509CertificateRequestPkcs10)Activator.CreateInstance(Type.GetTypeFromProgID("X509Enrollment.CX509CertificateRequestPkcs10")); //new CX509CertificateRequestPkcs10();
 
                 //assymetric private key that can be used for encryption (http://msdn.microsoft.com/en-us/library/windows/desktop/aa378921.aspx)
                 CX509PrivateKey objPrivateKey = new CX509PrivateKey();
