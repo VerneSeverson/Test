@@ -6,13 +6,14 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using ForwardLibrary.Communications.STXETX;
 
 namespace ForwardLibrary
 {
 
     namespace Communications
     {
-        namespace STXETX
+        namespace CommandHandlers
         {
             #region Exceptions
             public class ResponseException : Exception
@@ -20,7 +21,7 @@ namespace ForwardLibrary
                 public string DataSent;
                 public List<string> ResponsesReceived;
 
-                public string ExtendedMessage
+                public virtual string ExtendedMessage
                 {
                     get
                     {
@@ -87,6 +88,37 @@ namespace ForwardLibrary
             
             }
 
+            /// <summary>
+            /// CommandHandler and its children use this exception to indicate the receipt of an error code from the client device
+            /// </summary>
+            public class ResponseErrorCodeException : ResponseException
+            {
+                public ResponseErrorCodeException(string message, string sent, string response)
+                    : base(message, sent, response)
+                {
+                }
+                public ResponseErrorCodeException(string message, string sent, List<string> responses)
+                    : base(message, sent, responses)
+                {                    
+                }
+
+                public ResponseErrorCodeException(string message, string sent, string response, Exception innerException)
+                    : base(message, sent, response, innerException)
+                {                 
+                }
+
+                public ResponseErrorCodeException(string message, string sent, List<string> responses, Exception innerException)
+                    : base(message, sent, responses, innerException)
+                {
+                }
+
+                public override string ToString()
+                {
+                    return Message;
+                }
+            }
+
+
             public class UnresponsiveConnectionException : Exception
             {
                 public string DataSent;
@@ -135,14 +167,77 @@ namespace ForwardLibrary
             }
             #endregion
 
+            /// <summary>
+            /// General command handler class. Children classes inherit this class for specific devices.
+            /// 
+            /// NOTE ON INHERITING THIS CLASS:
+            /// children will define specific command functions that pertain to a device
+            /// Consider as an example the following command: TST which can take the following
+            /// format: TST=xxx (sets parameterOne to xxx), TST? (reads xxx out of TST)
+            /// --> the corresponding command functions should be called SetTST and ReadTST
+            /// --> (conversely, if TST was a read-only or write-only command the corresponding
+            ///      command function would just be called TST)
+            /// --> Example SetTST:
+            /// public void SetTST(string parameterOne, bool optionalCloseConn = false)
+            /// {
+            ///     string command = "CBT=" + BNAC_Table.CreateID(ID, idType) + "?";
+            ///     List<string> resps = SendCommand(command, 1, optionalCloseConn);
+            ///        
+            ///     try
+            ///     { 
+            ///         //Parse the response, if errors occur use only these exceptions:
+            ///         //ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException
+            ///     }
+            ///     catch(Exception ex)
+            ///     {
+            ///         if (!IsStandardException(ex))
+            ///             ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+            ///
+            ///         LogMsg(TraceEventType.Warning, ex.ToString());
+            ///         throw ex;
+            ///     }
+            /// }
+            /// --> Example ReadTST
+            /// public void ReadTST(out string parameterOne, bool optionalCloseConn = false)
+            /// {
+            ///     string command = "CBT=" + BNAC_Table.CreateID(ID, idType) + "?";
+            ///     List<string> resps = SendCommand(command, 1, optionalCloseConn);
+            ///        
+            ///     try
+            ///     { 
+            ///         //Parse the response and set parameterOne, if errors occur use only these exceptions:
+            ///         //ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException
+            ///     }
+            ///     catch(Exception ex)
+            ///     {
+            ///         if (!IsStandardException(ex))
+            ///             ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+            ///
+            ///         LogMsg(TraceEventType.Warning, ex.ToString());
+            ///         throw ex;
+            ///     }
+            /// }
+            /// </summary>
             public class CommandHandler
             {
-                public int LogID = 500;
+                public enum LogIDs
+                {
+                    GenericCommandHandler = 500,
+                    WinSIPserver = 501,
+                    UCR = 502,
+                    NAC = 503
+                }
 
+                /// <summary>
+                /// This controls the LogID for the command handler, but not the underlying communication interface
+                /// </summary>
+                public int LogID = (int) LogIDs.GenericCommandHandler;
+
+                
                 public TraceSource ts;
 
-                StxEtxHandler stxetxClient = null;
-
+                protected StxEtxHandler stxetxClient = null;
+                
                 /// <summary>
                 /// constructor for when an STXETX handler is already in place
                 /// </summary>
@@ -156,6 +251,7 @@ namespace ForwardLibrary
                         ts = optionalTS;
 
                     this.stxetxClient = stxetxClient;
+                    
                 }
 
                 /// <summary>
@@ -193,7 +289,7 @@ namespace ForwardLibrary
                 {
 
                     List<string> Responses = new List<string>();
-                    
+
                     try
                     {
                         while (optionalRetries-- > 0)
@@ -213,33 +309,28 @@ namespace ForwardLibrary
                                 //see if we found all the responses we were looking for
                                 if (Responses.Count < NumResponses)
                                 {
-                                    ResponseException ex = new ResponseException(
+                                    throw new ResponseException(
                                         "Did not receive the desired number of responses: found "
                                         + Responses.Count.ToString() + " of " + NumResponses.ToString(),
                                         command, Responses);
-
-                                    LogMsg(TraceEventType.Warning, ex.ToString());
-                                    throw ex;
+                                    
                                 }
                                 break;
                             }
                             else if (optionalRetries < 1)
                             {
-                                UnresponsiveConnectionException ex = new UnresponsiveConnectionException(
-                                    "Failed to send the data: connection is unresponsive.", command);
-                                LogMsg(TraceEventType.Warning, ex.ToString());
-                                throw ex;
+                                throw new UnresponsiveConnectionException(
+                                    "Failed to send the data: connection is unresponsive.", command);                                
                             }
                         }
                     }
-                    catch (Exception ee)
+                    catch (Exception ex)
                     {
-                        ResponseException ex = new ResponseException(
-                            "Received an exception when trying to send or receive a command",
-                            command, Responses, ee);
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when trying to send or receive a command.", command, Responses, ex);
 
                         LogMsg(TraceEventType.Warning, ex.ToString());
-                        throw ex;
+                        throw ex;                         
                     }
 
                     finally
@@ -254,115 +345,21 @@ namespace ForwardLibrary
 
                 }
 
-                #region Specific commands
-                public void ReadSSET(out string LogUploadPeriod, out string LogMaxSize, out string AppTraceLevel, out string ComTraceLevel, bool optionalCloseConn = false)
+                
+
+
+                /// <summary>
+                /// returns true if the exception is one of the default exceptions expected
+                /// when sending message
+                /// </summary>
+                /// <param name="ex"></param>
+                /// <returns></returns>
+                protected static bool IsStandardException(Exception ex)
                 {
-                    int _LogUploadPeriod, _LogMaxSize;
-                    ReadSSET(out _LogUploadPeriod, out _LogMaxSize, out AppTraceLevel, out ComTraceLevel, optionalCloseConn);
-                    LogUploadPeriod = _LogUploadPeriod.ToString();
-                    LogMaxSize = _LogMaxSize.ToString();
+                    return ( (ex is ResponseException) || (ex is ResponseErrorCodeException) || (ex is UnresponsiveConnectionException) );
                 }
 
-                public void ReadSSET(out int LogUploadPeriod, out int LogMaxSize, out string AppTraceLevel, out string ComTraceLevel, bool optionalCloseConn = false)
-                {
-                    List<string> resps = SendCommand("SSET?", 1, optionalCloseConn);
-                    string[] Vals = resps[0].Split('=');
-                    if (Vals.Length != 2)
-                    {
-                        ResponseException ex = new ResponseException("Invalid response received.", "SSET?", resps);
-                        LogMsg(TraceEventType.Warning, ex.ToString());
-                        throw ex; 
-                    }
-
-                    Vals = Vals[1].Split(',');
-
-                    if (Vals.Length != 4)
-                    {
-                        ResponseException ex = new ResponseException("Invalid response received.", "SSET?", resps);
-                        LogMsg(TraceEventType.Warning, ex.ToString());
-                        throw ex;
-                    }
-
-                    try
-                    {
-                        LogUploadPeriod = Convert.ToInt32(Vals[0]);
-                        LogMaxSize = Convert.ToInt32(Vals[1]);
-                        AppTraceLevel = Vals[2];
-                        ComTraceLevel = Vals[3];
-                    }
-                    catch (Exception ex)
-                    {
-                        ResponseException exe = new ResponseException("Exception occured when parsing the response received.", "SSET?", resps, ex);
-                        LogMsg(TraceEventType.Warning, exe.ToString());
-                        throw ex;                        
-                    }
-
-                }
-
-                public string SetSSET(int LogUploadPeriod, int LogMaxSize, string AppTraceLevel, string ComTraceLevel, bool optionalCloseConn = false, int optionalRetries = 3)
-                {
-                    return SetSSET(LogUploadPeriod.ToString(), LogMaxSize.ToString(), AppTraceLevel, ComTraceLevel, optionalCloseConn, optionalRetries);
-                }
-
-                public string SetSSET(string LogUploadPeriod, string LogMaxSize, string AppTraceLevel, string ComTraceLevel, bool optionalCloseConn = false, int optionalRetries = 3)
-                {
-                    string resp;
-                    string command = "SSET=" + LogUploadPeriod + ","
-                                                        + LogMaxSize + ","
-                                                        + AppTraceLevel + ","
-                                                        + ComTraceLevel;
-
-                    List<string> resps = SendCommand(command, 1, optionalRetries: optionalRetries);
-
-                    if (resps[0].StartsWith("SSET="))
-                        resp = resps[0].Substring(5);
-                    else
-                    {
-                        ResponseException ex = new ResponseException("Invalid response received.", command, resps);
-                        LogMsg(TraceEventType.Warning, ex.ToString());
-                        throw ex;                         
-                    }
-
-                    return resp;
-                }
-
-                public string ReadCBT(string ID, BNAC_Table.ID_Type idType, out BNAC_Table.Entry tableEntry, bool optionalCloseConn = false)
-                {
-                    string response = ReadCBT(ID, idType, optionalCloseConn);
-                    if (response == "E" || response == "M")
-                        tableEntry = null;      //not found or memory error!
-                    else
-                        try
-                        {
-                            tableEntry = new BNAC_Table.Entry(response.Split(','));
-                        }
-                        catch (Exception e)
-                        {
-                            ResponseException ex = new ResponseException("Exception occurred when trying to parse the CBT response.", "Inaccessible", response,e);
-                            List<string> re = new List<string>();                            
-                            LogMsg(TraceEventType.Warning, ex.ToString());
-                            throw ex;
-                        }
-                    return response;
-                }
-
-                public string ReadCBT(string ID, BNAC_Table.ID_Type idType, bool optionalCloseConn = false)
-                {
-                    string command = "CBT=" + BNAC_Table.CreateID(ID, idType) + "?";
-                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
-                    string[] Vals = resps[0].Split('=');
-                    if (Vals.Length != 2)
-                    {
-                        ResponseException ex = new ResponseException("Invalid response received.", command, resps);
-                        LogMsg(TraceEventType.Warning, ex.ToString());
-                        throw ex;
-                    }
-
-                    return Vals[1];
-                }
-                #endregion
-
-                private void LogMsg(TraceEventType type, string msg)
+                protected void LogMsg(TraceEventType type, string msg)
                 {
                     ts.TraceEvent(type, LogID, msg);
                 }
@@ -378,15 +375,562 @@ namespace ForwardLibrary
                     {
                     }
                 }
+            }
+
+            public class WinSIPserver : CommandHandler
+            {                
+
+                /// <summary>
+                /// constructor for when an STXETX handler is already in place
+                /// </summary>
+                /// <param name="stxetxClient"></param>
+                /// <param name="optionalTS"></param>
+                public WinSIPserver(StxEtxHandler stxetxClient, TraceSource optionalTS = null) :base(stxetxClient, optionalTS)
+                {
+                    LogID = (int) LogIDs.WinSIPserver;
+                }
+
+                /// <summary>
+                /// Constructor for when a TCP/IP connection must be established
+                /// </summary>
+                /// <param name="hostname"></param>
+                /// <param name="optionalTS">default is null (for no logging)</param>
+                /// <param name="optionalPort">default is 1100</param>
+                public WinSIPserver(string hostname, TraceSource optionalTS = null, int optionalPort = 1100) : base(hostname, optionalTS, optionalPort)
+                {
+                    LogID = (int)LogIDs.WinSIPserver;
+                }
+
+                #region Specific commands
 
 
+                #region ADMINISTRATIVE AND MSC COMMANDS
+                /// <summary>
+                /// Read server settings 
+                /// </summary>
+                /// <param name="LogUploadPeriod">the period in minutes between log file uploads (set to 0 to get 30 seconds)</param>
+                /// <param name="LogMaxSize">the maximum number of entries in the log. Logs are rolling quantities, so when the log is filled and a new event happens, the log will remove the oldest event to make room for the newest event. </param>
+                /// <param name="AppTraceLevel">the application trace source level. Set to one of the following case sensitive strings: “Verbose”, “Information”, “Warning”, “Error”, “Critical”</param>
+                /// <param name="ComTraceLevel">the trace source level for communication events (STX ETX, new connections, etc.).</param>
+                /// <param name="optionalCloseConn">Set to true to close the connection after executing the command</param>
+                public void ReadSSET(out string LogUploadPeriod, out string LogMaxSize, out string AppTraceLevel, out string ComTraceLevel, bool optionalCloseConn = false)
+                {
+                    int _LogUploadPeriod, _LogMaxSize;
+                    ReadSSET(out _LogUploadPeriod, out _LogMaxSize, out AppTraceLevel, out ComTraceLevel, optionalCloseConn);
+                    LogUploadPeriod = _LogUploadPeriod.ToString();
+                    LogMaxSize = _LogMaxSize.ToString();
+                }
+
+                /// <summary>
+                /// Read server settings 
+                /// </summary>
+                /// <param name="LogUploadPeriod">the period in minutes between log file uploads (set to 0 to get 30 seconds)</param>
+                /// <param name="LogMaxSize">the maximum number of entries in the log. Logs are rolling quantities, so when the log is filled and a new event happens, the log will remove the oldest event to make room for the newest event. </param>
+                /// <param name="AppTraceLevel">the application trace source level. Set to one of the following case sensitive strings: “Verbose”, “Information”, “Warning”, “Error”, “Critical”</param>
+                /// <param name="ComTraceLevel">the trace source level for communication events (STX ETX, new connections, etc.).</param>
+                /// <param name="optionalCloseConn">Set to true to close the connection after executing the command</param>
+                public void ReadSSET(out int LogUploadPeriod, out int LogMaxSize, out string AppTraceLevel, out string ComTraceLevel, bool optionalCloseConn = false)
+                {
+                    string command = "SSET?";
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)                        
+                            throw new ResponseException("Invalid response received.", command, resps);
+                            
+                        Vals = Vals[1].Split(',');
+
+                        if (Vals.Length != 4)
+                            throw new ResponseException("Invalid response received.", command, resps);                            
+                        
+                        LogUploadPeriod = Convert.ToInt32(Vals[0]);
+                        LogMaxSize = Convert.ToInt32(Vals[1]);
+                        AppTraceLevel = Vals[2];
+                        ComTraceLevel = Vals[3];                        
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+
+                }
+
+                /// <summary>
+                /// Set server settings 
+                ///                 
+                /// </summary>
+                /// <param name="LogUploadPeriod">the period in minutes between log file uploads (set to 0 to get 30 seconds)</param>
+                /// <param name="LogMaxSize">the maximum number of entries in the log. Logs are rolling quantities, so when the log is filled and a new event happens, the log will remove the oldest event to make room for the newest event. </param>
+                /// <param name="AppTraceLevel">the application trace source level. Set to one of the following case sensitive strings: “Verbose”, “Information”, “Warning”, “Error”, “Critical”</param>
+                /// <param name="ComTraceLevel">the trace source level for communication events (STX ETX, new connections, etc.).</param>
+                /// <param name="optionalCloseConn">Set to true to close the connection after executing the command</param>
+                /// <param name="optionalRetries">Number of retries allowed</param>
+                /// <returns>DON'T USE THE RETURN VALUE, in the future this function will be type void</returns>
+                public string SetSSET(int LogUploadPeriod, int LogMaxSize, string AppTraceLevel, string ComTraceLevel, bool optionalCloseConn = false, int optionalRetries = 3)
+                {                    
+                        return SetSSET(LogUploadPeriod.ToString(), LogMaxSize.ToString(), AppTraceLevel, ComTraceLevel, optionalCloseConn, optionalRetries);                                        
+                }
+
+                /// <summary>
+                /// Set server settings 
+                /// </summary>
+                /// <param name="LogUploadPeriod">the period in minutes between log file uploads (set to 0 to get 30 seconds)</param>
+                /// <param name="LogMaxSize">the maximum number of entries in the log. Logs are rolling quantities, so when the log is filled and a new event happens, the log will remove the oldest event to make room for the newest event. </param>
+                /// <param name="AppTraceLevel">the application trace source level. Set to one of the following case sensitive strings: “Verbose”, “Information”, “Warning”, “Error”, “Critical”</param>
+                /// <param name="ComTraceLevel">the trace source level for communication events (STX ETX, new connections, etc.).</param>
+                /// <param name="optionalCloseConn">Set to true to close the connection after executing the command</param>
+                /// <param name="optionalRetries">Number of retries allowed</param>
+                /// <returns>DON'T USE THE RETURN VALUE, in the future this function will be type void</returns>
+                public string SetSSET(string LogUploadPeriod, string LogMaxSize, string AppTraceLevel, string ComTraceLevel, bool optionalCloseConn = false, int optionalRetries = 3)
+                {
+                    string resp;
+                    string command = "SSET=" + LogUploadPeriod + ","
+                                                        + LogMaxSize + ","
+                                                        + AppTraceLevel + ","
+                                                        + ComTraceLevel;
+
+                    List<string> resps = SendCommand(command, 1, optionalRetries: optionalRetries);
+                    try
+                    {
+                        if (resps[0].StartsWith("SSET="))
+                            resp = resps[0].Substring(5);
+                        else                        
+                            throw new ResponseException("Invalid response received.", command, resps);                         
+
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                    return resp;
+                }
+                #endregion
+
+                #region BNAC TABLE COMMANDS
+
+                /// <summary>
+                /// Read BNAC table entry
+                /// 
+                /// Exceptions thrown: ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException
+                /// </summary>
+                /// <param name="ID">the ID of the entry to read</param>
+                /// <param name="idType">the type of ID</param>
+                /// <param name="tableEntry">the entry found</param>
+                /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param>
+                /// <returns>DON'T USE THE RETURN VALUE, in the future this function will be type void</returns>
+                public string ReadCBT(string ID, BNAC_Table.ID_Type idType, out BNAC_Table.Entry tableEntry, bool optionalCloseConn = false)
+                {
+                    string command = "CBT=" + BNAC_Table.CreateID(ID, idType) + "?";
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+                    
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                        {
+                            ResponseException ex = new ResponseException("Invalid response received.", command, resps);
+                            LogMsg(TraceEventType.Warning, ex.ToString());
+                            throw ex;
+                        }
+
+                        string response = Vals[1].Trim();
+                        if (response == "E")
+                            throw new ResponseErrorCodeException("No entry exists for this ID.", command, resps);
+                        else if (response == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);                            
+                        else
+                            tableEntry = new BNAC_Table.Entry(response.Split(','));
+                            
+                        return response;
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+                /// <summary>
+                /// Note this function is just obsolete (use ReadCBT(string ID, BNAC_Table.ID_Type idType, out BNAC_Table.Entry tableEntry, bool optionalCloseConn = false) instead)
+                /// </summary>
+                /// <param name="ID"></param>
+                /// <param name="idType"></param>
+                /// <param name="optionalCloseConn"></param>
+                /// <returns></returns>
+                public string ReadCBT(string ID, BNAC_Table.ID_Type idType, bool optionalCloseConn = false)
+                {
+                    string command = "CBT=" + BNAC_Table.CreateID(ID, idType) + "?";
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                        {
+                            ResponseException ex = new ResponseException("Invalid response received.", command, resps);
+                            LogMsg(TraceEventType.Warning, ex.ToString());
+                            throw ex;
+                        }
+                        return Vals[1];
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                    
+                }
+                #endregion
+
+                #region CLIENT SSL/TLS CERTIFICATE COMMANDS
+
+                /// <summary>
+                /// Generate a new client certificate pin number. This pin will be valid for a limited time.
+                /// 
+                /// Exceptions thrown: ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException
+                /// </summary>
+                /// <param name="pinCode">6 digit pin code</param>
+                /// <param name="optionalCloseConn">Set to true to close the connection after executing the command</param>
+                public void CSP(out string pinCode, bool optionalCloseConn = false)
+                {
+                    string command = "CSP";
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                        {
+                            ResponseException ex = new ResponseException("Invalid response received.", command, resps);
+                            LogMsg(TraceEventType.Warning, ex.ToString());
+                            throw ex;
+                        }
+                        string response = Vals[1].Trim();
+                        if (response == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
+
+                        if (response.Length != CertificateRequestTable.PinCodeLen)
+                            throw new ResponseException("Invalid pin code length.", command, resps);
+                        try
+                        {
+                            int testPin = Convert.ToInt32(response.Trim());
+                        }
+                        catch (Exception e)
+                        {
+                            ResponseException ex = new ResponseException("Non-numeric pin code received.", command, resps, e);
+                        }
+
+                        //passed all checks, pincode must be good:
+                        pinCode = response;
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+                /// <summary>
+                /// Generate a new client certificate ID number.
+                /// 
+                /// Exceptions thrown: 
+                ///     ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException
+                ///     ArgumentException -- if one of the arguments is invalid
+                /// </summary>
+                /// <param name="pinCode">6 digit pin code</param>
+                /// <param name="machineID">up to 32 character alpha-numeric string descriptive of the client's computer</param>
+                /// <param name="optionalCloseConn">Set to true to close the connection after executing the command</param>
+                public void CID(string pinCode, string machineID, out string certificateID, bool optionalCloseConn = false)
+                {                    
+                    if (machineID.Length > CertificateRequestTable.MachineID_MaxLen)
+                        throw new ArgumentException("Argument is too long.", "machineID");
+                    if (pinCode.Length != CertificateRequestTable.PinCodeLen)
+                        throw new ArgumentException("Argument is incorrect length.", "pinCode");
+
+                    string command = "CID=" + pinCode + "," + machineID;
+
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                        {
+                            ResponseException ex = new ResponseException("Invalid response received.", command, resps);
+                            LogMsg(TraceEventType.Warning, ex.ToString());
+                            throw ex;
+                        }
+                        string response = Vals[1].Trim();
+                        if (response == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
+                        else if (response == "P")
+                            throw new ResponseErrorCodeException("The pin code is invalid.", command, resps);
+
+                        if (response.Length != CertificateRequestTable.CertificateID_Len)
+                            throw new ResponseException("Invalid certificate ID length.", command, resps);
+
+                        //passed all checks, the certificate ID must be good:
+                        certificateID = response;
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+
+                }
+
+                /// <summary>
+                /// Upload the certificate signing request
+                /// 
+                /// Exceptions thrown: 
+                ///     ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException                
+                /// </summary>
+                /// <param name="certificateRequest">a pem formatted certificate signing request (“-----BEGIN CERTIFICATE REQUEST----- ...”) and must have a common name of “PIN[pin]-MID[machine id]-CID[certificate id]”</param>                
+                /// <param name="optionalCloseConn">Set to true to close the connection after executing the command</param>
+                public void CCSR(string certificateRequest, bool optionalCloseConn = false)
+                {
+
+                    string command = "CCSR=" + certificateRequest;
+
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                        {
+                            ResponseException ex = new ResponseException("Invalid response received.", command, resps);
+                            LogMsg(TraceEventType.Warning, ex.ToString());
+                            throw ex;
+                        }
+                        string response = Vals[1].Trim();
+                        if (response == "C")
+                            throw new ResponseErrorCodeException("The certificate request is invalid or does not meet the server's requirements.", command, resps);
+                        else if (response == "P")
+                            throw new ResponseErrorCodeException("The pin code is invalid.", command, resps);
+                        else if (response == "E")
+                            throw new ResponseErrorCodeException("The certificate contains incorrect information in the subject line.", command, resps);
+                        else if (response == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
+                        else if (response != "OK")
+                            throw new ResponseException("Invalid response received.", command, resps);
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+                /// <summary>
+                /// Download a client’s certificate signing request 
+                /// 
+                /// Exceptions thrown: 
+                ///     ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException  
+                ///     ArgumentException -- if one of the arguments is invalid
+                /// </summary>
+                /// <param name="pinCode">6 digit pin code</param>
+                /// <param name="certificateID">12 character certificate ID</param>
+                /// <param name="certificateRequest">a pem formatted certificate signing request (“-----BEGIN CERTIFICATE REQUEST----- ...”) and must have a common name of “PIN[pin]-MID[machine id]-CID[certificate id]”</param>                
+                /// <param name="optionalCloseConn">Set to true to close the connection after executing the command</param>
+                public void CDSR(string pinCode, string certificateID, out string certificateRequest, bool optionalCloseConn = false)
+                {
+                    if (certificateID.Length != CertificateRequestTable.CertificateID_Len)
+                        throw new ArgumentException("Argument is incorrect length.", "certificateID");
+                    if (pinCode.Length != CertificateRequestTable.PinCodeLen)
+                        throw new ArgumentException("Argument is incorrect length.", "pinCode");
+
+                    string command = "CDSR=" + pinCode + "," + certificateID;
+
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (resps.Count != 1)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        string response = resps[0].Trim().Substring(5);             
+                                                
+                        if (response == "C")
+                            throw new ResponseErrorCodeException("The certificate request has not yet been uploaded. Please trye again later.", command, resps);
+                        else if (response == "P")
+                            throw new ResponseErrorCodeException("The pin code is invalid.", command, resps);
+                        else if (response == "E")
+                            throw new ResponseErrorCodeException("No request exists for this certificate ID and pin code combination.", command, resps);
+                        else if (response == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
+
+                        //okay, the recieved information must be valid
+                        certificateRequest = response;
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+                /// <summary>
+                /// Upload the signed pem-formatted certificate
+                /// 
+                /// Exceptions thrown: 
+                ///     ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException                
+                /// </summary>
+                /// <param name="certificateRequest">a pem formatted certificate signing request (“-----BEGIN CERTIFICATE REQUEST----- ...”) and must have a common name of “PIN[pin]-MID[machine id]-CID[certificate id]”</param>                
+                /// <param name="optionalCloseConn">Set to true to close the connection after executing the command</param>
+                public void CUCC(string certificateRequest, bool optionalCloseConn = false)
+                {
+
+                    string command = "CUCC=" + certificateRequest;
+
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);                            
+                        
+                        string response = Vals[1].Trim();
+                        if (response == "C")
+                            throw new ResponseErrorCodeException("The signed certificate does not match the request.", command, resps);
+                        else if (response == "P")
+                            throw new ResponseErrorCodeException("The pin code is invalid.", command, resps);
+                        else if (response == "E")
+                            throw new ResponseErrorCodeException("No certificate is expected for the pin code and certificate ID of this certificate.", command, resps);
+                        else if (response == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
+                        else if (response != "OK")
+                            throw new ResponseException("Invalid response received.", command, resps);
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
 
 
+                /// <summary>
+                /// Download the signed pem-formatted certificate
+                /// 
+                /// Exceptions thrown: 
+                ///     ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException  
+                ///     ArgumentException -- if one of the arguments is invalid
+                /// </summary>
+                /// <param name="pinCode">6 digit pin code</param>
+                /// <param name="certificateID">12 character certificate ID</param>
+                /// <param name="certificate">a pem formatted signed certificate (“-----BEGIN CERTIFICATE----- ...”) and must have a common name of “PIN[pin]-MID[machine id]-CID[certificate id]”</param>                
+                /// <param name="optionalCloseConn">Set to true to close the connection after executing the command</param>
+                public void CDCC(string pinCode, string certificateID, out string certificate, bool optionalCloseConn = false)
+                {
+                    if (certificateID.Length != CertificateRequestTable.CertificateID_Len)
+                        throw new ArgumentException("Argument is incorrect length.", "certificateID");
+                    if (pinCode.Length != CertificateRequestTable.PinCodeLen)
+                        throw new ArgumentException("Argument is incorrect length.", "pinCode");
+
+                    string command = "CDCC=" + pinCode + "," + certificateID;
+
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (resps.Count != 1)                        
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        string response = resps[0].Trim().Substring(5);
+                        if (response == "C")
+                            throw new ResponseErrorCodeException("The certificate request has not yet been signed. Please try again later.", command, resps);
+                        else if (response == "P")
+                            throw new ResponseErrorCodeException("The pin code is invalid.", command, resps);
+                        else if (response == "E")
+                            throw new ResponseErrorCodeException("No request exists for this certificate ID and pin code combination.", command, resps);
+                        else if (response == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
+
+                        //okay, the recieved information must be valid
+                        certificate = response;
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+
+                    
+                }
+
+                /// <summary>
+                /// Clean the client certificate request database. This deletes all expired requests.
+                /// 
+                /// Exceptions thrown: 
+                ///     ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException                
+                /// </summary>                
+                /// <param name="optionalCloseConn">Set to true to close the connection after executing the command</param>
+                public void CCDB(bool optionalCloseConn = false)
+                {                    
+                    string command = "CCDB ";
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)                        
+                            throw new ResponseException("Invalid response received.", command, resps);                            
+                        
+                        string response = Vals[1].Trim();
+                        if (response == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
+                        else if (response != "OK")
+                            throw new ResponseException("Invalid response received.", command, resps);
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+
+                }
+                #endregion
+
+                #endregion
 
             }
 
-        }
         
-
+        }
     }
 }
