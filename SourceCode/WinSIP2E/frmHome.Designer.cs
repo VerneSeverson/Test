@@ -29,8 +29,8 @@
         private void InitializeComponent()
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(frmHome));
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle5 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle6 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
             this.txtUsername = new System.Windows.Forms.TextBox();
             this.txtPassword = new System.Windows.Forms.TextBox();
             this.label1 = new System.Windows.Forms.Label();
@@ -39,14 +39,14 @@
             this.tabMainConnect = new System.Windows.Forms.TabPage();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
             this.label11 = new System.Windows.Forms.Label();
-            this.groupBox2 = new System.Windows.Forms.GroupBox();
+            this.gbNAC = new System.Windows.Forms.GroupBox();
             this.label5 = new System.Windows.Forms.Label();
             this.cboUnitIDType = new System.Windows.Forms.ComboBox();
             this.label9 = new System.Windows.Forms.Label();
             this.label7 = new System.Windows.Forms.Label();
             this.btnConnect = new System.Windows.Forms.Button();
             this.textBox1 = new System.Windows.Forms.TextBox();
-            this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.gbLogin = new System.Windows.Forms.GroupBox();
             this.cmdConsole = new System.Windows.Forms.Button();
             this.cmdSettings = new System.Windows.Forms.Button();
             this.label167 = new System.Windows.Forms.Label();
@@ -558,8 +558,8 @@
             this.tabControl_Main.SuspendLayout();
             this.tabMainConnect.SuspendLayout();
             this.groupBox3.SuspendLayout();
-            this.groupBox2.SuspendLayout();
-            this.groupBox1.SuspendLayout();
+            this.gbNAC.SuspendLayout();
+            this.gbLogin.SuspendLayout();
             this.tabMainServers_Old.SuspendLayout();
             this.groupBox10.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numericUpDown1)).BeginInit();
@@ -647,10 +647,12 @@
             // 
             // txtUsername
             // 
+            this.txtUsername.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::WinSIP2E.Properties.Settings.Default, "UserName", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
             this.txtUsername.Location = new System.Drawing.Point(96, 16);
             this.txtUsername.Name = "txtUsername";
             this.txtUsername.Size = new System.Drawing.Size(180, 20);
             this.txtUsername.TabIndex = 0;
+            this.txtUsername.Text = global::WinSIP2E.Properties.Settings.Default.UserName;
             this.txtUsername.TextChanged += new System.EventHandler(this.txtUsername_TextChanged);
             // 
             // txtPassword
@@ -702,8 +704,8 @@
             // 
             this.tabMainConnect.BackColor = System.Drawing.SystemColors.Control;
             this.tabMainConnect.Controls.Add(this.groupBox3);
-            this.tabMainConnect.Controls.Add(this.groupBox2);
-            this.tabMainConnect.Controls.Add(this.groupBox1);
+            this.tabMainConnect.Controls.Add(this.gbNAC);
+            this.tabMainConnect.Controls.Add(this.gbLogin);
             this.tabMainConnect.Location = new System.Drawing.Point(4, 29);
             this.tabMainConnect.Name = "tabMainConnect";
             this.tabMainConnect.Padding = new System.Windows.Forms.Padding(3);
@@ -733,21 +735,21 @@
             this.label11.Text = "This area is blank until after a successful device\r\nconnection.  \r\nAfter a connec" +
     "tion this will show a quick view of the \r\ndevice status and settings.";
             // 
-            // groupBox2
+            // gbNAC
             // 
-            this.groupBox2.Controls.Add(this.label5);
-            this.groupBox2.Controls.Add(this.cboUnitIDType);
-            this.groupBox2.Controls.Add(this.label9);
-            this.groupBox2.Controls.Add(this.label7);
-            this.groupBox2.Controls.Add(this.btnConnect);
-            this.groupBox2.Controls.Add(this.textBox1);
-            this.groupBox2.Location = new System.Drawing.Point(12, 190);
-            this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Size = new System.Drawing.Size(300, 235);
-            this.groupBox2.TabIndex = 5;
-            this.groupBox2.TabStop = false;
-            this.groupBox2.Text = "NAC Connect";
-            this.groupBox2.Enter += new System.EventHandler(this.groupBox2_Enter);
+            this.gbNAC.Controls.Add(this.label5);
+            this.gbNAC.Controls.Add(this.cboUnitIDType);
+            this.gbNAC.Controls.Add(this.label9);
+            this.gbNAC.Controls.Add(this.label7);
+            this.gbNAC.Controls.Add(this.btnConnect);
+            this.gbNAC.Controls.Add(this.textBox1);
+            this.gbNAC.Location = new System.Drawing.Point(12, 190);
+            this.gbNAC.Name = "gbNAC";
+            this.gbNAC.Size = new System.Drawing.Size(300, 235);
+            this.gbNAC.TabIndex = 5;
+            this.gbNAC.TabStop = false;
+            this.gbNAC.Text = "NAC Connect";
+            this.gbNAC.Enter += new System.EventHandler(this.groupBox2_Enter);
             // 
             // label5
             // 
@@ -804,24 +806,24 @@
             this.textBox1.TabIndex = 2;
             this.textBox1.Text = "d07de5000";
             // 
-            // groupBox1
+            // gbLogin
             // 
-            this.groupBox1.Controls.Add(this.cmdConsole);
-            this.groupBox1.Controls.Add(this.cmdSettings);
-            this.groupBox1.Controls.Add(this.label167);
-            this.groupBox1.Controls.Add(this.label10);
-            this.groupBox1.Controls.Add(this.label8);
-            this.groupBox1.Controls.Add(this.cmdLogIn);
-            this.groupBox1.Controls.Add(this.label1);
-            this.groupBox1.Controls.Add(this.label2);
-            this.groupBox1.Controls.Add(this.txtUsername);
-            this.groupBox1.Controls.Add(this.txtPassword);
-            this.groupBox1.Location = new System.Drawing.Point(12, 30);
-            this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(300, 154);
-            this.groupBox1.TabIndex = 4;
-            this.groupBox1.TabStop = false;
-            this.groupBox1.Text = "Login";
+            this.gbLogin.Controls.Add(this.cmdConsole);
+            this.gbLogin.Controls.Add(this.cmdSettings);
+            this.gbLogin.Controls.Add(this.label167);
+            this.gbLogin.Controls.Add(this.label10);
+            this.gbLogin.Controls.Add(this.label8);
+            this.gbLogin.Controls.Add(this.cmdLogIn);
+            this.gbLogin.Controls.Add(this.label1);
+            this.gbLogin.Controls.Add(this.label2);
+            this.gbLogin.Controls.Add(this.txtUsername);
+            this.gbLogin.Controls.Add(this.txtPassword);
+            this.gbLogin.Location = new System.Drawing.Point(12, 30);
+            this.gbLogin.Name = "gbLogin";
+            this.gbLogin.Size = new System.Drawing.Size(300, 154);
+            this.gbLogin.TabIndex = 4;
+            this.gbLogin.TabStop = false;
+            this.gbLogin.Text = "Login";
             // 
             // cmdConsole
             // 
@@ -4679,25 +4681,25 @@
             // dataGridView1
             // 
             this.dataGridView1.AllowUserToAddRows = false;
-            dataGridViewCellStyle5.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle5.BackColor = System.Drawing.SystemColors.Control;
-            dataGridViewCellStyle5.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle5.ForeColor = System.Drawing.SystemColors.WindowText;
-            dataGridViewCellStyle5.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle5.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle5.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
-            this.dataGridView1.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle5;
+            dataGridViewCellStyle1.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle1.BackColor = System.Drawing.SystemColors.Control;
+            dataGridViewCellStyle1.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            dataGridViewCellStyle1.ForeColor = System.Drawing.SystemColors.WindowText;
+            dataGridViewCellStyle1.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle1.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle1.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
+            this.dataGridView1.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle1;
             this.dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.dataGridView1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
             this.dataGridViewTextBoxColumn1});
-            dataGridViewCellStyle6.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle6.BackColor = System.Drawing.SystemColors.Window;
-            dataGridViewCellStyle6.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle6.ForeColor = System.Drawing.SystemColors.ControlText;
-            dataGridViewCellStyle6.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle6.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle6.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
-            this.dataGridView1.DefaultCellStyle = dataGridViewCellStyle6;
+            dataGridViewCellStyle2.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle2.BackColor = System.Drawing.SystemColors.Window;
+            dataGridViewCellStyle2.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            dataGridViewCellStyle2.ForeColor = System.Drawing.SystemColors.ControlText;
+            dataGridViewCellStyle2.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle2.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle2.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
+            this.dataGridView1.DefaultCellStyle = dataGridViewCellStyle2;
             this.dataGridView1.Location = new System.Drawing.Point(15, 42);
             this.dataGridView1.Name = "dataGridView1";
             this.dataGridView1.Size = new System.Drawing.Size(511, 233);
@@ -5784,6 +5786,7 @@
             // 
             // cmdDisconnect
             // 
+            this.cmdDisconnect.Enabled = false;
             this.cmdDisconnect.Location = new System.Drawing.Point(776, 32);
             this.cmdDisconnect.Name = "cmdDisconnect";
             this.cmdDisconnect.Size = new System.Drawing.Size(88, 24);
@@ -5794,6 +5797,7 @@
             // 
             // cmdLogOut
             // 
+            this.cmdLogOut.Enabled = false;
             this.cmdLogOut.Location = new System.Drawing.Point(776, 8);
             this.cmdLogOut.Name = "cmdLogOut";
             this.cmdLogOut.Size = new System.Drawing.Size(88, 24);
@@ -5828,10 +5832,10 @@
             this.tabMainConnect.ResumeLayout(false);
             this.groupBox3.ResumeLayout(false);
             this.groupBox3.PerformLayout();
-            this.groupBox2.ResumeLayout(false);
-            this.groupBox2.PerformLayout();
-            this.groupBox1.ResumeLayout(false);
-            this.groupBox1.PerformLayout();
+            this.gbNAC.ResumeLayout(false);
+            this.gbNAC.PerformLayout();
+            this.gbLogin.ResumeLayout(false);
+            this.gbLogin.PerformLayout();
             this.tabMainServers_Old.ResumeLayout(false);
             this.groupBox10.ResumeLayout(false);
             this.groupBox10.PerformLayout();
@@ -5976,9 +5980,9 @@
         private System.Windows.Forms.TabPage tabMainNac;
         private System.Windows.Forms.TabPage tabMainCardReader;
         private System.Windows.Forms.Label label3;
-        private System.Windows.Forms.GroupBox groupBox1;
+        private System.Windows.Forms.GroupBox gbLogin;
         private System.Windows.Forms.Button cmdLogIn;
-        private System.Windows.Forms.GroupBox groupBox2;
+        private System.Windows.Forms.GroupBox gbNAC;
         private System.Windows.Forms.Label label7;
         private System.Windows.Forms.Button btnConnect;
         private System.Windows.Forms.TextBox textBox1;

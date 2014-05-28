@@ -244,7 +244,16 @@ namespace WinSIP2E
 
         private void cmdLogOut_Click(object sender, EventArgs e)
         {
-
+            try
+            {
+                activeConnection.Dispose();
+            }
+            catch { }
+            activeConnection = null;
+            gbLogin.Enabled = true;
+            gbNAC.Enabled = false;
+            cmdDisconnect.Enabled = false;
+            cmdLogOut.Enabled = false;
         }
 
         private void cmdDisconnect_Click(object sender, EventArgs e)
@@ -290,7 +299,9 @@ namespace WinSIP2E
                 if (login.Status == Operation.CompletionCode.FinishedSuccess)
                 {
                     activeConnection = login.ServerConnection;
-                    cmdLogIn.Enabled = false;
+                    gbLogin.Enabled = false;
+                    gbNAC.Enabled = true;
+                    cmdLogOut.Enabled = true;
                 }
             }
             catch (Exception ex)
