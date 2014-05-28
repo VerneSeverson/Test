@@ -309,6 +309,12 @@ namespace WinSIP2E
                 MessageBox.Show("An unexpected error occured: \r\n\r\n" + ex.ToString());
             }
         }
+
+        private void cmdManual_Click(object sender, EventArgs e)
+        {
+            frmManualTerminal frm = new frmManualTerminal();
+            frm.Show();
+        }
     }
 
 }
