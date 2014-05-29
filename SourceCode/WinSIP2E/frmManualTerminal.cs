@@ -21,15 +21,10 @@ namespace WinSIP2E
     {
         private ManualTraceListener thisListener = null;
         SourceLevels oldSourceLevel; 
-
-        //a reference to the operation currently in progress
-        Operation currentOpp = null;
+                
 
         //variables needed for connections
-        public StxEtxHandler connection;
-        private Int32 connectionPort = 1100;    //default        
-
-        bool connObjReady = false; 
+        public StxEtxHandler connection;                
 
         //variables needed to support command history
         private LinkedList<string> outgoingCMDs = new LinkedList<string>();
@@ -81,117 +76,169 @@ namespace WinSIP2E
         }
 
         #region Connect/Disconnect
-        private void Connect()
+        private delegate void connDel(string serverAddr, string serverName, int connectionPort);
+        private void ConnectWorker(string serverAddr, string serverName, int connectionPort)
         {
-            string serverAddr = null;
-            string serverName = null;
-            bool bConnect = false;
-            connObjReady = false;
-            //connect
             try
             {
-                
+                //1. set up the proper messages
+                CommLogMessages msgs = new CommLogMessages
+                {
+                    msgNewTCP_Client = "CONNECTED " + serverAddr + ":" + connectionPort.ToString(),
+                    msgTCP_DisconnectWithReason = "DISCONNECTED",
+                    msgSuppressTCP_DisconnectReason = true
+                };
 
-                //trace source for grabbing communications info
+                //2. set up the trace source for grabbing communications info
                 thisListener = new ManualTraceListener(this, new ForwardLog());
                 thisListener.TraceOutputOptions |= TraceOptions.DateTime | TraceOptions.Timestamp;
                 Program.WinSIP_TS.Listeners.Add(thisListener);
                 oldSourceLevel = Program.WinSIP_TS.Switch.Level;
                 Program.WinSIP_TS.Switch.Level = SourceLevels.Verbose;
-                if (rbActiveConnection.Checked)
-                {
-                    IncomingText("Using existing connection");
-                    serverAddr = WinSIP2E.Properties.Settings.Default.ServerAddress;
-                }
-                else
-                {
-                    if (rbDefaultConnection.Checked)
-                    {
-                        connectionPort = WinSIP2E.Properties.Settings.Default.ManuallySetPort ? Convert.ToInt32(WinSIP2E.Properties.Settings.Default.ServerPort) : 1102;
-                        serverAddr = WinSIP2E.Properties.Settings.Default.ServerAddress;
-                        serverName = WinSIP2E.Properties.Settings.Default.ManuallySetCN ? WinSIP2E.Properties.Settings.Default.ServerCN : WinSIP2E.Properties.Settings.Default.ServerAddress;
-                    }
-                    else if (rbCustomConnection.Checked)
-                    {
-                        connectionPort = Convert.ToInt32(txtServerPort.Text);
-                        serverAddr = txtServerAddress.Text;
-                        serverName = txtManualServerName.Text;
-                    }
+            
+                //3. create the connection with security settings based on the port
+                if (rbActiveConnection.Checked == false)
+                    connection = CreateConnObject(serverAddr, serverName, connectionPort, msgs);                        
+            
 
-                    CommLogMessages msgs = new CommLogMessages
-                    {
-                        msgNewTCP_Client = "CONNECTED " + serverAddr + ":" + connectionPort.ToString(),
-                        msgTCP_DisconnectWithReason = "DISCONNECTED",
-                        msgSuppressTCP_DisconnectReason = true
-                    };
-                    if (connectionPort == 1100)
-                        connection = new StxEtxHandler(new TCPconnManager(Program.WinSIP_TS, msgs).ConnectToServer(serverAddr, connectionPort), true);
-                    else if (connectionPort == 443 || connectionPort == 1101)    //Server should use SSL, but utility does not need to provide a certificate
-                    {
-                        TCPconnManager cm = new TCPconnManager
-                        {
-                            LogTrace = Program.WinSIP_TS,
-                            logMsgs = msgs,
-                            sslSettings = new SSL_Settings
-                            {
-                                peerName = serverName,
-                                protocolsAllowed = SslProtocols.Tls12,
-                                server = false
-                            }
-                        };
-                        connection = new StxEtxHandler(cm.ConnectToServer(serverAddr, connectionPort), true);
-                        IncomingText("SSL Encrypted with 1 way authentication");
-                    }
-                    else if (connectionPort == 1102) //Server should use SSL and the utility needs to provide a certificate
-                    {
-                        if (Program.WinSIP_Cert == null)
-                        {
-                            IncomingText("ERROR: WinSIP has now certificate. Unable to connect with these settings.");
-                            return;
-                        }
-
-                        TCPconnManager cm = new TCPconnManager
-                        {
-                            LogTrace = Program.WinSIP_TS,
-                            logMsgs = msgs,
-                            sslSettings = new SSL_Settings
-                            {
-                                peerName = serverName,
-                                localCert = Program.WinSIP_Cert.Certificate,
-                                server = false
-                            }
-                        };
-                        connection = new StxEtxHandler(cm.ConnectToServer(serverAddr, connectionPort), true);
-                        IncomingText("SSL Encrypted with 2 way authentication");
-                    }
-                }
-
-                lastMsg = DateTime.Now; //used for keeping the connection alive
-                lastUserMsg = DateTime.Now; //used for ending the connection if the user has been inactive for too long
-                tmrKeepAlive.Enabled = true;
-                bConnect = true;
+                //4. setup the listener so it only grabs messages related to this connection
+                thisListener.FilterByEventID(connection.CommContext.ConnectionID);
+            
+                //5. manage the form settings for a new connection
+                UpdateFormConnection(true, serverAddr);
             }
             catch (Exception ex)
             {
                 IncomingText("CONNECTION FAILED: " + ex.ToString());
+                try{ Program.WinSIP_TS.Listeners.Remove(thisListener); }
+                catch { }
+                try { UpdateFormConnection(false, serverAddr); }
+                catch { }
+            }
+        }
+
+        private StxEtxHandler CreateConnObject(string serverAddr, string serverName, int connectionPort, CommLogMessages msgs)
+        {
+            StxEtxHandler theConnection = null;
+            if (connectionPort == 1100)
+                theConnection = new StxEtxHandler(new TCPconnManager(Program.WinSIP_TS, msgs).ConnectToServer(serverAddr, connectionPort), true);
+            else if (connectionPort == 443 || connectionPort == 1101)    //Server should use SSL, but utility does not need to provide a certificate
+            {
+                TCPconnManager cm = new TCPconnManager
+                {
+                    LogTrace = Program.WinSIP_TS,
+                    logMsgs = msgs,
+                    sslSettings = new SSL_Settings
+                    {
+                        peerName = serverName,
+                        protocolsAllowed = SslProtocols.Tls12,
+                        server = false
+                    }
+                };
+                theConnection = new StxEtxHandler(cm.ConnectToServer(serverAddr, connectionPort), true);
+                IncomingText("SSL Encrypted with 1 way authentication");
+            }
+            else if (connectionPort == 1102) //Server should use SSL and the utility needs to provide a certificate
+            {
+                if (Program.WinSIP_Cert == null)
+                {
+                    throw new InvalidOperationException("WinSIP has no certificate. Unable to connect with these settings.");                        
+                }
+
+                TCPconnManager cm = new TCPconnManager
+                {
+                    LogTrace = Program.WinSIP_TS,
+                    logMsgs = msgs,
+                    sslSettings = new SSL_Settings
+                    {
+                        peerName = serverName,
+                        localCert = Program.WinSIP_Cert.Certificate,
+                        server = false
+                    }
+                };
+                theConnection = new StxEtxHandler(cm.ConnectToServer(serverAddr, connectionPort), true);
+                IncomingText("SSL Encrypted with 2 way authentication");
+            }
+            return theConnection;
+            
+        }
+
+        private void UpdateFormConnection(bool success, string serverAddr)
+        {
+            if (InvokeRequired)
+            {
+                this.Invoke(new Action(() => UpdateFormConnection(success, serverAddr)));
+                return;
             }
 
-
-            //if successful:
-            if (bConnect)
+            if (success)
             {
                 this.Text = "Manual Mode - Connected: " + serverAddr;
                 cmdConnect.Text = "Disconnect";
                 txtTerminal.Focus();
+                gbConnection.Enabled = false;
+
+                lastMsg = DateTime.Now; //used for keeping the connection alive
+                lastUserMsg = DateTime.Now; //used for ending the connection if the user has been inactive for too long
+                tmrKeepAlive.Enabled = true;
+
+                if (rbActiveConnection.Checked)
+                    cmdConnect.Enabled = false;
+                else
+                    cmdConnect.Enabled = true;
             }
-            connObjReady = true;
+            else
+                cmdConnect.Enabled = true;
+            
+        }
+
+        private void Connect()
+        {
+            string serverAddr = null;
+            string serverName = null;
+            int connectionPort = 0;            
+            
+            //connect
+            try
+            {                                
+                if (rbActiveConnection.Checked)
+                {
+                    IncomingText("Using existing connection");
+                    serverAddr = WinSIP2E.Properties.Settings.Default.ServerAddress;                    
+                }
+                else if (rbDefaultConnection.Checked)
+                {
+                    connectionPort = WinSIP2E.Properties.Settings.Default.ManuallySetPort ? Convert.ToInt32(WinSIP2E.Properties.Settings.Default.ServerPort) : 1102;
+                    serverAddr = WinSIP2E.Properties.Settings.Default.ServerAddress;
+                    serverName = WinSIP2E.Properties.Settings.Default.ManuallySetCN ? WinSIP2E.Properties.Settings.Default.ServerCN : WinSIP2E.Properties.Settings.Default.ServerAddress;
+                }                                   
+                else if (rbCustomConnection.Checked)
+                {
+                    connectionPort = Convert.ToInt32(txtServerPort.Text);
+                    serverAddr = txtServerAddress.Text;
+                    serverName = txtManualServerName.Text;
+                }
+                if (!rbActiveConnection.Checked)
+                    IncomingText("Connecting to " + serverAddr);
+
+                cmdConnect.Enabled = false;
+                connDel caller = this.ConnectWorker;
+                caller.BeginInvoke(serverAddr, serverName, connectionPort, delegate(IAsyncResult arr) { caller.EndInvoke(arr); }, null);
+                
+            }
+            catch (Exception ex)
+            {
+                IncomingText("CONNECTION FAILED: " + ex.ToString());
+            }           
         }
 
         private void Disconnect()
         {
+            gbConnection.Enabled = true;
+
             //disconnect
             try
-            {
+            {                
                 connection.Dispose();   //close the connection                    
             }
             catch { }
@@ -238,7 +285,7 @@ namespace WinSIP2E
             txtTerminal.Select(txtTerminal.Text.Length - distToEnd, 0);
             lastMsg = DateTime.Now;
             if (connection == null || connection.CommContext == null || connection.CommContext.bConnected == false)
-                if (connObjReady)
+                if (tmrKeepAlive.Enabled == true)    //only disconnect if this is true (to prevent disconnections before the connection is established)
                     Disconnect();
         }
 
@@ -455,6 +502,7 @@ namespace WinSIP2E
         //LOG CLASS FOR MANUAL MODE
         class ManualTraceListener : ForwardTraceListener
         {
+            private int EventID_Filter = -1;
             private frmManualTerminal frm;  //reference to the parent form
             public ManualTraceListener(frmManualTerminal frm, ForwardLog log)
                 : base(log)
@@ -466,13 +514,25 @@ namespace WinSIP2E
             {
                 LogEntry[] lEntries = theLog.Entries;
                 LogEntry newest = lEntries[lEntries.Length - 1];
-
+                
                 if (newest.Msg != null && newest.DateTime != null && newest.Timestamp != null)
                 {
                     //we have enough info to post to the terminal window
-                    frm.IncomingText(newest.ToManualString());
+                    if ( (EventID_Filter == -1) || (EventID_Filter.ToString() == newest.eventID) )
+                        frm.IncomingText(newest.ToManualString());
                 }
             }
+
+            /// <summary>
+            /// Call this to only display log messages from this event ID 
+            /// HINT: set this to a connection ID to only display a certain connection.
+            /// </summary>
+            /// <param name="eventID"></param>
+            public void FilterByEventID(int eventID)
+            {
+                EventID_Filter = eventID;
+            }
+
         }
 
         private void cmdAppendAndSend_Click(object sender, EventArgs e)
@@ -510,7 +570,7 @@ namespace WinSIP2E
 
             TimeSpan sinceLastUserMsg = DateTime.Now - lastUserMsg;
             if (sinceLastUserMsg.TotalSeconds > 300)
-                Disconnect();       //should probably have a text box that give the user an option to stay connected.
+                Disconnect();       //should probably have a text box that gives the user an option to stay connected.
         }
 
         private void txtTerminal_TextChanged(object sender, EventArgs e)

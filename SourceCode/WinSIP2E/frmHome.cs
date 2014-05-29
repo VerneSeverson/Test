@@ -311,8 +311,15 @@ namespace WinSIP2E
         }
 
         private void cmdManual_Click(object sender, EventArgs e)
-        {
+        {            
             frmManualTerminal frm = new frmManualTerminal();
+            try
+            {
+                if (activeConnection.StxEtxPeer.CommContext.bConnected)
+                    frm.connection = activeConnection.StxEtxPeer;
+            }
+            catch { }
+
             frm.Show();
         }
     }

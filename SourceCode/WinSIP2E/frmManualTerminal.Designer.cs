@@ -29,7 +29,7 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.gbConnection = new System.Windows.Forms.GroupBox();
             this.label3 = new System.Windows.Forms.Label();
             this.txtManualServerName = new System.Windows.Forms.TextBox();
             this.txtServerAddress = new System.Windows.Forms.TextBox();
@@ -46,26 +46,26 @@
             this.cmdConnect = new System.Windows.Forms.Button();
             this.label4 = new System.Windows.Forms.Label();
             this.tmrKeepAlive = new System.Windows.Forms.Timer(this.components);
-            this.groupBox1.SuspendLayout();
+            this.gbConnection.SuspendLayout();
             this.SuspendLayout();
             // 
-            // groupBox1
+            // gbConnection
             // 
-            this.groupBox1.Controls.Add(this.label3);
-            this.groupBox1.Controls.Add(this.txtManualServerName);
-            this.groupBox1.Controls.Add(this.txtServerAddress);
-            this.groupBox1.Controls.Add(this.label2);
-            this.groupBox1.Controls.Add(this.txtServerPort);
-            this.groupBox1.Controls.Add(this.label1);
-            this.groupBox1.Controls.Add(this.rbCustomConnection);
-            this.groupBox1.Controls.Add(this.rbDefaultConnection);
-            this.groupBox1.Controls.Add(this.rbActiveConnection);
-            this.groupBox1.Location = new System.Drawing.Point(9, 3);
-            this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(562, 124);
-            this.groupBox1.TabIndex = 0;
-            this.groupBox1.TabStop = false;
-            this.groupBox1.Text = "Connection";
+            this.gbConnection.Controls.Add(this.label3);
+            this.gbConnection.Controls.Add(this.txtManualServerName);
+            this.gbConnection.Controls.Add(this.txtServerAddress);
+            this.gbConnection.Controls.Add(this.label2);
+            this.gbConnection.Controls.Add(this.txtServerPort);
+            this.gbConnection.Controls.Add(this.label1);
+            this.gbConnection.Controls.Add(this.rbCustomConnection);
+            this.gbConnection.Controls.Add(this.rbDefaultConnection);
+            this.gbConnection.Controls.Add(this.rbActiveConnection);
+            this.gbConnection.Location = new System.Drawing.Point(9, 3);
+            this.gbConnection.Name = "gbConnection";
+            this.gbConnection.Size = new System.Drawing.Size(562, 124);
+            this.gbConnection.TabIndex = 0;
+            this.gbConnection.TabStop = false;
+            this.gbConnection.Text = "Connection";
             // 
             // label3
             // 
@@ -232,13 +232,13 @@
             this.Controls.Add(this.cmdAppendAndSend);
             this.Controls.Add(this.txtAccumString);
             this.Controls.Add(this.txtTerminal);
-            this.Controls.Add(this.groupBox1);
+            this.Controls.Add(this.gbConnection);
             this.Name = "frmManualTerminal";
             this.Text = "Manual Terminal";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.frmManualTerminal_FormClosing);
             this.Load += new System.EventHandler(this.frmManualTerminal_Load);
-            this.groupBox1.ResumeLayout(false);
-            this.groupBox1.PerformLayout();
+            this.gbConnection.ResumeLayout(false);
+            this.gbConnection.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -246,7 +246,7 @@
 
         #endregion
 
-        private System.Windows.Forms.GroupBox groupBox1;
+        private System.Windows.Forms.GroupBox gbConnection;
         private System.Windows.Forms.RadioButton rbCustomConnection;
         private System.Windows.Forms.RadioButton rbDefaultConnection;
         private System.Windows.Forms.RadioButton rbActiveConnection;
