@@ -7,6 +7,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ForwardLibrary.Communications.STXETX;
+using System.Security;
+using ForwardLibrary.Crypto;
 
 namespace ForwardLibrary
 {
@@ -236,7 +238,12 @@ namespace ForwardLibrary
                 
                 public TraceSource ts;
 
-                protected StxEtxHandler stxetxClient = null;
+                protected StxEtxHandler _stxetxClient = null;
+
+                public StxEtxHandler StxEtxPeer
+                {
+                    get { return _stxetxClient; }
+                }
                 
                 /// <summary>
                 /// constructor for when an STXETX handler is already in place
@@ -250,7 +257,7 @@ namespace ForwardLibrary
                     else
                         ts = optionalTS;
 
-                    this.stxetxClient = stxetxClient;
+                    this._stxetxClient = stxetxClient;
                     
                 }
 
@@ -268,7 +275,7 @@ namespace ForwardLibrary
                         ts = optionalTS;
 
                     LogMsg(TraceEventType.Information, "Initiating connection to: " + hostname);
-                    stxetxClient = new StxEtxHandler(new TCPconnManager(ts).ConnectToServer(hostname, optionalPort), true);
+                    _stxetxClient = new StxEtxHandler(new TCPconnManager(ts).ConnectToServer(hostname, optionalPort), true);
                     LogMsg(TraceEventType.Information, "Server connection established.");
                 }
 
@@ -294,18 +301,30 @@ namespace ForwardLibrary
                     {
                         while (optionalRetries-- > 0)
                         {
-                            if (stxetxClient.SendCommand(command))
+                            if (_stxetxClient.SendCommand(command))
                             {
                                 string reply = null;
                                 bool result = true;
                                 int giveUp = NumResponses + 3;
                                 while (result && Responses.Count < NumResponses && giveUp-- > 0)
                                 {
-                                    result = stxetxClient.ReceiveData(out reply, optionalTimeout * 1000);
+                                    result = _stxetxClient.ReceiveData(out reply, optionalTimeout * 1000);
                                     if (reply != null)
                                         Responses.Add(reply);
 
                                 }
+
+                                if (Responses.Count == 1)
+                                {
+                                    string resp = Responses[0];
+                                    if (resp == "ERM")
+                                        throw new ResponseErrorCodeException("Received an unexpected ERM.", command, Responses);
+                                    else if (resp == "ERP")
+                                        throw new ResponseErrorCodeException("The user does not have permission to use this command.", command, Responses);
+                                    if (resp == "ERL")
+                                        throw new ResponseErrorCodeException("The communication link is not suitable for this command.", command, Responses);
+                                }
+                                    
                                 //see if we found all the responses we were looking for
                                 if (Responses.Count < NumResponses)
                                 {
@@ -368,8 +387,8 @@ namespace ForwardLibrary
                 {
                     try
                     {
-                        stxetxClient.Dispose();
-                        stxetxClient = null;
+                        _stxetxClient.Dispose();
+                        _stxetxClient = null;
                     }
                     catch
                     {
@@ -900,7 +919,7 @@ namespace ForwardLibrary
                 /// <param name="optionalCloseConn">Set to true to close the connection after executing the command</param>
                 public void CCDB(bool optionalCloseConn = false)
                 {                    
-                    string command = "CCDB ";
+                    string command = "CCDB";
                     List<string> resps = SendCommand(command, 1, optionalCloseConn);
                     try
                     {
@@ -924,6 +943,52 @@ namespace ForwardLibrary
                     }
 
                 }
+                #endregion
+
+                #region User database commands
+                /// <summary>
+                /// Authenticate user (user login command)
+                /// 
+                /// Exceptions thrown: 
+                ///     ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException,
+                ///     ArgumentNullException
+                /// </summary>  
+                /// <param name="userName">the user name</param>
+                /// <param name="password">the users password</param>
+                /// <param name="optionalCloseConn">Set to true to close the connection after executing the command</param>
+                public void UDA(string userName, SecureString password, bool optionalCloseConn = false)
+                {
+                    string command = "UDA=" + userName + "," + CStoredCertificate.ConvertToUnsecureString(password);
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        string response = Vals[1].Trim();
+                        if (response == "LOCKED")
+                            throw new ResponseErrorCodeException("This user account is locked out.", command, resps);
+                        if (response == "REVOKED")
+                            throw new ResponseErrorCodeException("This user account has been revoked.", command, resps);
+                        if (response == "REJECT")
+                            throw new ResponseErrorCodeException("Bad username or password.", command, resps);
+                        else if (response == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
+                        else if (response != "OK")
+                            throw new ResponseException("Invalid response received.", command, resps);
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+
+                }
+
                 #endregion
 
                 #endregion

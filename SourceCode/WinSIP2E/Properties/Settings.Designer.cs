@@ -94,5 +94,41 @@ namespace WinSIP2E.Properties {
                 this["CertificateID"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string UserName {
+            get {
+                return ((string)(this["UserName"]));
+            }
+            set {
+                this["UserName"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string LastManualBrowseFolder {
+            get {
+                return ((string)(this["LastManualBrowseFolder"]));
+            }
+            set {
+                this["LastManualBrowseFolder"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool UpdateRequired {
+            get {
+                return ((bool)(this["UpdateRequired"]));
+            }
+            set {
+                this["UpdateRequired"] = value;
+            }
+        }
     }
 }

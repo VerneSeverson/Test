@@ -1,4 +1,6 @@
-﻿using System;
+﻿using ForwardLibrary.Communications.CommandHandlers;
+using ForwardLibrary.Crypto;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -7,11 +9,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using WinSIP2E.Operations;
 
 namespace WinSIP2E
 {
     public partial class frmHome : Form
     {
+        WinSIPserver activeConnection = null;
+
         public frmHome()
         {
             InitializeComponent();
@@ -96,13 +101,13 @@ namespace WinSIP2E
 
         }
 
-        private void button1_Click(object sender, EventArgs e)
-        {
-
-        }
-
         private void frmHome_Load(object sender, EventArgs e)
-        {
+        {            
+            if (Properties.Settings.Default.UpdateRequired)
+            {
+                Properties.Settings.Default.Upgrade();
+                Properties.Settings.Default.UpdateRequired = false;
+            }
             Program.UpdateCertificate();
         }
 
@@ -244,7 +249,16 @@ namespace WinSIP2E
 
         private void cmdLogOut_Click(object sender, EventArgs e)
         {
-
+            try
+            {
+                activeConnection.Dispose();
+            }
+            catch { }
+            activeConnection = null;
+            gbLogin.Enabled = true;
+            gbNAC.Enabled = false;
+            cmdDisconnect.Enabled = false;
+            cmdLogOut.Enabled = false;
         }
 
         private void cmdDisconnect_Click(object sender, EventArgs e)
@@ -261,6 +275,56 @@ namespace WinSIP2E
         private void cmdConsole_Click(object sender, EventArgs e)
         {
             frmConsole frm = new frmConsole();
+            frm.Show();
+        }
+
+        private void cmdLogIn_click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (activeConnection != null)
+                {
+                    try
+                    {
+                        activeConnection.Dispose();
+                    }
+                    catch { }
+                    activeConnection = null;
+                }
+
+                LoginToServer login = new LoginToServer(txtUsername.Text, CStoredCertificate.MakeSecureString(txtPassword.Text),
+                    WinSIP2E.Properties.Settings.Default.ServerAddress,
+                    WinSIP2E.Properties.Settings.Default.ManuallySetCN ? WinSIP2E.Properties.Settings.Default.ServerCN : WinSIP2E.Properties.Settings.Default.ServerAddress,
+                    WinSIP2E.Properties.Settings.Default.ManuallySetPort ? Convert.ToInt32(WinSIP2E.Properties.Settings.Default.ServerPort) : 1102,
+                    Program.WinSIP_Cert, Program.WinSIP_TS);
+
+                OperationStatusDialog frm = new OperationStatusDialog();
+                frm.operation = login;
+                frm.ShowDialog();
+                if (login.Status == Operation.CompletionCode.FinishedSuccess)
+                {
+                    activeConnection = login.ServerConnection;
+                    gbLogin.Enabled = false;
+                    gbNAC.Enabled = true;
+                    cmdLogOut.Enabled = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("An unexpected error occured: \r\n\r\n" + ex.ToString());
+            }
+        }
+
+        private void cmdManual_Click(object sender, EventArgs e)
+        {            
+            frmManualTerminal frm = new frmManualTerminal();
+            try
+            {
+                if (activeConnection.StxEtxPeer.CommContext.bConnected)
+                    frm.connection = activeConnection.StxEtxPeer;
+            }
+            catch { }
+
             frm.Show();
         }
     }
