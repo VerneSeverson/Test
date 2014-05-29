@@ -238,7 +238,12 @@ namespace ForwardLibrary
                 
                 public TraceSource ts;
 
-                protected StxEtxHandler stxetxClient = null;
+                protected StxEtxHandler _stxetxClient = null;
+
+                public StxEtxHandler StxEtxPeer
+                {
+                    get { return _stxetxClient; }
+                }
                 
                 /// <summary>
                 /// constructor for when an STXETX handler is already in place
@@ -252,7 +257,7 @@ namespace ForwardLibrary
                     else
                         ts = optionalTS;
 
-                    this.stxetxClient = stxetxClient;
+                    this._stxetxClient = stxetxClient;
                     
                 }
 
@@ -270,7 +275,7 @@ namespace ForwardLibrary
                         ts = optionalTS;
 
                     LogMsg(TraceEventType.Information, "Initiating connection to: " + hostname);
-                    stxetxClient = new StxEtxHandler(new TCPconnManager(ts).ConnectToServer(hostname, optionalPort), true);
+                    _stxetxClient = new StxEtxHandler(new TCPconnManager(ts).ConnectToServer(hostname, optionalPort), true);
                     LogMsg(TraceEventType.Information, "Server connection established.");
                 }
 
@@ -296,14 +301,14 @@ namespace ForwardLibrary
                     {
                         while (optionalRetries-- > 0)
                         {
-                            if (stxetxClient.SendCommand(command))
+                            if (_stxetxClient.SendCommand(command))
                             {
                                 string reply = null;
                                 bool result = true;
                                 int giveUp = NumResponses + 3;
                                 while (result && Responses.Count < NumResponses && giveUp-- > 0)
                                 {
-                                    result = stxetxClient.ReceiveData(out reply, optionalTimeout * 1000);
+                                    result = _stxetxClient.ReceiveData(out reply, optionalTimeout * 1000);
                                     if (reply != null)
                                         Responses.Add(reply);
 
@@ -382,8 +387,8 @@ namespace ForwardLibrary
                 {
                     try
                     {
-                        stxetxClient.Dispose();
-                        stxetxClient = null;
+                        _stxetxClient.Dispose();
+                        _stxetxClient = null;
                     }
                     catch
                     {
