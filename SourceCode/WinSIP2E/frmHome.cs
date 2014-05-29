@@ -102,7 +102,7 @@ namespace WinSIP2E
         }
 
         private void frmHome_Load(object sender, EventArgs e)
-        {
+        {            
             if (Properties.Settings.Default.UpdateRequired)
             {
                 Properties.Settings.Default.Upgrade();

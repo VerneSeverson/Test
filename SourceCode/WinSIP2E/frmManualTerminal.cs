@@ -181,6 +181,7 @@ namespace WinSIP2E
                 lastMsg = DateTime.Now; //used for keeping the connection alive
                 lastUserMsg = DateTime.Now; //used for ending the connection if the user has been inactive for too long
                 tmrKeepAlive.Enabled = true;
+                txtTerminal.ReadOnly = false;
 
                 if (rbActiveConnection.Checked)
                     cmdConnect.Enabled = false;
@@ -235,7 +236,7 @@ namespace WinSIP2E
         private void Disconnect()
         {
             gbConnection.Enabled = true;
-
+            txtTerminal.ReadOnly = true;
             //disconnect
             try
             {                
@@ -293,6 +294,9 @@ namespace WinSIP2E
         private bool softIgnoreKey = false, pasteText = false;
         private void txtTerminal_KeyDown(object sender, System.Windows.Forms.KeyEventArgs e)
         {
+            if (txtTerminal.ReadOnly)
+                return;
+
             softIgnoreKey = false; pasteText = false;
 
             //distance from end of text:
@@ -360,6 +364,9 @@ namespace WinSIP2E
 
         private void txtTerminal_KeyPress(object sender, System.Windows.Forms.KeyPressEventArgs e)
         {   //only called for printable characters AND: backspace, CR
+
+            if (txtTerminal.ReadOnly)
+                return;
 
             //if a key has been pressed that my logic shouldn't handle (but the control logic should):
             if (softIgnoreKey)

@@ -163,6 +163,7 @@
             this.txtTerminal.MaxLength = 65534;
             this.txtTerminal.Multiline = true;
             this.txtTerminal.Name = "txtTerminal";
+            this.txtTerminal.ReadOnly = true;
             this.txtTerminal.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             this.txtTerminal.Size = new System.Drawing.Size(563, 554);
             this.txtTerminal.TabIndex = 15;
