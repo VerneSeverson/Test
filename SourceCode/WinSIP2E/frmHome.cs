@@ -280,38 +280,43 @@ namespace WinSIP2E
 
         private void cmdLogIn_click(object sender, EventArgs e)
         {
-            try
+            if (Program.WinSIP_Cert == null)
+                MessageBox.Show("WinSIP2E does not have a valid certificate.\r\n\r\nPlease click the settings button to request a certificate.", "Unable to connect to the server", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            else
             {
-                if (activeConnection != null)
+                try
                 {
-                    try
+                    if (activeConnection != null)
                     {
-                        activeConnection.Dispose();
+                        try
+                        {
+                            activeConnection.Dispose();
+                        }
+                        catch { }
+                        activeConnection = null;
                     }
-                    catch { }
-                    activeConnection = null;
+
+                    LoginToServer login = new LoginToServer(txtUsername.Text, CStoredCertificate.MakeSecureString(txtPassword.Text),
+                        WinSIP2E.Properties.Settings.Default.ServerAddress,
+                        WinSIP2E.Properties.Settings.Default.ManuallySetCN ? WinSIP2E.Properties.Settings.Default.ServerCN : WinSIP2E.Properties.Settings.Default.ServerAddress,
+                        WinSIP2E.Properties.Settings.Default.ManuallySetPort ? Convert.ToInt32(WinSIP2E.Properties.Settings.Default.ServerPort) : 1102,
+                        Program.WinSIP_Cert, Program.WinSIP_TS);
+
+                    OperationStatusDialog frm = new OperationStatusDialog();
+                    frm.operation = login;
+                    frm.ShowDialog();
+                    if (login.Status == Operation.CompletionCode.FinishedSuccess)
+                    {
+                        activeConnection = login.ServerConnection;
+                        gbLogin.Enabled = false;
+                        gbNAC.Enabled = true;
+                        cmdLogOut.Enabled = true;
+                    }
                 }
-
-                LoginToServer login = new LoginToServer(txtUsername.Text, CStoredCertificate.MakeSecureString(txtPassword.Text),
-                    WinSIP2E.Properties.Settings.Default.ServerAddress,
-                    WinSIP2E.Properties.Settings.Default.ManuallySetCN ? WinSIP2E.Properties.Settings.Default.ServerCN : WinSIP2E.Properties.Settings.Default.ServerAddress,
-                    WinSIP2E.Properties.Settings.Default.ManuallySetPort ? Convert.ToInt32(WinSIP2E.Properties.Settings.Default.ServerPort) : 1102,
-                    Program.WinSIP_Cert, Program.WinSIP_TS);
-
-                OperationStatusDialog frm = new OperationStatusDialog();
-                frm.operation = login;
-                frm.ShowDialog();
-                if (login.Status == Operation.CompletionCode.FinishedSuccess)
+                catch (Exception ex)
                 {
-                    activeConnection = login.ServerConnection;
-                    gbLogin.Enabled = false;
-                    gbNAC.Enabled = true;
-                    cmdLogOut.Enabled = true;
+                    MessageBox.Show("An unexpected error occured: \r\n\r\n" + ex.ToString());
                 }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("An unexpected error occured: \r\n\r\n" + ex.ToString());
             }
         }
 

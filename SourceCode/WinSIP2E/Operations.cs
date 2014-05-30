@@ -938,7 +938,7 @@ namespace WinSIP2E
 
             /// <summary>
             /// Possible exceptions:
-            /// ArgumentException
+            /// ArgumentException, ArgumentNullException
             /// </summary>
             /// <param name="pinCode"></param>
             /// <param name="machineID"></param>
@@ -947,6 +947,8 @@ namespace WinSIP2E
             /// <param name="serverPort">The common name of the server's certificate.</param>            
             public LoginToServer(string userName, SecureString password, string serverAddress, string serverCN, int serverPort, CStoredCertificate serverCert, TraceSource LogTS = null)
             {
+                if ((userName == null) || (password == null) || (serverAddress == null) || (serverCN == null) || (serverCert == null))
+                    throw new ArgumentNullException();
                 SetUpBasicFields(userName, password, LogTS);
                 this.ServerAddress = serverAddress;
                 this.ServerCN = serverCN;
