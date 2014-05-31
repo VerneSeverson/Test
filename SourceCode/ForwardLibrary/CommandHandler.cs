@@ -290,6 +290,9 @@ namespace ForwardLibrary
                 /// <param name="optionalRetries">Number of retries to get the command sent. Default: 3</param>
                 /// <param name="optionalTimeout">Timeout (in seconds) when waiting for an STXETX response. Default: 10 seconds</param>
                 /// <returns></returns>
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
                 public List<string> SendCommand(string command, int NumResponses = 0,
                                         bool optionalCloseConn = false, int optionalRetries = 3,
                                         int optionalTimeout = 10)
@@ -424,6 +427,123 @@ namespace ForwardLibrary
 
 
                 #region ADMINISTRATIVE AND MSC COMMANDS
+
+
+                /// <summary>
+                /// How many entries are there in the BNAC table?
+                /// 
+                /// Exceptions thrown: ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException
+                /// </summary>
+                /// <param name="entries">the number of BNAC table entries</param>
+                /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param>                
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                public void BNUM(out int entries, bool optionalCloseConn = false)
+                {
+                    string command = "BNUM";
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)                        
+                            throw new ResponseException("Invalid response received.", command, resps);                        
+
+                        string response = Vals[1].Trim();
+                        if (response == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
+                        else
+                            entries = int.Parse(response);
+                                                
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+                /// <summary>
+                /// Set the BNAC table size (currently only supports growing the BNAC table)
+                /// 
+                /// Exceptions thrown: ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException
+                /// </summary>
+                /// <param name="entries">the number of BNAC table entries</param>
+                /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param>                
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                public void BSET(int entries, bool optionalCloseConn = false)
+                {
+                    string command = "BSET=" + entries.ToString();
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)                        
+                            throw new ResponseException("Invalid response received.", command, resps);                            
+
+                        string response = Vals[1].Trim();
+                        if (response == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
+                        else if (entries != int.Parse(response))
+                            throw new ResponseException("Request to increase BNAC table size to " + entries + " entries " 
+                                + "resulted in an unexpected increase to " + int.Parse(response) + " entries.", command, resps);
+                        
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+                /// <summary>
+                /// Count the active socket connections
+                /// 
+                /// Exceptions thrown: ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException
+                /// </summary>
+                /// <param name="connections">the number of active socket connections</param>
+                /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param>                
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                public void CCON(out int connections, bool optionalCloseConn = false)
+                {
+                    string command = "CCON";
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        string response = Vals[1].Trim();
+                        if (response == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
+                        else
+                            connections = int.Parse(response);                            
+
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
                 /// <summary>
                 /// Read server settings 
                 /// </summary>
@@ -532,9 +652,146 @@ namespace ForwardLibrary
                     }
                     return resp;
                 }
+
+
+                /// <summary>
+                /// Request BNAC server status information
+                /// 
+                /// Exceptions thrown: ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException
+                /// </summary>
+                /// <param name="memory_used">number of bytes currently allocated in the BNAC server process</param>
+                /// <param name="max_worker">maximum number of worker threads allowed</param>
+                /// <param name="max_port">maximum number of asynchronous port threads allowed</param>
+                /// <param name="avail_worker">max worker – worker threads in use</param>
+                /// <param name="avail_port">max port – number of asynchronous port threads in use</param>
+                /// <param name="min_worker">number of worker threads that can be allocated on demand; 
+                /// after this number is exceeded an algorithm will slowly create more worker threads 
+                /// (up to max worker) on the order of one thread per half second, this decreases performance.</param>
+                /// <param name="min_port">number of port threads that can be allocated on demand; 
+                /// after this number is exceeded an algorithm will slowly create more worker threads 
+                /// (up to max worker) on the order of one thread per half second, this decreases performance.</param>
+                /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param>                
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                public void STAT(out int memory_used, out int max_worker, out int max_port, out int avail_worker, out int avail_port, out int min_worker, out int min_port, bool optionalCloseConn = false)
+                {
+                    string command = "STAT";
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);
+                            
+                        string[] responses = Vals[1].Trim().Split(',');
+                        if (responses.Length != 7)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        memory_used = int.Parse(responses[0]);
+                        max_worker = int.Parse(responses[1]);
+                        max_port = int.Parse(responses[2]);
+                        avail_worker = int.Parse(responses[3]);
+                        avail_port = int.Parse(responses[4]);
+                        min_worker = int.Parse(responses[5]);
+                        min_port = int.Parse(responses[6]);
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+                /// <summary>
+                /// Request BNAC Server version
+                /// 
+                /// Exceptions thrown: ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException
+                /// </summary>
+                /// <param name="version_str">The version string (not yet standardized at the time of writing this function</param>
+                /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param>                
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                public void VER(out string version_str, bool optionalCloseConn = false)
+                {
+                    string command = "VER";
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        version_str = Vals[1].Trim();
+                        
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
                 #endregion
 
                 #region BNAC TABLE COMMANDS
+
+                /// <summary>
+                /// Get BNAC status information
+                /// 
+                /// Exceptions thrown: ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException
+                /// </summary>
+                /// <param name="index">the index of the BNAC in the BNAC table</param>
+                /// <param name="status">the current status of the BNAC</param>
+                /// <param name="lastCheckin"> the last time the BNAC checked in (in GMT)</param>
+                /// <param name="sms_remaining">the number of monthly SMS messages remain (only relevant for cellular BNACs)</param>                
+                /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param>                
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                public void BSTA(int index, out BNAC_StateTable.Entry status, bool optionalCloseConn = false)
+                {
+                    string command = "BSTA" + index.ToString() + "?";
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        string[] responses = Vals[1].Trim().Split(',');
+
+                        string status_str = responses[0].Trim();
+                        if (status_str == "E")
+                            throw new ResponseErrorCodeException("This BNAC table entry is empty.", command, resps);
+                        else if (status_str == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
+                        else if (responses.Length != 3)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        status = new BNAC_StateTable.Entry(index, responses);
+
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+
 
                 /// <summary>
                 /// Read BNAC table entry
@@ -546,6 +803,9 @@ namespace ForwardLibrary
                 /// <param name="tableEntry">the entry found</param>
                 /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param>
                 /// <returns>DON'T USE THE RETURN VALUE, in the future this function will be type void</returns>
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
                 public string ReadCBT(string ID, BNAC_Table.ID_Type idType, out BNAC_Table.Entry tableEntry, bool optionalCloseConn = false)
                 {
                     string command = "CBT=" + BNAC_Table.CreateID(ID, idType) + "?";
@@ -588,6 +848,9 @@ namespace ForwardLibrary
                 /// <param name="idType"></param>
                 /// <param name="optionalCloseConn"></param>
                 /// <returns></returns>
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
                 public string ReadCBT(string ID, BNAC_Table.ID_Type idType, bool optionalCloseConn = false)
                 {
                     string command = "CBT=" + BNAC_Table.CreateID(ID, idType) + "?";
@@ -612,6 +875,180 @@ namespace ForwardLibrary
                         throw ex;
                     }
                     
+                }
+
+
+                /// <summary>
+                /// Read back the first used BNAC table entry at or after next index
+                /// 
+                /// Exceptions thrown: ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException
+                /// </summary>
+                /// <param name="ID">the ID of the entry to read</param>
+                /// <param name="idType">the type of ID</param>
+                /// <param name="tableEntry">the entry found</param>
+                /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param> 
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                public void RBTN(string ID, BNAC_Table.ID_Type idType, out BNAC_Table.Entry tableEntry, bool optionalCloseConn = false)
+                {
+                    string command = "RBTN" + BNAC_Table.CreateID(ID, idType) + "?";
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        string response = Vals[1].Trim();
+                        if (response == "-1")
+                            throw new ResponseErrorCodeException("No more used BNAC table entries.", command, resps);
+                        else if (response == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
+                        else
+                            tableEntry = new BNAC_Table.Entry(response.Split(','));
+                        
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+                /// <summary>
+                /// Check in command used by UNAC to check in with WinSIP Server
+                /// 
+                /// Exceptions thrown: ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException
+                /// </summary>
+                /// <param name="ID">the ID of the entry to read</param>
+                /// <param name="idType">the type of ID</param>
+                /// <param name="CheckingOnly">If false, no passthrough connection will be initiated if a request is present</param>
+                /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param> 
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                public void CIN(string ID, BNAC_Table.ID_Type idType, bool CheckingOnly, out BNAC_StateTable.BNAC_Status status, bool optionalCloseConn = false)
+                {
+                    string command = "CIN=" + BNAC_Table.CreateID(ID, idType);
+                    if (CheckingOnly)
+                        command = command + ",1";
+                    
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        string response = Vals[1].Trim();
+                        if (response == "UNKNOWN")
+                            throw new ResponseErrorCodeException("The requested UNAC is not registered with the server.", command, resps);
+                        else if (response == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
+                        else
+                            status = BNAC_StateTable.ParseBNAC_Status(response);
+
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+                /// <summary>
+                /// Request a passthrough connection to a UNAC
+                /// 
+                /// Exceptions thrown: ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException
+                /// </summary>
+                /// <param name="ID">the ID of the entry to read</param>
+                /// <param name="idType">the type of ID</param>
+                /// <param name="status">the UNAC status</param>
+                /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param> 
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                public void CONB(string ID, BNAC_Table.ID_Type idType, out BNAC_StateTable.Entry status, bool optionalCloseConn = false)
+                {
+                    string command = "CONB=" + BNAC_Table.CreateID(ID, idType);
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        string[] responses = Vals[1].Trim().Split(',');
+
+                        string status_str = responses[0].Trim();
+                        if (status_str == "I")
+                            throw new ResponseErrorCodeException("Connection request failed due to an internal server error. Try again later.", command, resps);
+                        else if (status_str == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
+                        else if (responses.Length != 3)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        status = new BNAC_StateTable.Entry(0, responses);
+
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+                /// <summary>
+                /// Delete the table BNAC entry corresponding to ID
+                /// 
+                /// Exceptions thrown: ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException
+                /// </summary>
+                /// <param name="ID">the ID of the entry to read</param>
+                /// <param name="idType">the type of ID</param>                
+                /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param> 
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                public void DBT(string ID, BNAC_Table.ID_Type idType, bool optionalCloseConn = false)
+                {
+                    string command = "DBT=" + BNAC_Table.CreateID(ID, idType);
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        string response = Vals[1].Trim();
+
+                        if (response == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
+                        else if (response != "OK")
+                            throw new ResponseException("Invalid response received.", command, resps);                        
+
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
                 }
                 #endregion
 
