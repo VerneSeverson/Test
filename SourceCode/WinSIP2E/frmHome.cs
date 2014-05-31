@@ -453,7 +453,7 @@ namespace WinSIP2E
             gbNAC.Enabled = !connected;
             cmdDisconnect.Enabled = connected;
 
-            lblNAC_OK.Visible = false;
+            lblNAC_OK.Visible = connected;
             lblNAC_Shutdown.Visible = false;
             lblNAC_NotConnected.Visible = !connected;
         }
