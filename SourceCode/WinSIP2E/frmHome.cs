@@ -110,18 +110,18 @@ namespace WinSIP2E
                 Properties.Settings.Default.Upgrade();
                 Properties.Settings.Default.UpdateRequired = false;
             }
-            Program.UpdateCertificate();            
+            Program.UpdateCertificate();
 
+            UpdateUI_gbLogin_Init();
 
-            cboUnitIDType.Items.Clear();
-            foreach (BNAC_Table.ID_Type id_type in Enum.GetValues(typeof(BNAC_Table.ID_Type)))
-                cboUnitIDType.Items.Add(FPS_LibFuncs.GetEnumFriendlyName(id_type));
-            
+            UpdateUI_gbNAC_Init();
 
+            UpdateUI_StatusLabelInit();            
         }
 
         override protected void OnClosing(CancelEventArgs e)
         {
+            Properties.Settings.Default.UnitID_SelectedIndex = cboUnitIDType.SelectedIndex;
             Properties.Settings.Default.Save();     //save the application settings
             base.OnClosing(e);
         }
@@ -258,21 +258,12 @@ namespace WinSIP2E
 
         private void cmdLogOut_Click(object sender, EventArgs e)
         {
-            try
-            {
-                activeConnection.Dispose();
-            }
-            catch { }
-            activeConnection = null;
-            gbLogin.Enabled = true;
-            gbNAC.Enabled = false;
-            cmdDisconnect.Enabled = false;
-            cmdLogOut.Enabled = false;
+            LogoutOfServer();           
         }
 
         private void cmdDisconnect_Click(object sender, EventArgs e)
         {
-
+            PassthroughDisconnectOnly();
         }
 
         private void cmdSettings_Click(object sender, EventArgs e)
@@ -289,44 +280,7 @@ namespace WinSIP2E
 
         private void cmdLogIn_click(object sender, EventArgs e)
         {
-            if (Program.WinSIP_Cert == null)
-                MessageBox.Show("WinSIP2E does not have a valid certificate.\r\n\r\nPlease click the settings button to request a certificate.", "Unable to connect to the server", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            else
-            {
-                try
-                {
-                    if (activeConnection != null)
-                    {
-                        try
-                        {
-                            activeConnection.Dispose();
-                        }
-                        catch { }
-                        activeConnection = null;
-                    }
-
-                    LoginToServer login = new LoginToServer(txtUsername.Text, CStoredCertificate.MakeSecureString(txtPassword.Text),
-                        WinSIP2E.Properties.Settings.Default.ServerAddress,
-                        WinSIP2E.Properties.Settings.Default.ManuallySetCN ? WinSIP2E.Properties.Settings.Default.ServerCN : WinSIP2E.Properties.Settings.Default.ServerAddress,
-                        WinSIP2E.Properties.Settings.Default.ManuallySetPort ? Convert.ToInt32(WinSIP2E.Properties.Settings.Default.ServerPort) : 1102,
-                        Program.WinSIP_Cert, Program.WinSIP_TS);
-
-                    OperationStatusDialog frm = new OperationStatusDialog();
-                    frm.operation = login;
-                    frm.ShowDialog();
-                    if (login.Status == Operation.CompletionCode.FinishedSuccess)
-                    {
-                        activeConnection = login.ServerConnection;
-                        gbLogin.Enabled = false;
-                        gbNAC.Enabled = true;
-                        cmdLogOut.Enabled = true;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show("An unexpected error occured: \r\n\r\n" + ex.ToString());
-                }
-            }
+            LoginToServer();                        
         }
 
         private void cmdManual_Click(object sender, EventArgs e)
@@ -344,36 +298,200 @@ namespace WinSIP2E
         
         private void btnConnect_Click(object sender, EventArgs e)
         {
-            if (activeConnection == null)
-                MessageBox.Show("An active connection to a WinSIP server is required to initiate a passthrough connection", "No active server connection", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            else if (activeConnection.StxEtxPeer.CommContext.bConnected == false)
-            {
-                if (activeConnection == null)
-                    MessageBox.Show("An active connection to a WinSIP server is required to initiate a passthrough connection", "No active server connection", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            else
-            {
-                try
-                {
-                    EstabilishPassthroughConnection req = new EstabilishPassthroughConnection(txtID.Text,
-                        FPS_LibFuncs.ParseEnumFriendlyName<BNAC_Table.ID_Type>(cboUnitIDType.Text),
-                        activeConnection,
-                        Program.WinSIP_TS);
+            PassthroughConnect();
+        }
 
-                    OperationStatusDialog frm = new OperationStatusDialog();
-                    frm.operation = req;
-                    frm.ShowDialog();
-                    if (req.Status == Operation.CompletionCode.FinishedSuccess)
+
+
+        #region GUI ACTIONS 
+
+        /// <summary>
+        /// Call this to log into the BNAC server
+        /// </summary>
+        private void LoginToServer()
+        {      
+            //we can further abstract this if needed, but for now use the global info:
+            string username = txtUsername.Text, password = txtPassword.Text;
+            CStoredCertificate cert = Program.WinSIP_Cert;
+
+            try
+            {
+                if (cert == null)
+                    MessageBox.Show("No valid cetificate is present.\r\n\r\nPlease click the settings button to request a certificate.", "Unable to connect to the server", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                else
+                {
+                    try
                     {
-                        gbNAC.Enabled = false;
+                        //1. See if we need to disconnect or clean an old connection (ideally, this should never happen)
+                        if (activeConnection != null)
+                        {
+                            try
+                            { activeConnection.Dispose(); }
+                            catch { }
+                            activeConnection = null;
+                        }
+
+                        //2. Create the operation request
+                        LoginToServer login = new LoginToServer(txtUsername.Text, CStoredCertificate.MakeSecureString(txtPassword.Text),
+                            WinSIP2E.Properties.Settings.Default.ServerAddress,
+                            WinSIP2E.Properties.Settings.Default.ManuallySetCN ? WinSIP2E.Properties.Settings.Default.ServerCN : WinSIP2E.Properties.Settings.Default.ServerAddress,
+                            WinSIP2E.Properties.Settings.Default.ManuallySetPort ? Convert.ToInt32(WinSIP2E.Properties.Settings.Default.ServerPort) : 1102,
+                            Program.WinSIP_Cert, Program.WinSIP_TS);
+
+                        //3. Start the operation
+                        OperationStatusDialog frm = new OperationStatusDialog();
+                        frm.operation = login;
+                        frm.ShowDialog();
+
+                        //4. Handle the results
+                        activeConnection = login.ServerConnection;
+                        if (login.Status == Operation.CompletionCode.FinishedSuccess)
+                            UpdateUI_ServerLoginChange(true);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("An unexpected error occured: \r\n\r\n" + ex.ToString());
                     }
                 }
-                catch (Exception ex)
-                {
-                    MessageBox.Show("An unexpected error occured: \r\n\r\n" + ex.ToString());
-                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Unexpected exception caught:\r\n\r\n" + ex.ToString());
             }
         }
+
+        /// <summary>
+        /// Call this function to log out and disconnect from the server
+        /// </summary>
+        private void LogoutOfServer()
+        {                        
+            try { activeConnection.Dispose(); }
+            catch { }
+            activeConnection = null;
+            UpdateUI_ServerLoginChange(false);
+        }
+
+        /// <summary>
+        /// Establish a passthrough connection to a UNAC
+        /// </summary>                        
+        private void PassthroughConnect()
+        {
+            //we can further abstract this if needed, but for now use the global info:
+            try
+            {
+                string ID = txtID.Text;
+                BNAC_Table.ID_Type id_type = FPS_LibFuncs.ParseEnumFriendlyName<BNAC_Table.ID_Type>(cboUnitIDType.Text);
+                WinSIPserver connection = activeConnection;
+                if (connection == null)
+                    MessageBox.Show("An active connection to a WinSIP server is required to initiate a passthrough connection", "No active server connection", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                else if (connection.StxEtxPeer.CommContext.bConnected == false)
+                    MessageBox.Show("An active connection to a WinSIP server is required to initiate a passthrough connection", "No active server connection", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                else
+                {
+                    try
+                    {
+                        EstabilishPassthroughConnection req = new EstabilishPassthroughConnection(txtID.Text,
+                            FPS_LibFuncs.ParseEnumFriendlyName<BNAC_Table.ID_Type>(cboUnitIDType.Text),
+                            activeConnection,
+                            Program.WinSIP_TS);
+
+                        OperationStatusDialog frm = new OperationStatusDialog();
+                        frm.operation = req;
+                        frm.ShowDialog();
+                        if (req.Status == Operation.CompletionCode.FinishedSuccess)
+                            UpdateUI_PassthroughConnectChange(true);
+
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("An unexpected error occured: \r\n\r\n" + ex.ToString());
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Unexpected exception caught:\r\n\r\n" + ex);
+            }
+        }
+
+        /// <summary>
+        /// Call this function to disconnect the passthrough but keep an active connection to the server
+        /// </summary>        
+        private void PassthroughDisconnectOnly()
+        {
+            try
+            {
+                LogoutOfServer();
+                LoginToServer();
+            }
+            catch (Exception e)
+            {
+                MessageBox.Show("Caught an unexpected exception:\r\n\r\n" + e);
+            }
+        }
+
+        /// <summary>
+        /// Call this function upon a passthrough connect to a UNAC starting/stopping
+        /// </summary>
+        /// <param name="connected"></param>
+        private void UpdateUI_ServerLoginChange(bool connected)
+        {
+            gbLogin.Enabled = !connected;            
+            cmdLogOut.Enabled = connected;
+            lblServerConnected.Visible = connected;
+            lblServerNotConnected.Visible = !connected;
+            UpdateUI_PassthroughConnectChange(false);
+            gbNAC.Enabled = connected;
+        }
+
+        /// <summary>
+        /// Call this function upon a passthrough connect to a UNAC starting/stopping
+        /// </summary>
+        /// <param name="connected"></param>
+        private void UpdateUI_PassthroughConnectChange(bool connected)
+        {
+            gbNAC.Enabled = !connected;
+            cmdDisconnect.Enabled = connected;
+
+            lblNAC_OK.Visible = false;
+            lblNAC_Shutdown.Visible = false;
+            lblNAC_NotConnected.Visible = !connected;
+        }
+
+        /// <summary>
+        /// Function to set up the status labels (call on form load)
+        /// </summary>
+        private void UpdateUI_StatusLabelInit()
+        {
+            lblServerConnected.Location = lblServerNotConnected.Location;
+            lblServerOr.Visible = false;
+
+            lblNAC_or1.Visible = false;
+            lblNAC_or2.Visible = false;
+            lblNAC_OK.Location = lblNAC_NotConnected.Location;
+            lblNAC_Shutdown.Location = lblNAC_NotConnected.Location;
+            UpdateUI_ServerLoginChange(false);
+        }
+
+        private void UpdateUI_gbLogin_Init()
+        {            
+            lblgbLoginInst1.Visible = false;
+            lblgbLoginInst2.Visible = false;
+
+        }
+
+        private void UpdateUI_gbNAC_Init()
+        {
+            cboUnitIDType.Items.Clear();
+            foreach (BNAC_Table.ID_Type id_type in Enum.GetValues(typeof(BNAC_Table.ID_Type)))
+                cboUnitIDType.Items.Add(FPS_LibFuncs.GetEnumFriendlyName(id_type));
+            cboUnitIDType.SelectedIndex = Properties.Settings.Default.UnitID_SelectedIndex;
+
+            lblgbNAC_Inst1.Visible = false;
+            lblgbNAC_Inst2.Visible = false;
+
+        }
+        #endregion
     }
 
 }

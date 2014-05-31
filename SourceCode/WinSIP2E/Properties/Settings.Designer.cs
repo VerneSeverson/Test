@@ -130,5 +130,29 @@ namespace WinSIP2E.Properties {
                 this["UpdateRequired"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string UnitID {
+            get {
+                return ((string)(this["UnitID"]));
+            }
+            set {
+                this["UnitID"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("2")]
+        public int UnitID_SelectedIndex {
+            get {
+                return ((int)(this["UnitID_SelectedIndex"]));
+            }
+            set {
+                this["UnitID_SelectedIndex"] = value;
+            }
+        }
     }
 }

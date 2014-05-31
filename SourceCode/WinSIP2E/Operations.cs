@@ -1122,7 +1122,7 @@ namespace WinSIP2E
                     {
                         if (CurrentState == WorkState.WaitForUNAC)
                             return GetStatusOkMsg(CurrentState) +
-                                "\r\n\r\nUNAC last checked in at " +
+                                "\r\n\r\nUnit last checked in at " +
                                 bnac_status.LastCheckinDateTime.ToLocalTime().ToString();
                         else
                             return GetStatusOkMsg(CurrentState);
