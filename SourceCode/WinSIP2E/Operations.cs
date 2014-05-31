@@ -611,6 +611,8 @@ namespace WinSIP2E
             private WinSIPserver ServerHandler;
             private bool CloseUponCompletion = true;
             private string cert;
+            private string cert_signers;
+            private CStoredCertificate certObj = null;
 
             private WorkState _CurrentState = WorkState.Idle;
             private WorkState CurrentState
@@ -694,12 +696,20 @@ namespace WinSIP2E
                 ConnectToServer,
                 [StatusOkMsg("Downloading the certificate."),
                 StatusErrorMsg("Failed to download the certificate from the WinSIP server."),
-                StatusCompletionPercent(33)]
+                StatusCompletionPercent(20)]
                 DownloadCert,
+                [StatusOkMsg("Downloading the certificate signers."),
+                StatusErrorMsg("Failed to download the certificate signers from the WinSIP server."),
+                StatusCompletionPercent(40)]
+                DownloadCertSigners,
                 [StatusOkMsg("Installing the certificate."),
                 StatusErrorMsg("Failed to install the certificate on the local PC."),
-                StatusCompletionPercent(67)]
+                StatusCompletionPercent(60)]
                 InstallCert,                
+                [StatusOkMsg("Installing the certificate signers."),
+                StatusErrorMsg("Failed to install the certificate signers from the WinSIP server."),
+                StatusCompletionPercent(80)]
+                InstallCertSigners,              
                 [StatusOkMsg("Successfully downloaded and installed the signed certificate."),
                 StatusErrorMsg("Should not see this message."),
                 StatusCompletionPercent(100)]
@@ -716,25 +726,38 @@ namespace WinSIP2E
                     if (ServerHandler == null)
                         ServerHandler = ConnectToServerOneWaySSL(ServerAddress, ServerPort, ServerCN);
 
-                    //2. Obtain a certificate ID:                                        
+                    //2. Download the certificate:                                        
                     CurrentState = WorkState.DownloadCert;
                     ServerHandler.CDCC(PinCode, CertificateID, out cert);                    
 
-                    //3. Create a new certificate   
+                    //3. Download the certificate signers:
+                    CurrentState = WorkState.DownloadCertSigners;
+                    ServerHandler.ReadCWS(out cert_signers);
+
+                    //4. Install the certificate   
                     CurrentState = WorkState.InstallCert;
                     InstallResponse();
-                    
+                                        
+                    //5. Install the certificate signers
+                    CurrentState = WorkState.InstallCertSigners;
+                    certObj.SetCertSigners(cert_signers, true);
 
-                    //4. Done
+                    //6. Done
                     CurrentState = WorkState.Finish;
 
-                    //5. Mark completed
+                    //7. Mark completed
                     _Status = CompletionCode.FinishedSuccess;
 
                 }
                 catch (OperationCanceledException ex)
                 {
                     //I don't think we need to delete the CSR?
+                    //but if we have already installed the certificate, we should try to remove it:
+                    if (certObj != null)
+                    {
+                        try { certObj.RemoveTheCert(); }
+                        catch { }
+                    }
                     _StatusErrorMessage = "User canceled the operation.";
                     _Status = CompletionCode.UserCancelFinish;
                     LogMsg(TraceEventType.Verbose, ex.ToString());
@@ -742,6 +765,12 @@ namespace WinSIP2E
                 catch (Exception ex)
                 {
                     //I don't think we need to delete the CSR?
+                    //but if we have already installed the certificate, we should try to remove it:
+                    if (certObj != null)
+                    {
+                        try { certObj.RemoveTheCert(); }
+                        catch { }
+                    }
                     _StatusErrorMessage = GetStatusErrorMsg(CurrentState) + " " + ex.Message;
                     _Status = CompletionCode.FinishedError;
                     LogMsg(TraceEventType.Warning, ex.ToString());
@@ -766,6 +795,7 @@ namespace WinSIP2E
                 try
                 {
                     CCertificateRequest.LoadResponse(cert, StoreLocation.CurrentUser);
+                    certObj = new CStoredCertificate(StoreLocation.CurrentUser, CertificateID, false);
                 }
                 catch (Exception ex)
                 {
@@ -938,7 +968,7 @@ namespace WinSIP2E
 
             /// <summary>
             /// Possible exceptions:
-            /// ArgumentException
+            /// ArgumentException, ArgumentNullException
             /// </summary>
             /// <param name="pinCode"></param>
             /// <param name="machineID"></param>
@@ -947,6 +977,8 @@ namespace WinSIP2E
             /// <param name="serverPort">The common name of the server's certificate.</param>            
             public LoginToServer(string userName, SecureString password, string serverAddress, string serverCN, int serverPort, CStoredCertificate serverCert, TraceSource LogTS = null)
             {
+                if ((userName == null) || (password == null) || (serverAddress == null) || (serverCN == null) || (serverCert == null))
+                    throw new ArgumentNullException();
                 SetUpBasicFields(userName, password, LogTS);
                 this.ServerAddress = serverAddress;
                 this.ServerCN = serverCN;
