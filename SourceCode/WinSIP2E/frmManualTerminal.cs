@@ -168,7 +168,7 @@ namespace WinSIP2E
         {
             if (InvokeRequired)
             {
-                this.Invoke(new Action(() => UpdateFormConnection(success, serverAddr)));
+                this.BeginInvoke(new Action(() => UpdateFormConnection(success, serverAddr)));
                 return;
             }
 
@@ -262,13 +262,15 @@ namespace WinSIP2E
             {
                 if (thisListener != null)
                 {
-                    Program.WinSIP_TS.Listeners.Remove(thisListener);
                     Program.WinSIP_TS.Switch.Level = oldSourceLevel;
-                    thisListener = null;
+                    Program.WinSIP_TS.Listeners.Remove(thisListener);
+                    thisListener = null;        
                 }
             }
             catch { }
         }
+
+        
         #endregion
 
         /// <summary>
@@ -279,7 +281,7 @@ namespace WinSIP2E
         {
             if (InvokeRequired)
             {
-                this.Invoke(new Action(() => IncomingText(text)));
+                this.BeginInvoke(new Action(() => IncomingText(text)));
                 return;
             }
 
