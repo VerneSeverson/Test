@@ -410,6 +410,37 @@ namespace ForwardLibrary
             public enum BNAC_Status :int
             { IDLE = 0, RDNS_REQUEST = 1 };
 
+            static public BNAC_Status ParseBNAC_Status(string code)
+            {
+                code = code.Trim();
+                if (code == "W")
+                    return BNAC_Status.IDLE;
+                else if (code == "B")
+                    return BNAC_Status.RDNS_REQUEST;
+                else
+                    throw new ArgumentException("Unrecognized status code '" + code + "'.", code);
+            }
+
+            /// <summary>
+            /// Converts mmddyyhhmmdss to a DateTime
+            /// </summary>
+            /// <param name="datetime"></param>
+            /// <returns></returns>
+            static public DateTime ConvertBNAC_DateTime(string datetime)
+            {
+                if (datetime.Length != "mmddyyhhmmdss".Length)
+                    throw new ArgumentException("Invalid date time string.", datetime);
+                
+                //add year 2000 padding
+                datetime = datetime.Substring(0, 4) + "20" + datetime.Substring(5);
+                
+                //remove day of week
+                datetime = datetime.Substring(0,"mmddyyyyhhmm".Length) + datetime.Substring("mmddyyyyhhmmd".Length-1);
+
+                //see: http://msdn.microsoft.com/en-us/library/8kb3ddd4(v=vs.110).aspx
+                return DateTime.ParseExact(datetime, "MMddyyyyHHmmss", null);
+            }
+
             public class Entry
             {
 
@@ -420,7 +451,9 @@ namespace ForwardLibrary
                 public virtual BNAC_Status PendingRequest { get {return _PendingRequest;} set{ _PendingRequest = value;} }                     
 
                 protected string _LastCheckin = "1231002359000"; //mmddyyhhmmddss
-                public virtual string LastCheckin {get {return _LastCheckin; } set {_LastCheckin = value; } } 
+                public virtual string LastCheckin {get {return _LastCheckin; } set {_LastCheckin = value; } }
+
+                public virtual DateTime LastCheckinDateTime { get { return ConvertBNAC_DateTime(LastCheckin); } }
 
                 //public string RequestKey = null;
                 //public ClientContext contextOn = null;        //the context used to communicate to this BNAC
@@ -429,6 +462,33 @@ namespace ForwardLibrary
                 public Entry(long i)
                 {
                     index = i;
+                }
+
+                /// <summary>
+                /// Creates an entry with the specified index and the
+                /// fields populated from an array of strings
+                /// </summary>
+                /// <param name="index"></param>
+                /// <param name="fields"></param>
+                public Entry(long index, string [] fields)
+                {                    
+                    PendingRequest = BNAC_StateTable.ParseBNAC_Status(fields[0]);
+                    
+                    LastCheckin = fields[1];
+                    if (LastCheckin.Length != "mmddyyhhmmddss".Length)
+                        throw new ArgumentException("Invalid date time of last checkin", "fields");
+                    try
+                    {
+                        ConvertBNAC_DateTime(LastCheckin);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new ArgumentException("Invalid date time of last checkin", "fields", ex);
+                    }
+
+                    this.index = index;
+
+                    //haven't yet implemented SMS_REMAINING sms_remaining = int.Parse(fields[2]);              
                 }
 
                 public override string ToString()
