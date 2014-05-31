@@ -443,13 +443,13 @@ namespace ForwardLibrary
                     throw new ArgumentException("Invalid date time string.", datetime);
                 
                 //add year 2000 padding
-                datetime = datetime.Substring(0, 4) + "20" + datetime.Substring(5);
+                datetime = datetime.Substring(0, "mmdd".Length) + "20" + datetime.Substring("mmdd".Length);
                 
                 //remove day of week
-                datetime = datetime.Substring(0,"mmddyyyyhhmm".Length) + datetime.Substring("mmddyyyyhhmmd".Length-1);
+                datetime = datetime.Substring(0,"mmddyyyyhhmm".Length) + datetime.Substring("mmddyyyyhhmmd".Length);
 
                 //see: http://msdn.microsoft.com/en-us/library/8kb3ddd4(v=vs.110).aspx
-                return DateTime.ParseExact(datetime, "MMddyyyyHHmmss", null);
+                return DateTime.ParseExact(datetime, "MMddyyyyHHmmss", CultureInfo.InvariantCulture);
             }
 
             public class Entry
@@ -461,7 +461,7 @@ namespace ForwardLibrary
                 protected BNAC_Status _PendingRequest = BNAC_Status.IDLE;
                 public virtual BNAC_Status PendingRequest { get {return _PendingRequest;} set{ _PendingRequest = value;} }                     
 
-                protected string _LastCheckin = "1231002359000"; //mmddyyhhmmddss
+                protected string _LastCheckin = "1231002359000"; //mmddyyhhmmdss
                 public virtual string LastCheckin {get {return _LastCheckin; } set {_LastCheckin = value; } }
 
                 public virtual DateTime LastCheckinDateTime { get { return ConvertBNAC_DateTime(LastCheckin); } }
@@ -486,7 +486,7 @@ namespace ForwardLibrary
                     PendingRequest = BNAC_StateTable.ParseBNAC_Status(fields[0]);
                     
                     LastCheckin = fields[1];
-                    if (LastCheckin.Length != "mmddyyhhmmddss".Length)
+                    if (LastCheckin.Length != "mmddyyhhmmdss".Length)
                         throw new ArgumentException("Invalid date time of last checkin", "fields");
                     try
                     {

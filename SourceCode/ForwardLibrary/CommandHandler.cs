@@ -299,11 +299,14 @@ namespace ForwardLibrary
                 {
 
                     List<string> Responses = new List<string>();
-
+                    
                     try
                     {
                         while (optionalRetries-- > 0)
                         {
+                            if (_stxetxClient.CommContext.bConnected == false)
+                                throw new UnresponsiveConnectionException("Connection has disconnected.", command);
+
                             if (_stxetxClient.SendCommand(command))
                             {
                                 string reply = null;
@@ -925,7 +928,7 @@ namespace ForwardLibrary
                 /// 
                 /// Exceptions thrown: ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException
                 /// </summary>
-                /// <param name="ID">the ID of the entry to read</param>
+                /// <param name="ID">the ID of the UNAC</param>
                 /// <param name="idType">the type of ID</param>
                 /// <param name="CheckingOnly">If false, no passthrough connection will be initiated if a request is present</param>
                 /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param> 
@@ -995,7 +998,7 @@ namespace ForwardLibrary
                             throw new ResponseErrorCodeException("Connection request failed due to an internal server error. Try again later.", command, resps);
                         else if (status_str == "M")
                             throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
-                        else if (responses.Length != 3)
+                        else if (responses.Length != 2)
                             throw new ResponseException("Invalid response received.", command, resps);
 
                         status = new BNAC_StateTable.Entry(0, responses);
