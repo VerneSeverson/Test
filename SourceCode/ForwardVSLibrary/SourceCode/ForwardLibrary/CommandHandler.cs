@@ -905,9 +905,7 @@ namespace ForwardLibrary
 
                         LogMsg(TraceEventType.Warning, ex.ToString());
                         throw ex;
-                    }
-
-                    
+                    }                    
                 }
 
                 /// <summary>
@@ -943,6 +941,421 @@ namespace ForwardLibrary
                     }
 
                 }
+                #endregion
+
+                #region Server SSL/TLS Certificate Commands
+
+                /// <summary>
+                /// Generate a new server private key and certificate signing request. 
+                /// NOTE: this is the preferred method to update the server’s certificate
+                /// 
+                /// Exceptions thrown: 
+                ///     ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException  
+                ///     ArgumentNullException -- if CN is null
+                /// </summary>
+                /// <param name="CN">the common name to use for the server</param>
+                /// <param name="certificate_req">the PEM formatted certificate signing request</param>                
+                /// <param name="optionalCloseConn">Set to true to close the connection after executing the command</param>
+                public void CSNR(string CN, out string certificate_req, bool optionalCloseConn = false)
+                {
+                    if (CN == null)
+                        throw new ArgumentNullException("A common name must be specified.", "CN");                    
+
+                    string command = "CSNR=" + CN;
+
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        
+
+                        string response = resps[0].Trim().Substring(5);
+                        if (response == "I")
+                            throw new ResponseErrorCodeException("The generation request failed due to an internal server error. Try again later.", command, resps);                        
+                        else if (response == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
+                        else if (response != "OK")
+                            throw new ResponseErrorCodeException("Received unknown response from the server.", command, resps);
+                        
+                        //okay, the recieved information must be valid
+                        certificate_req = response.Substring(3);
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+                /// <summary>
+                /// Upload the certificate authority’s response to the certificate signing request
+                /// 
+                /// Exceptions thrown: 
+                ///     ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException  
+                ///     ArgumentNullException
+                /// </summary>
+                /// <param name="certificate">the PEM formatted response for the certificate authority (“-----BEGIN CERTIFICATE----- ...”)</param>                
+                /// <param name="optionalCloseConn">Set to true to close the connection after executing the command</param>
+                public void SetCSRR(string certificate, bool optionalCloseConn = false)
+                {
+                    if (certificate == null)
+                        throw new ArgumentNullException("A certificate must be included.", "certificate");
+
+                    string command = "CSRR=" + certificate;
+
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        string response = Vals[1].Trim();                        
+                        if (response == "I")
+                            throw new ResponseErrorCodeException("The generation request failed due to an internal server error. Try again later.", command, resps);
+                        else if (response == "C")
+                            throw new ResponseErrorCodeException("The certificate was invalid or did not meet the server's requirements.", command, resps);
+                        else if (response == "E")
+                            throw new ResponseErrorCodeException("There is no record of CSNR having been run.", command, resps);
+                        else if (response == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
+                        else if (response != "OK")
+                            throw new ResponseErrorCodeException("Received unknown response from the server.", command, resps);
+
+                        //okay, the information was received by the server
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+                /// <summary>
+                /// Download the server’s public certificate
+                /// 
+                /// Exceptions thrown: 
+                ///     ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException  
+                /// </summary>                
+                /// <param name="certificate">the PEM formatted certificate</param>                
+                /// <param name="optionalCloseConn">Set to true to close the connection after executing the command</param>
+                public void ReadCSRR(out string certificate, bool optionalCloseConn = false)
+                {
+
+                    string command = "CSRR?";
+
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+                    try
+                    {                        
+
+
+                        string response = resps[0].Trim().Substring(5);
+                        if (response == "I")
+                            throw new ResponseErrorCodeException("Failed to download the certificate due to an internal server error. Try again later.", command, resps);
+                        else if (response == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);                        
+
+                        //okay, the recieved information must be valid
+                        certificate = response;
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+                /// <summary>
+                /// Upload the chain of certificates that have signed the server’s certificate
+                /// 
+                /// Exceptions thrown: 
+                ///     ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException  
+                ///     ArgumentNullException
+                /// </summary>
+                /// <param name="signers">The PEM formatted list of certificates that appear in the chain of signers for the server’s certificate (“-----BEGIN CERTIFICATE----- ...”)</param>                
+                /// <param name="optionalCloseConn">Set to true to close the connection after executing the command</param>
+                public void SetCSS(string signers, bool optionalCloseConn = false)
+                {
+                    if (signers == null)
+                        throw new ArgumentNullException("A certificate must be included.", "signers");
+
+                    string command = "CSS=" + signers;
+
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        string response = Vals[1].Trim();
+                        if (response == "I")
+                            throw new ResponseErrorCodeException("The operation failed due to an internal server error. Try again later.", command, resps);
+                        else if (response == "C")
+                            throw new ResponseErrorCodeException("This signer certificate chain is invalid.", command, resps); //It may just mean that these signers don't sign the server cert
+                        else if (response == "E")
+                            throw new ResponseErrorCodeException("The server does not currently have a certificate.", command, resps);
+                        else if (response == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
+                        else if (response != "OK")
+                            throw new ResponseErrorCodeException("Received unknown response from the server.", command, resps);
+
+                        //okay, the information was received by the server
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+                /// <summary>
+                /// Download the server’s certificate signing chain
+                /// 
+                /// Exceptions thrown: 
+                ///     ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException  
+                /// </summary>                
+                /// <param name="signers">the PEM formatted certificate chain</param>                
+                /// <param name="optionalCloseConn">Set to true to close the connection after executing the command</param>
+                public void ReadCSS(out string signers, bool optionalCloseConn = false)
+                {
+
+                    string command = "CSS?";
+
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+                    try
+                    {
+                        string response = resps[0].Trim().Substring(4);
+                        if (response == "I")
+                            throw new ResponseErrorCodeException("Failed to download the server certificate chain due to an internal server error. Try again later.", command, resps);
+                        else if (response == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
+
+                        //okay, the recieved information must be valid
+                        signers = response;
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+                /// <summary>
+                /// Upload the chain of certificates that have signed the WinSIP clients’ certificates
+                /// 
+                /// Exceptions thrown: 
+                ///     ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException  
+                ///     ArgumentNullException
+                /// </summary>
+                /// <param name="signers">The PEM formatted list of certificates that appear in the chain of signers for the server’s certificate (“-----BEGIN CERTIFICATE----- ...”)</param>                
+                /// <param name="optionalCloseConn">Set to true to close the connection after executing the command</param>
+                public void SetCWS(string signers, bool optionalCloseConn = false)
+                {
+                    if (signers == null)
+                        throw new ArgumentNullException("A certificate chain must be included.", "signers");
+
+                    string command = "CWS=" + signers;
+
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        string response = Vals[1].Trim();
+                        if (response == "I")
+                            throw new ResponseErrorCodeException("The operation failed due to an internal server error. Try again later.", command, resps);
+                        else if (response == "C")
+                            throw new ResponseErrorCodeException("This certificate chain is invalid.", command, resps); //It may just mean that these signers don't sign each other                        
+                        else if (response == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
+                        else if (response != "OK")
+                            throw new ResponseErrorCodeException("Received unknown response from the server.", command, resps);
+
+                        //okay, the information was received by the server
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+                /// <summary>
+                ///  Download the WinSIP clients’ certificate signing chain
+                /// 
+                /// Exceptions thrown: 
+                ///     ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException  
+                /// </summary>                
+                /// <param name="signers">the PEM formatted certificate chain</param>                
+                /// <param name="optionalCloseConn">Set to true to close the connection after executing the command</param>
+                public void ReadCWS(out string signers, bool optionalCloseConn = false)
+                {
+
+                    string command = "CWS?";
+
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+                    try
+                    {
+                        string response = resps[0].Trim().Substring(4);
+                        if (response == "I")
+                            throw new ResponseErrorCodeException("Failed to download the certificate chain due to an internal server error. Try again later.", command, resps);
+                        else if (response == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
+
+                        //okay, the recieved information must be valid
+                        signers = response;
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+
+                /// <summary>
+                /// Upload a complete server certificate (private key included). 
+                /// NOTE: the use of this command is not recommended. 
+                /// CSNR should be used whenever possible as it is more secure.
+                /// 
+                /// Exceptions thrown: 
+                ///     ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException  
+                ///     ArgumentNullException
+                /// </summary>
+                /// <param name="password">Used for opening the pfx file.</param>                
+                /// <param name="cert">A base-64 encoded pfx (PKCS12) file containing the certificate </param>                
+                /// <param name="optionalCloseConn">Set to true to close the connection after executing the command</param>
+                public void CSFU(string password, string cert, bool optionalCloseConn = false)
+                {
+                    if (password == null)
+                        throw new ArgumentNullException("A certificate chain must be included.", "password");
+                    if (cert == null)
+                        throw new ArgumentNullException("A certificate chain must be included.", "cert");
+
+                    string command = "CSFU=" + password + "," + cert;
+
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        string response = Vals[1].Trim();
+                        if (response == "I")
+                            throw new ResponseErrorCodeException("The operation failed due to an internal server error. Try again later.", command, resps);
+                        else if (response == "C")
+                            throw new ResponseErrorCodeException("Invalid certificate.", command, resps); 
+                        else if (response == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
+                        else if (response != "OK")
+                            throw new ResponseErrorCodeException("Received unknown response from the server.", command, resps);
+
+                        //okay, the information was received by the server
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+
+                /// <summary>
+                /// Update the certificate information changed flag to the current time.
+                /// This forces all instances of the BNAC server to refresh their certificate information.
+                /// 
+                /// Exceptions thrown: 
+                ///     ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException                
+                /// </summary>                
+                /// <param name="optionalCloseConn">Set to true to close the connection after executing the command</param>
+                public void SendCSU(bool optionalCloseConn = false)
+                {
+                    string command = "CSU=1";
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        string response = Vals[1].Trim();
+                        if (response == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
+                        else if (response != "OK")
+                            throw new ResponseException("Invalid response received.", command, resps);
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+
+                }
+
+
+                /// <summary>
+                ///  Retrieve the last time that the certificates were updated
+                /// 
+                /// Exceptions thrown: 
+                ///     ResponseException, ResponseErrorCodeException, UnresponsiveConnectionException  
+                /// </summary>                
+                /// <param name="lastUpdate">the last time that the server's certificate information was updated</param>                
+                /// <param name="optionalCloseConn">Set to true to close the connection after executing the command</param>
+                public void ReadCSU(out DateTime lastUpdate, bool optionalCloseConn = false)
+                {
+                    string command = "CSU?";
+
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+                    try
+                    {
+                        string response = resps[0].Trim().Substring(4);
+                        if (response == "M")
+                            throw new ResponseErrorCodeException("Memory or unexpected error.", command, resps);
+
+                        //okay, the recieved information must be valid
+                        lastUpdate = DateTime.Parse(response);                                                
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
                 #endregion
 
                 #region User database commands
