@@ -289,7 +289,7 @@ namespace WinSIP2E
             try
             {
                 if (activeConnection.StxEtxPeer.CommContext.bConnected)
-                    frm.connection = activeConnection.StxEtxPeer;
+                    frm.homeConnection = activeConnection.StxEtxPeer;
             }
             catch { }
 
