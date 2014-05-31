@@ -12,6 +12,7 @@ using System.Security;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace WinSIP2E
@@ -930,6 +931,7 @@ namespace WinSIP2E
 
             #endregion
 
+            #region API
             /// <summary>
             /// Function to start the operation
             /// Will throw InvalidOperation exception if Status != NotStarted
@@ -949,6 +951,7 @@ namespace WinSIP2E
             {
                 _Status = CompletionCode.UserCancelReq;
             }
+            #endregion
 
             #region constructors
             /// <summary>
@@ -1076,6 +1079,231 @@ namespace WinSIP2E
                 if (ServerHandler != null)
                     ServerHandler.Dispose();
                 ServerHandler = null;
+            }
+            #endregion
+        }
+
+        public class EstabilishPassthroughConnection : Operation
+        {
+            #region Properties
+            /// <summary>
+            /// Recommended interval to check Status in
+            /// milliseconds
+            /// </summary>
+            public override int RefreshInterval { get { return 100; } }
+
+            /// <summary>
+            /// Whether or not the operation can be canceled
+            /// </summary>
+            public override bool AllowCancel { get { return true; } }
+
+            /// <summary>
+            /// If this is set to true, it is requested that the user acknowledge
+            /// the final status message. (i.e. OperationStatusDialog should 
+            /// make the user press OK to close the dialog box)
+            /// </summary>
+            public override bool RequireUserOK
+            {
+                get
+                {
+                    if (Status != CompletionCode.FinishedError)
+                        return false;
+                    else
+                        return true;
+                }
+            }
+
+            private string _StatusErrorMessage = null;
+            public override string StatusMessage
+            {
+                get
+                {
+                    if (_StatusErrorMessage == null)
+                    {
+                        if (CurrentState == WorkState.WaitForUNAC)
+                            return GetStatusOkMsg(CurrentState) +
+                                "\r\n\r\nUNAC last checked in at " +
+                                bnac_status.LastCheckinDateTime.ToLocalTime().ToString();
+                        else
+                            return GetStatusOkMsg(CurrentState);
+                    }
+                    else
+                        return _StatusErrorMessage;
+                }
+            }
+
+            public override string SubjectLine
+            {
+                get { return "Connecting to UNAC..."; }
+            }
+
+
+            private CompletionCode _Status = CompletionCode.NotStarted;
+            public override CompletionCode Status
+            {
+                get { return _Status; }
+            }
+
+            public override int StatusPercent { get { return GetStatusCompletionPercent(CurrentState); } }
+
+            private WinSIPserver ServerHandler;
+
+            public WinSIPserver ServerConnection
+            {
+                get { return ServerHandler;  }
+            }
+
+            private string UnitID = null;
+            private BNAC_Table.ID_Type ID_Type;
+            private BNAC_StateTable.Entry bnac_status;
+
+            private WorkState _CurrentState = WorkState.Idle;
+            private WorkState CurrentState
+            {
+                get { return _CurrentState; }
+                set
+                {
+                    CheckUserCancel();
+                    _CurrentState = value;
+                    LogMsg(TraceEventType.Verbose, StatusMessage);
+                }
+            }
+
+            #endregion
+
+            #region API
+            /// <summary>
+            /// Function to start the operation
+            /// Will throw InvalidOperation exception if Status != NotStarted
+            /// </summary>
+            public override void Start()
+            {
+                StartDel caller = this.DoTheWork;
+                caller.BeginInvoke(delegate(IAsyncResult arr) { caller.EndInvoke(arr); }, null);
+            }
+
+            /// <summary>
+            /// Function to cancel the operation
+            /// Will throw InvalidOperation exception if Status != InProgress
+            /// OR if AllowCancel == false
+            /// </summary>
+            public override void Cancel()
+            {
+                _Status = CompletionCode.UserCancelReq;
+            }
+            #endregion
+
+            #region constructors
+            /// <summary>
+            /// Possible exceptions:
+            /// ArgumentNullException
+            /// </summary>
+            /// <param name="ID">the ID of the UNAC</param>
+            /// <param name="idType">the type of ID</param>
+            /// <param name="serverHandler">An active server command handler object.</param>
+            /// <param name="closeUponCompletion">Optional. Set to true if the command handler should be closed upon operation completion.</param>
+            /// <exception cref="System.ArgumentNullException">Thrown when any argument other then LogTS is null</exception>            
+            public EstabilishPassthroughConnection(string ID, BNAC_Table.ID_Type idType, WinSIPserver serverHandler, TraceSource LogTS = null)
+            {
+                if ((ID == null) || (idType == null) || (serverHandler == null))
+                    throw new ArgumentNullException();
+
+                this.ServerHandler = serverHandler;
+                this.UnitID = ID;
+                this.ID_Type = idType;
+
+                if (LogTS != null)
+                    this.LogTS = LogTS;
+                else
+                    this.LogTS = new TraceSource("DummyTS");
+            }
+
+            #endregion
+
+            #region main working functions
+            enum WorkState
+            {
+                [StatusOkMsg("Preparing to request connection."),
+                StatusErrorMsg("Failed to request a connection."),
+                StatusCompletionPercent(0)]
+                Idle,
+                [StatusOkMsg("Sending connection request to the server."),
+                StatusErrorMsg("Failed to request a connection."),
+                StatusCompletionPercent(33)]
+                RequestPassthrough,
+                [StatusOkMsg("Waiting for UNAC to connect."),
+                StatusErrorMsg("An error occured while waitiing for the UNAC to connect."),
+                StatusCompletionPercent(67)]
+                WaitForUNAC,
+                [StatusOkMsg("Connection to UNAC established."),
+                StatusErrorMsg("Should not see this message."),
+                StatusCompletionPercent(100)]
+                Finish
+            }
+
+            private void DoTheWork()
+            {
+
+                try
+                {
+                    //1. Request connection to UNAC  
+                    CurrentState = WorkState.RequestPassthrough;
+                    ServerHandler.CONB(UnitID, ID_Type, out bnac_status);
+
+                    //2. Wait for the UNAC to connect and indicate it is ready:                                        
+                    CurrentState = WorkState.WaitForUNAC;
+                    WaitForBNR();
+
+                    //3. Done
+                    CurrentState = WorkState.Finish;
+
+                    //4. Mark completed
+                    _Status = CompletionCode.FinishedSuccess;
+
+                }
+                catch (OperationCanceledException ex)
+                {                    
+                    _StatusErrorMessage = "User canceled the operation.";
+                    _Status = CompletionCode.UserCancelFinish;
+                    LogMsg(TraceEventType.Verbose, ex.ToString());
+                }
+                catch (Exception ex)
+                {                    
+                    _StatusErrorMessage = GetStatusErrorMsg(CurrentState) + " " + ex.Message;
+                    _Status = CompletionCode.FinishedError;
+                    LogMsg(TraceEventType.Warning, ex.ToString());
+                }
+            }
+            #endregion
+
+
+            #region private helper functions
+            
+
+            private void CheckUserCancel()
+            {
+                if (Status == CompletionCode.UserCancelReq)
+                    throw new OperationCanceledException("User canceled the operation");
+            }
+
+            private void WaitForBNR()
+            {
+                StxEtxHandler handler = ServerHandler.StxEtxPeer;
+
+                //Manually poll the received responses, waiting for a BNR
+                while (true)
+                {
+                    if (handler.CommContext.bConnected == false)
+                        throw new InvalidOperationException("The server connection is closed");
+
+                    CheckUserCancel();
+
+                    string rcvd = null;
+                    bool gotRsp = handler.ReceiveData(out rcvd, 500); //limit the thread to blocking for 500ms at a time (to allow the user to cancel)
+                    if (rcvd != null)
+                        if (rcvd.Trim() == "BNR")
+                            break;                    
+                }
             }
             #endregion
         }

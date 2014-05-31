@@ -1,5 +1,7 @@
 ﻿using ForwardLibrary.Communications.CommandHandlers;
 using ForwardLibrary.Crypto;
+using ForwardLibrary.Default;
+using ForwardLibrary.WinSIPserver;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -108,7 +110,14 @@ namespace WinSIP2E
                 Properties.Settings.Default.Upgrade();
                 Properties.Settings.Default.UpdateRequired = false;
             }
-            Program.UpdateCertificate();
+            Program.UpdateCertificate();            
+
+
+            cboUnitIDType.Items.Clear();
+            foreach (BNAC_Table.ID_Type id_type in Enum.GetValues(typeof(BNAC_Table.ID_Type)))
+                cboUnitIDType.Items.Add(FPS_LibFuncs.GetEnumFriendlyName(id_type));
+            
+
         }
 
         override protected void OnClosing(CancelEventArgs e)
@@ -331,6 +340,39 @@ namespace WinSIP2E
             catch { }
 
             frm.Show();
+        }
+        
+        private void btnConnect_Click(object sender, EventArgs e)
+        {
+            if (activeConnection == null)
+                MessageBox.Show("An active connection to a WinSIP server is required to initiate a passthrough connection", "No active server connection", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            else if (activeConnection.StxEtxPeer.CommContext.bConnected == false)
+            {
+                if (activeConnection == null)
+                    MessageBox.Show("An active connection to a WinSIP server is required to initiate a passthrough connection", "No active server connection", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            else
+            {
+                try
+                {
+                    EstabilishPassthroughConnection req = new EstabilishPassthroughConnection(txtID.Text,
+                        FPS_LibFuncs.ParseEnumFriendlyName<BNAC_Table.ID_Type>(cboUnitIDType.Text),
+                        activeConnection,
+                        Program.WinSIP_TS);
+
+                    OperationStatusDialog frm = new OperationStatusDialog();
+                    frm.operation = req;
+                    frm.ShowDialog();
+                    if (req.Status == Operation.CompletionCode.FinishedSuccess)
+                    {
+                        gbNAC.Enabled = false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("An unexpected error occured: \r\n\r\n" + ex.ToString());
+                }
+            }
         }
     }
 

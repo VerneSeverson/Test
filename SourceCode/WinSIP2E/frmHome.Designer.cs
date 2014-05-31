@@ -29,13 +29,14 @@
         private void InitializeComponent()
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(frmHome));
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle5 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle6 = new System.Windows.Forms.DataGridViewCellStyle();
             this.txtPassword = new System.Windows.Forms.TextBox();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
             this.tabControl_Main = new System.Windows.Forms.TabControl();
             this.tabMainConnect = new System.Windows.Forms.TabPage();
+            this.cmdConsole = new System.Windows.Forms.Button();
             this.cmdManual = new System.Windows.Forms.Button();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
             this.label11 = new System.Windows.Forms.Label();
@@ -45,9 +46,8 @@
             this.label9 = new System.Windows.Forms.Label();
             this.label7 = new System.Windows.Forms.Label();
             this.btnConnect = new System.Windows.Forms.Button();
-            this.textBox1 = new System.Windows.Forms.TextBox();
+            this.txtID = new System.Windows.Forms.TextBox();
             this.gbLogin = new System.Windows.Forms.GroupBox();
-            this.cmdConsole = new System.Windows.Forms.Button();
             this.cmdSettings = new System.Windows.Forms.Button();
             this.label167 = new System.Windows.Forms.Label();
             this.label10 = new System.Windows.Forms.Label();
@@ -706,6 +706,16 @@
             this.tabMainConnect.TabIndex = 0;
             this.tabMainConnect.Text = "Connect";
             // 
+            // cmdConsole
+            // 
+            this.cmdConsole.Location = new System.Drawing.Point(770, 6);
+            this.cmdConsole.Name = "cmdConsole";
+            this.cmdConsole.Size = new System.Drawing.Size(90, 22);
+            this.cmdConsole.TabIndex = 9;
+            this.cmdConsole.Text = "Console";
+            this.cmdConsole.UseVisualStyleBackColor = true;
+            this.cmdConsole.Click += new System.EventHandler(this.cmdConsole_Click);
+            // 
             // cmdManual
             // 
             this.cmdManual.Location = new System.Drawing.Point(677, 6);
@@ -745,7 +755,7 @@
             this.gbNAC.Controls.Add(this.label9);
             this.gbNAC.Controls.Add(this.label7);
             this.gbNAC.Controls.Add(this.btnConnect);
-            this.gbNAC.Controls.Add(this.textBox1);
+            this.gbNAC.Controls.Add(this.txtID);
             this.gbNAC.Location = new System.Drawing.Point(12, 190);
             this.gbNAC.Name = "gbNAC";
             this.gbNAC.Size = new System.Drawing.Size(300, 235);
@@ -800,14 +810,15 @@
             this.btnConnect.TabIndex = 5;
             this.btnConnect.Text = "Connect";
             this.btnConnect.UseVisualStyleBackColor = true;
+            this.btnConnect.Click += new System.EventHandler(this.btnConnect_Click);
             // 
-            // textBox1
+            // txtID
             // 
-            this.textBox1.Location = new System.Drawing.Point(120, 64);
-            this.textBox1.Name = "textBox1";
-            this.textBox1.Size = new System.Drawing.Size(158, 20);
-            this.textBox1.TabIndex = 2;
-            this.textBox1.Text = "d07de5000";
+            this.txtID.Location = new System.Drawing.Point(120, 64);
+            this.txtID.Name = "txtID";
+            this.txtID.Size = new System.Drawing.Size(158, 20);
+            this.txtID.TabIndex = 2;
+            this.txtID.Text = "d07de5000";
             // 
             // gbLogin
             // 
@@ -826,16 +837,6 @@
             this.gbLogin.TabIndex = 4;
             this.gbLogin.TabStop = false;
             this.gbLogin.Text = "Login";
-            // 
-            // cmdConsole
-            // 
-            this.cmdConsole.Location = new System.Drawing.Point(770, 6);
-            this.cmdConsole.Name = "cmdConsole";
-            this.cmdConsole.Size = new System.Drawing.Size(90, 22);
-            this.cmdConsole.TabIndex = 9;
-            this.cmdConsole.Text = "Console";
-            this.cmdConsole.UseVisualStyleBackColor = true;
-            this.cmdConsole.Click += new System.EventHandler(this.cmdConsole_Click);
             // 
             // cmdSettings
             // 
@@ -4693,25 +4694,25 @@
             // dataGridView1
             // 
             this.dataGridView1.AllowUserToAddRows = false;
-            dataGridViewCellStyle1.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle1.BackColor = System.Drawing.SystemColors.Control;
-            dataGridViewCellStyle1.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle1.ForeColor = System.Drawing.SystemColors.WindowText;
-            dataGridViewCellStyle1.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle1.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle1.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
-            this.dataGridView1.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle1;
+            dataGridViewCellStyle5.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle5.BackColor = System.Drawing.SystemColors.Control;
+            dataGridViewCellStyle5.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            dataGridViewCellStyle5.ForeColor = System.Drawing.SystemColors.WindowText;
+            dataGridViewCellStyle5.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle5.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle5.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
+            this.dataGridView1.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle5;
             this.dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.dataGridView1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
             this.dataGridViewTextBoxColumn1});
-            dataGridViewCellStyle2.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle2.BackColor = System.Drawing.SystemColors.Window;
-            dataGridViewCellStyle2.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle2.ForeColor = System.Drawing.SystemColors.ControlText;
-            dataGridViewCellStyle2.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle2.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle2.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
-            this.dataGridView1.DefaultCellStyle = dataGridViewCellStyle2;
+            dataGridViewCellStyle6.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle6.BackColor = System.Drawing.SystemColors.Window;
+            dataGridViewCellStyle6.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            dataGridViewCellStyle6.ForeColor = System.Drawing.SystemColors.ControlText;
+            dataGridViewCellStyle6.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle6.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle6.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
+            this.dataGridView1.DefaultCellStyle = dataGridViewCellStyle6;
             this.dataGridView1.Location = new System.Drawing.Point(15, 42);
             this.dataGridView1.Name = "dataGridView1";
             this.dataGridView1.Size = new System.Drawing.Size(511, 233);
@@ -5997,7 +5998,7 @@
         private System.Windows.Forms.GroupBox gbNAC;
         private System.Windows.Forms.Label label7;
         private System.Windows.Forms.Button btnConnect;
-        private System.Windows.Forms.TextBox textBox1;
+        private System.Windows.Forms.TextBox txtID;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.GroupBox groupBox3;
         private System.Windows.Forms.Label label9;
