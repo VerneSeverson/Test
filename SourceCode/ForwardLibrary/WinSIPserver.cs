@@ -410,6 +410,57 @@ namespace ForwardLibrary
             public enum BNAC_Status :int
             { IDLE = 0, RDNS_REQUEST = 1 };
 
+            static public string BNAC_StatusToCode(BNAC_Status status)
+            {
+                if (status == BNAC_Status.IDLE)
+                    return "W";
+                else if (status == BNAC_Status.RDNS_REQUEST)
+                    return "B";
+                else
+                    throw new NotImplementedException("Status code not implemented"); //should never happen
+            }
+
+
+            /// <summary>
+            /// Get date time string as mmddyyhhmmdss
+            /// </summary>
+            /// <param name="date">the datetime object</param>
+            /// <returns>The mmddyyhhmmdss formatted string</returns>
+            public static string ConvertDateTimeToBNAC_String(DateTime date)
+            {
+                string Month, Day, Year, Hour, Minute, DayOfWeek, Second;
+
+                Month = date.Month.ToString();
+                if (Month.Length < 2)
+                    Month = "0" + Month;
+
+                Day = date.Day.ToString();
+                if (Day.Length < 2)
+                    Day = "0" + Day;
+
+                Year = date.Year.ToString();
+                if (Year.Length == 4)
+                    Year = Year.Substring(2);
+
+                Hour = date.Hour.ToString();
+                if (Hour.Length < 2)
+                    Hour = "0" + Hour;
+
+                Minute = date.Minute.ToString();
+                if (Minute.Length < 2)
+                    Minute = "0" + Minute;
+
+                DayOfWeek = ((int)date.DayOfWeek).ToString();
+
+                Second = date.Second.ToString();
+                if (Second.Length < 2)
+                    Second = "0" + Second;
+
+                String retString = Month + Day + Year + Hour + Minute + DayOfWeek + Second;
+
+                return retString;
+            }
+
             public class Entry
             {
 
