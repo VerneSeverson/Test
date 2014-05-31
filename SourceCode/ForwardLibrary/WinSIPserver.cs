@@ -3,6 +3,7 @@ using ForwardLibrary.Crypto;
 using ForwardLibrary.Default;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Security;
 using System.Security.Cryptography;
@@ -137,7 +138,17 @@ namespace ForwardLibrary
 
         public class BNAC_Table
         {
-            public enum ID_Type : int { Index, UID, MAC, SIM };
+            public enum ID_Type  
+            {
+                [FriendlyName("Index")]
+                Index,
+                [FriendlyName("Unit ID")]
+                UID,
+                [FriendlyName("MAC Address")]
+                MAC,
+                [FriendlyName("SIM Number")]
+                SIM 
+            }
 
             /// <summary>
             /// Function to determine the ID type and extract the string field
