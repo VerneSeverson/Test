@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -11,6 +12,62 @@ namespace ForwardLibrary
     /// </summary>
     namespace Default
     {
+        /// <summary>
+        /// Attribute for enums to allow them to have a friendly name
+        /// </summary>
+        public class FriendlyName : System.Attribute
+        {
+            private string _value;
+
+            public FriendlyName(string value)
+            {
+                _value = value;
+            }
+
+            public string Value
+            {
+                get { return _value; }
+            }
+        }
+
+        /// <summary>
+        /// Class to house generic static functions
+        /// </summary>
+        public class FPS_LibFuncs
+        {
+
+            /// <summary>
+            /// Get the friendly name attribute of an enum
+            /// </summary>
+            /// <param name="value"></param>
+            /// <returns></returns>
+            public static string GetEnumFriendlyName(Enum value)
+            {
+                string output = null;
+                Type type = value.GetType();
+                FieldInfo fi = type.GetField(value.ToString());
+                FriendlyName[] attrs =
+                    fi.GetCustomAttributes(typeof(FriendlyName),
+                                   false) as FriendlyName[];
+                if (attrs.Length > 0)
+                    output = attrs[0].Value;
+
+                return output;
+            }
+
+
+            public static T ParseEnumFriendlyName<T>(string friendly_name) where T : struct, IConvertible
+            {
+                foreach (T id_type in Enum.GetValues(typeof(T)))
+                {
+                    if (GetEnumFriendlyName(((Enum) (object) id_type)) == friendly_name)
+                        return id_type;
+                }
+                
+                throw new Exception("No match for the friendly_name");
+            }
+        }
+
         /// <summary>
         /// http://stackoverflow.com/questions/641361/base32-decoding
         /// </summary>
