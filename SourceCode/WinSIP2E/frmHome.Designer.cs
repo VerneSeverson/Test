@@ -29,31 +29,30 @@
         private void InitializeComponent()
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(frmHome));
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle5 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle6 = new System.Windows.Forms.DataGridViewCellStyle();
             this.txtPassword = new System.Windows.Forms.TextBox();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
             this.tabControl_Main = new System.Windows.Forms.TabControl();
             this.tabMainConnect = new System.Windows.Forms.TabPage();
+            this.cmdConsole = new System.Windows.Forms.Button();
             this.cmdManual = new System.Windows.Forms.Button();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
             this.label11 = new System.Windows.Forms.Label();
             this.gbNAC = new System.Windows.Forms.GroupBox();
             this.label5 = new System.Windows.Forms.Label();
             this.cboUnitIDType = new System.Windows.Forms.ComboBox();
-            this.label9 = new System.Windows.Forms.Label();
-            this.label7 = new System.Windows.Forms.Label();
+            this.lblgbNAC_Inst1 = new System.Windows.Forms.Label();
+            this.lblgbNAC_Inst2 = new System.Windows.Forms.Label();
             this.btnConnect = new System.Windows.Forms.Button();
-            this.textBox1 = new System.Windows.Forms.TextBox();
+            this.txtID = new System.Windows.Forms.TextBox();
             this.gbLogin = new System.Windows.Forms.GroupBox();
-            this.cmdConsole = new System.Windows.Forms.Button();
             this.cmdSettings = new System.Windows.Forms.Button();
             this.label167 = new System.Windows.Forms.Label();
-            this.label10 = new System.Windows.Forms.Label();
-            this.label8 = new System.Windows.Forms.Label();
+            this.lblgbLoginInst1 = new System.Windows.Forms.Label();
+            this.lblgbLoginInst2 = new System.Windows.Forms.Label();
             this.cmdLogIn = new System.Windows.Forms.Button();
-            this.txtUsername = new System.Windows.Forms.TextBox();
             this.tabMainServers_Old = new System.Windows.Forms.TabPage();
             this.groupBox10 = new System.Windows.Forms.GroupBox();
             this.numericUpDown1 = new System.Windows.Forms.NumericUpDown();
@@ -546,16 +545,17 @@
             this.label3 = new System.Windows.Forms.Label();
             this.label4 = new System.Windows.Forms.Label();
             this.label12 = new System.Windows.Forms.Label();
-            this.label13 = new System.Windows.Forms.Label();
-            this.label14 = new System.Windows.Forms.Label();
-            this.label15 = new System.Windows.Forms.Label();
-            this.label16 = new System.Windows.Forms.Label();
-            this.label17 = new System.Windows.Forms.Label();
-            this.label18 = new System.Windows.Forms.Label();
-            this.label45 = new System.Windows.Forms.Label();
-            this.label46 = new System.Windows.Forms.Label();
+            this.lblServerNotConnected = new System.Windows.Forms.Label();
+            this.lblNAC_NotConnected = new System.Windows.Forms.Label();
+            this.lblServerConnected = new System.Windows.Forms.Label();
+            this.lblNAC_OK = new System.Windows.Forms.Label();
+            this.lblServerOr = new System.Windows.Forms.Label();
+            this.lblNAC_or1 = new System.Windows.Forms.Label();
+            this.lblNAC_Shutdown = new System.Windows.Forms.Label();
+            this.lblNAC_or2 = new System.Windows.Forms.Label();
             this.cmdDisconnect = new System.Windows.Forms.Button();
             this.cmdLogOut = new System.Windows.Forms.Button();
+            this.txtUsername = new System.Windows.Forms.TextBox();
             this.tabControl_Main.SuspendLayout();
             this.tabMainConnect.SuspendLayout();
             this.groupBox3.SuspendLayout();
@@ -706,6 +706,16 @@
             this.tabMainConnect.TabIndex = 0;
             this.tabMainConnect.Text = "Connect";
             // 
+            // cmdConsole
+            // 
+            this.cmdConsole.Location = new System.Drawing.Point(770, 6);
+            this.cmdConsole.Name = "cmdConsole";
+            this.cmdConsole.Size = new System.Drawing.Size(90, 22);
+            this.cmdConsole.TabIndex = 9;
+            this.cmdConsole.Text = "Console";
+            this.cmdConsole.UseVisualStyleBackColor = true;
+            this.cmdConsole.Click += new System.EventHandler(this.cmdConsole_Click);
+            // 
             // cmdManual
             // 
             this.cmdManual.Location = new System.Drawing.Point(677, 6);
@@ -721,7 +731,7 @@
             this.groupBox3.Controls.Add(this.label11);
             this.groupBox3.Location = new System.Drawing.Point(332, 30);
             this.groupBox3.Name = "groupBox3";
-            this.groupBox3.Size = new System.Drawing.Size(528, 395);
+            this.groupBox3.Size = new System.Drawing.Size(528, 383);
             this.groupBox3.TabIndex = 6;
             this.groupBox3.TabStop = false;
             this.groupBox3.Text = "NAC Information";
@@ -742,11 +752,11 @@
             // 
             this.gbNAC.Controls.Add(this.label5);
             this.gbNAC.Controls.Add(this.cboUnitIDType);
-            this.gbNAC.Controls.Add(this.label9);
-            this.gbNAC.Controls.Add(this.label7);
+            this.gbNAC.Controls.Add(this.lblgbNAC_Inst1);
+            this.gbNAC.Controls.Add(this.lblgbNAC_Inst2);
             this.gbNAC.Controls.Add(this.btnConnect);
-            this.gbNAC.Controls.Add(this.textBox1);
-            this.gbNAC.Location = new System.Drawing.Point(12, 190);
+            this.gbNAC.Controls.Add(this.txtID);
+            this.gbNAC.Location = new System.Drawing.Point(12, 178);
             this.gbNAC.Name = "gbNAC";
             this.gbNAC.Size = new System.Drawing.Size(300, 235);
             this.gbNAC.TabIndex = 5;
@@ -765,31 +775,32 @@
             // 
             // cboUnitIDType
             // 
+            this.cboUnitIDType.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.cboUnitIDType.FormattingEnabled = true;
             this.cboUnitIDType.Location = new System.Drawing.Point(16, 64);
             this.cboUnitIDType.Name = "cboUnitIDType";
             this.cboUnitIDType.Size = new System.Drawing.Size(96, 21);
             this.cboUnitIDType.TabIndex = 8;
             // 
-            // label9
+            // lblgbNAC_Inst1
             // 
-            this.label9.AutoSize = true;
-            this.label9.BackColor = System.Drawing.SystemColors.Info;
-            this.label9.Location = new System.Drawing.Point(24, 128);
-            this.label9.Name = "label9";
-            this.label9.Size = new System.Drawing.Size(143, 26);
-            this.label9.TabIndex = 7;
-            this.label9.Text = "Disable Connect button \r\nwhen connected to a device";
+            this.lblgbNAC_Inst1.AutoSize = true;
+            this.lblgbNAC_Inst1.BackColor = System.Drawing.SystemColors.Info;
+            this.lblgbNAC_Inst1.Location = new System.Drawing.Point(24, 128);
+            this.lblgbNAC_Inst1.Name = "lblgbNAC_Inst1";
+            this.lblgbNAC_Inst1.Size = new System.Drawing.Size(143, 26);
+            this.lblgbNAC_Inst1.TabIndex = 7;
+            this.lblgbNAC_Inst1.Text = "Disable Connect button \r\nwhen connected to a device";
             // 
-            // label7
+            // lblgbNAC_Inst2
             // 
-            this.label7.AutoSize = true;
-            this.label7.BackColor = System.Drawing.SystemColors.Info;
-            this.label7.Location = new System.Drawing.Point(16, 184);
-            this.label7.Name = "label7";
-            this.label7.Size = new System.Drawing.Size(226, 39);
-            this.label7.TabIndex = 6;
-            this.label7.Text = "Message box will pop up with status:\r\n  Please wait.\r\n  Unit last checked in -  9" +
+            this.lblgbNAC_Inst2.AutoSize = true;
+            this.lblgbNAC_Inst2.BackColor = System.Drawing.SystemColors.Info;
+            this.lblgbNAC_Inst2.Location = new System.Drawing.Point(16, 184);
+            this.lblgbNAC_Inst2.Name = "lblgbNAC_Inst2";
+            this.lblgbNAC_Inst2.Size = new System.Drawing.Size(226, 39);
+            this.lblgbNAC_Inst2.TabIndex = 6;
+            this.lblgbNAC_Inst2.Text = "Message box will pop up with status:\r\n  Please wait.\r\n  Unit last checked in -  9" +
     "/13/2013 at 1:00 PM";
             // 
             // btnConnect
@@ -800,21 +811,23 @@
             this.btnConnect.TabIndex = 5;
             this.btnConnect.Text = "Connect";
             this.btnConnect.UseVisualStyleBackColor = true;
+            this.btnConnect.Click += new System.EventHandler(this.btnConnect_Click);
             // 
-            // textBox1
+            // txtID
             // 
-            this.textBox1.Location = new System.Drawing.Point(120, 64);
-            this.textBox1.Name = "textBox1";
-            this.textBox1.Size = new System.Drawing.Size(158, 20);
-            this.textBox1.TabIndex = 2;
-            this.textBox1.Text = "d07de5000";
+            this.txtID.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::WinSIP2E.Properties.Settings.Default, "UnitID", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
+            this.txtID.Location = new System.Drawing.Point(120, 64);
+            this.txtID.Name = "txtID";
+            this.txtID.Size = new System.Drawing.Size(158, 20);
+            this.txtID.TabIndex = 2;
+            this.txtID.Text = global::WinSIP2E.Properties.Settings.Default.UnitID;
             // 
             // gbLogin
             // 
             this.gbLogin.Controls.Add(this.cmdSettings);
             this.gbLogin.Controls.Add(this.label167);
-            this.gbLogin.Controls.Add(this.label10);
-            this.gbLogin.Controls.Add(this.label8);
+            this.gbLogin.Controls.Add(this.lblgbLoginInst1);
+            this.gbLogin.Controls.Add(this.lblgbLoginInst2);
             this.gbLogin.Controls.Add(this.cmdLogIn);
             this.gbLogin.Controls.Add(this.label1);
             this.gbLogin.Controls.Add(this.label2);
@@ -822,20 +835,10 @@
             this.gbLogin.Controls.Add(this.txtPassword);
             this.gbLogin.Location = new System.Drawing.Point(12, 30);
             this.gbLogin.Name = "gbLogin";
-            this.gbLogin.Size = new System.Drawing.Size(300, 154);
+            this.gbLogin.Size = new System.Drawing.Size(300, 142);
             this.gbLogin.TabIndex = 4;
             this.gbLogin.TabStop = false;
             this.gbLogin.Text = "Login";
-            // 
-            // cmdConsole
-            // 
-            this.cmdConsole.Location = new System.Drawing.Point(770, 6);
-            this.cmdConsole.Name = "cmdConsole";
-            this.cmdConsole.Size = new System.Drawing.Size(90, 22);
-            this.cmdConsole.TabIndex = 9;
-            this.cmdConsole.Text = "Console";
-            this.cmdConsole.UseVisualStyleBackColor = true;
-            this.cmdConsole.Click += new System.EventHandler(this.cmdConsole_Click);
             // 
             // cmdSettings
             // 
@@ -859,26 +862,26 @@
             this.label167.Text = "Change password";
             this.label167.TextAlign = System.Drawing.ContentAlignment.TopRight;
             // 
-            // label10
+            // lblgbLoginInst1
             // 
-            this.label10.AutoSize = true;
-            this.label10.BackColor = System.Drawing.SystemColors.Info;
-            this.label10.Location = new System.Drawing.Point(6, 77);
-            this.label10.Name = "label10";
-            this.label10.Size = new System.Drawing.Size(127, 26);
-            this.label10.TabIndex = 6;
-            this.label10.Text = "Message box will\r\nshow problems with login.";
+            this.lblgbLoginInst1.AutoSize = true;
+            this.lblgbLoginInst1.BackColor = System.Drawing.SystemColors.Info;
+            this.lblgbLoginInst1.Location = new System.Drawing.Point(6, 77);
+            this.lblgbLoginInst1.Name = "lblgbLoginInst1";
+            this.lblgbLoginInst1.Size = new System.Drawing.Size(127, 26);
+            this.lblgbLoginInst1.TabIndex = 6;
+            this.lblgbLoginInst1.Text = "Message box will\r\nshow problems with login.";
             // 
-            // label8
+            // lblgbLoginInst2
             // 
-            this.label8.AutoSize = true;
-            this.label8.BackColor = System.Drawing.SystemColors.Info;
-            this.label8.Location = new System.Drawing.Point(8, 112);
-            this.label8.Name = "label8";
-            this.label8.Size = new System.Drawing.Size(192, 26);
-            this.label8.TabIndex = 5;
-            this.label8.Text = "Disable this groupbox when logged in.  \r\nEnable again if connection lost.";
-            this.label8.Click += new System.EventHandler(this.label8_Click);
+            this.lblgbLoginInst2.AutoSize = true;
+            this.lblgbLoginInst2.BackColor = System.Drawing.SystemColors.Info;
+            this.lblgbLoginInst2.Location = new System.Drawing.Point(8, 112);
+            this.lblgbLoginInst2.Name = "lblgbLoginInst2";
+            this.lblgbLoginInst2.Size = new System.Drawing.Size(192, 26);
+            this.lblgbLoginInst2.TabIndex = 5;
+            this.lblgbLoginInst2.Text = "Disable this groupbox when logged in.  \r\nEnable again if connection lost.";
+            this.lblgbLoginInst2.Click += new System.EventHandler(this.label8_Click);
             // 
             // cmdLogIn
             // 
@@ -889,16 +892,6 @@
             this.cmdLogIn.Text = "Log in";
             this.cmdLogIn.UseVisualStyleBackColor = true;
             this.cmdLogIn.Click += new System.EventHandler(this.cmdLogIn_click);
-            // 
-            // txtUsername
-            // 
-            this.txtUsername.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::WinSIP2E.Properties.Settings.Default, "UserName", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
-            this.txtUsername.Location = new System.Drawing.Point(96, 16);
-            this.txtUsername.Name = "txtUsername";
-            this.txtUsername.Size = new System.Drawing.Size(180, 20);
-            this.txtUsername.TabIndex = 0;
-            this.txtUsername.Text = global::WinSIP2E.Properties.Settings.Default.UserName;
-            this.txtUsername.TextChanged += new System.EventHandler(this.txtUsername_TextChanged);
             // 
             // tabMainServers_Old
             // 
@@ -4693,25 +4686,25 @@
             // dataGridView1
             // 
             this.dataGridView1.AllowUserToAddRows = false;
-            dataGridViewCellStyle1.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle1.BackColor = System.Drawing.SystemColors.Control;
-            dataGridViewCellStyle1.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle1.ForeColor = System.Drawing.SystemColors.WindowText;
-            dataGridViewCellStyle1.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle1.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle1.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
-            this.dataGridView1.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle1;
+            dataGridViewCellStyle5.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle5.BackColor = System.Drawing.SystemColors.Control;
+            dataGridViewCellStyle5.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            dataGridViewCellStyle5.ForeColor = System.Drawing.SystemColors.WindowText;
+            dataGridViewCellStyle5.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle5.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle5.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
+            this.dataGridView1.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle5;
             this.dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.dataGridView1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
             this.dataGridViewTextBoxColumn1});
-            dataGridViewCellStyle2.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle2.BackColor = System.Drawing.SystemColors.Window;
-            dataGridViewCellStyle2.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle2.ForeColor = System.Drawing.SystemColors.ControlText;
-            dataGridViewCellStyle2.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle2.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle2.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
-            this.dataGridView1.DefaultCellStyle = dataGridViewCellStyle2;
+            dataGridViewCellStyle6.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle6.BackColor = System.Drawing.SystemColors.Window;
+            dataGridViewCellStyle6.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            dataGridViewCellStyle6.ForeColor = System.Drawing.SystemColors.ControlText;
+            dataGridViewCellStyle6.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle6.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle6.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
+            this.dataGridView1.DefaultCellStyle = dataGridViewCellStyle6;
             this.dataGridView1.Location = new System.Drawing.Point(15, 42);
             this.dataGridView1.Name = "dataGridView1";
             this.dataGridView1.Size = new System.Drawing.Size(511, 233);
@@ -5716,85 +5709,85 @@
             this.label12.TabIndex = 7;
             this.label12.Text = "NAC status:";
             // 
-            // label13
+            // lblServerNotConnected
             // 
-            this.label13.AutoSize = true;
-            this.label13.ForeColor = System.Drawing.Color.Red;
-            this.label13.Location = new System.Drawing.Point(482, 11);
-            this.label13.Name = "label13";
-            this.label13.Size = new System.Drawing.Size(78, 13);
-            this.label13.TabIndex = 8;
-            this.label13.Text = "Not connected";
+            this.lblServerNotConnected.AutoSize = true;
+            this.lblServerNotConnected.ForeColor = System.Drawing.Color.Red;
+            this.lblServerNotConnected.Location = new System.Drawing.Point(482, 11);
+            this.lblServerNotConnected.Name = "lblServerNotConnected";
+            this.lblServerNotConnected.Size = new System.Drawing.Size(78, 13);
+            this.lblServerNotConnected.TabIndex = 8;
+            this.lblServerNotConnected.Text = "Not connected";
             // 
-            // label14
+            // lblNAC_NotConnected
             // 
-            this.label14.AutoSize = true;
-            this.label14.ForeColor = System.Drawing.Color.Red;
-            this.label14.Location = new System.Drawing.Point(480, 32);
-            this.label14.Name = "label14";
-            this.label14.Size = new System.Drawing.Size(78, 13);
-            this.label14.TabIndex = 9;
-            this.label14.Text = "Not connected";
+            this.lblNAC_NotConnected.AutoSize = true;
+            this.lblNAC_NotConnected.ForeColor = System.Drawing.Color.Red;
+            this.lblNAC_NotConnected.Location = new System.Drawing.Point(480, 32);
+            this.lblNAC_NotConnected.Name = "lblNAC_NotConnected";
+            this.lblNAC_NotConnected.Size = new System.Drawing.Size(78, 13);
+            this.lblNAC_NotConnected.TabIndex = 9;
+            this.lblNAC_NotConnected.Text = "Not connected";
             // 
-            // label15
+            // lblServerConnected
             // 
-            this.label15.AutoSize = true;
-            this.label15.ForeColor = System.Drawing.Color.Blue;
-            this.label15.Location = new System.Drawing.Point(591, 11);
-            this.label15.Name = "label15";
-            this.label15.Size = new System.Drawing.Size(103, 13);
-            this.label15.TabIndex = 10;
-            this.label15.Text = "Connected to server";
+            this.lblServerConnected.AutoSize = true;
+            this.lblServerConnected.ForeColor = System.Drawing.Color.Blue;
+            this.lblServerConnected.Location = new System.Drawing.Point(591, 11);
+            this.lblServerConnected.Name = "lblServerConnected";
+            this.lblServerConnected.Size = new System.Drawing.Size(103, 13);
+            this.lblServerConnected.TabIndex = 10;
+            this.lblServerConnected.Text = "Connected to server";
             // 
-            // label16
+            // lblNAC_OK
             // 
-            this.label16.AutoSize = true;
-            this.label16.ForeColor = System.Drawing.Color.Blue;
-            this.label16.Location = new System.Drawing.Point(720, 32);
-            this.label16.Name = "label16";
-            this.label16.Size = new System.Drawing.Size(22, 13);
-            this.label16.TabIndex = 11;
-            this.label16.Text = "OK";
+            this.lblNAC_OK.AutoSize = true;
+            this.lblNAC_OK.ForeColor = System.Drawing.Color.Blue;
+            this.lblNAC_OK.Location = new System.Drawing.Point(720, 32);
+            this.lblNAC_OK.Name = "lblNAC_OK";
+            this.lblNAC_OK.Size = new System.Drawing.Size(22, 13);
+            this.lblNAC_OK.TabIndex = 11;
+            this.lblNAC_OK.Text = "OK";
             // 
-            // label17
+            // lblServerOr
             // 
-            this.label17.AutoSize = true;
-            this.label17.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, ((System.Drawing.FontStyle)((System.Drawing.FontStyle.Bold | System.Drawing.FontStyle.Italic))), System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label17.Location = new System.Drawing.Point(560, 11);
-            this.label17.Name = "label17";
-            this.label17.Size = new System.Drawing.Size(18, 13);
-            this.label17.TabIndex = 12;
-            this.label17.Text = "or";
+            this.lblServerOr.AutoSize = true;
+            this.lblServerOr.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, ((System.Drawing.FontStyle)((System.Drawing.FontStyle.Bold | System.Drawing.FontStyle.Italic))), System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.lblServerOr.Location = new System.Drawing.Point(560, 11);
+            this.lblServerOr.Name = "lblServerOr";
+            this.lblServerOr.Size = new System.Drawing.Size(18, 13);
+            this.lblServerOr.TabIndex = 12;
+            this.lblServerOr.Text = "or";
             // 
-            // label18
+            // lblNAC_or1
             // 
-            this.label18.AutoSize = true;
-            this.label18.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, ((System.Drawing.FontStyle)((System.Drawing.FontStyle.Bold | System.Drawing.FontStyle.Italic))), System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label18.Location = new System.Drawing.Point(560, 32);
-            this.label18.Name = "label18";
-            this.label18.Size = new System.Drawing.Size(18, 13);
-            this.label18.TabIndex = 13;
-            this.label18.Text = "or";
+            this.lblNAC_or1.AutoSize = true;
+            this.lblNAC_or1.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, ((System.Drawing.FontStyle)((System.Drawing.FontStyle.Bold | System.Drawing.FontStyle.Italic))), System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.lblNAC_or1.Location = new System.Drawing.Point(560, 32);
+            this.lblNAC_or1.Name = "lblNAC_or1";
+            this.lblNAC_or1.Size = new System.Drawing.Size(18, 13);
+            this.lblNAC_or1.TabIndex = 13;
+            this.lblNAC_or1.Text = "or";
             // 
-            // label45
+            // lblNAC_Shutdown
             // 
-            this.label45.AutoSize = true;
-            this.label45.ForeColor = System.Drawing.Color.Red;
-            this.label45.Location = new System.Drawing.Point(592, 32);
-            this.label45.Name = "label45";
-            this.label45.Size = new System.Drawing.Size(88, 13);
-            this.label45.TabIndex = 14;
-            this.label45.Text = "NAC is shurdown";
+            this.lblNAC_Shutdown.AutoSize = true;
+            this.lblNAC_Shutdown.ForeColor = System.Drawing.Color.Red;
+            this.lblNAC_Shutdown.Location = new System.Drawing.Point(592, 32);
+            this.lblNAC_Shutdown.Name = "lblNAC_Shutdown";
+            this.lblNAC_Shutdown.Size = new System.Drawing.Size(88, 13);
+            this.lblNAC_Shutdown.TabIndex = 14;
+            this.lblNAC_Shutdown.Text = "NAC is shutdown";
             // 
-            // label46
+            // lblNAC_or2
             // 
-            this.label46.AutoSize = true;
-            this.label46.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, ((System.Drawing.FontStyle)((System.Drawing.FontStyle.Bold | System.Drawing.FontStyle.Italic))), System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label46.Location = new System.Drawing.Point(688, 32);
-            this.label46.Name = "label46";
-            this.label46.Size = new System.Drawing.Size(18, 13);
-            this.label46.TabIndex = 15;
-            this.label46.Text = "or";
+            this.lblNAC_or2.AutoSize = true;
+            this.lblNAC_or2.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, ((System.Drawing.FontStyle)((System.Drawing.FontStyle.Bold | System.Drawing.FontStyle.Italic))), System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.lblNAC_or2.Location = new System.Drawing.Point(688, 32);
+            this.lblNAC_or2.Name = "lblNAC_or2";
+            this.lblNAC_or2.Size = new System.Drawing.Size(18, 13);
+            this.lblNAC_or2.TabIndex = 15;
+            this.lblNAC_or2.Text = "or";
             // 
             // cmdDisconnect
             // 
@@ -5818,6 +5811,16 @@
             this.cmdLogOut.UseVisualStyleBackColor = true;
             this.cmdLogOut.Click += new System.EventHandler(this.cmdLogOut_Click);
             // 
+            // txtUsername
+            // 
+            this.txtUsername.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::WinSIP2E.Properties.Settings.Default, "UserName", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
+            this.txtUsername.Location = new System.Drawing.Point(96, 16);
+            this.txtUsername.Name = "txtUsername";
+            this.txtUsername.Size = new System.Drawing.Size(180, 20);
+            this.txtUsername.TabIndex = 0;
+            this.txtUsername.Text = global::WinSIP2E.Properties.Settings.Default.UserName;
+            this.txtUsername.TextChanged += new System.EventHandler(this.txtUsername_TextChanged);
+            // 
             // frmHome
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -5825,14 +5828,14 @@
             this.ClientSize = new System.Drawing.Size(884, 662);
             this.Controls.Add(this.cmdLogOut);
             this.Controls.Add(this.cmdDisconnect);
-            this.Controls.Add(this.label46);
-            this.Controls.Add(this.label45);
-            this.Controls.Add(this.label18);
-            this.Controls.Add(this.label17);
-            this.Controls.Add(this.label16);
-            this.Controls.Add(this.label15);
-            this.Controls.Add(this.label14);
-            this.Controls.Add(this.label13);
+            this.Controls.Add(this.lblNAC_or2);
+            this.Controls.Add(this.lblNAC_Shutdown);
+            this.Controls.Add(this.lblNAC_or1);
+            this.Controls.Add(this.lblServerOr);
+            this.Controls.Add(this.lblNAC_OK);
+            this.Controls.Add(this.lblServerConnected);
+            this.Controls.Add(this.lblNAC_NotConnected);
+            this.Controls.Add(this.lblServerNotConnected);
             this.Controls.Add(this.label12);
             this.Controls.Add(this.label4);
             this.Controls.Add(this.label3);
@@ -5995,24 +5998,24 @@
         private System.Windows.Forms.GroupBox gbLogin;
         private System.Windows.Forms.Button cmdLogIn;
         private System.Windows.Forms.GroupBox gbNAC;
-        private System.Windows.Forms.Label label7;
+        private System.Windows.Forms.Label lblgbNAC_Inst2;
         private System.Windows.Forms.Button btnConnect;
-        private System.Windows.Forms.TextBox textBox1;
+        private System.Windows.Forms.TextBox txtID;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.GroupBox groupBox3;
-        private System.Windows.Forms.Label label9;
-        private System.Windows.Forms.Label label10;
-        private System.Windows.Forms.Label label8;
+        private System.Windows.Forms.Label lblgbNAC_Inst1;
+        private System.Windows.Forms.Label lblgbLoginInst1;
+        private System.Windows.Forms.Label lblgbLoginInst2;
         private System.Windows.Forms.Label label11;
         private System.Windows.Forms.GroupBox groupBox5;
         private System.Windows.Forms.GroupBox groupBox4;
         private System.Windows.Forms.Label label12;
-        private System.Windows.Forms.Label label13;
-        private System.Windows.Forms.Label label14;
-        private System.Windows.Forms.Label label15;
-        private System.Windows.Forms.Label label16;
-        private System.Windows.Forms.Label label17;
-        private System.Windows.Forms.Label label18;
+        private System.Windows.Forms.Label lblServerNotConnected;
+        private System.Windows.Forms.Label lblNAC_NotConnected;
+        private System.Windows.Forms.Label lblServerConnected;
+        private System.Windows.Forms.Label lblNAC_OK;
+        private System.Windows.Forms.Label lblServerOr;
+        private System.Windows.Forms.Label lblNAC_or1;
         private System.Windows.Forms.TabPage tabMainTools;
         private System.Windows.Forms.TabPage tabMainUserAdmin;
         private System.Windows.Forms.GroupBox groupBox17;
@@ -6061,8 +6064,8 @@
         private System.Windows.Forms.Label lblUcrIdInternal;
         private System.Windows.Forms.Label label47;
         private System.Windows.Forms.Button btnConnectInternalUCR;
-        private System.Windows.Forms.Label label45;
-        private System.Windows.Forms.Label label46;
+        private System.Windows.Forms.Label lblNAC_Shutdown;
+        private System.Windows.Forms.Label lblNAC_or2;
         private System.Windows.Forms.Button btnCancelLan;
         private System.Windows.Forms.Button btnConnectLan;
         private System.Windows.Forms.Label label49;

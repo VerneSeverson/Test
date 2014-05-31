@@ -181,7 +181,7 @@
             // chkBase64Encode
             // 
             this.chkBase64Encode.AutoSize = true;
-            this.chkBase64Encode.Location = new System.Drawing.Point(241, 736);
+            this.chkBase64Encode.Location = new System.Drawing.Point(217, 736);
             this.chkBase64Encode.Name = "chkBase64Encode";
             this.chkBase64Encode.Size = new System.Drawing.Size(194, 17);
             this.chkBase64Encode.TabIndex = 29;
@@ -190,9 +190,9 @@
             // 
             // cmdAppendAndSend
             // 
-            this.cmdAppendAndSend.Location = new System.Drawing.Point(441, 729);
+            this.cmdAppendAndSend.Location = new System.Drawing.Point(417, 729);
             this.cmdAppendAndSend.Name = "cmdAppendAndSend";
-            this.cmdAppendAndSend.Size = new System.Drawing.Size(131, 29);
+            this.cmdAppendAndSend.Size = new System.Drawing.Size(155, 29);
             this.cmdAppendAndSend.TabIndex = 28;
             this.cmdAppendAndSend.Text = "Append File and Send";
             this.cmdAppendAndSend.UseVisualStyleBackColor = true;
@@ -200,9 +200,9 @@
             // 
             // cmdConnect
             // 
-            this.cmdConnect.Location = new System.Drawing.Point(441, 695);
+            this.cmdConnect.Location = new System.Drawing.Point(417, 695);
             this.cmdConnect.Name = "cmdConnect";
-            this.cmdConnect.Size = new System.Drawing.Size(131, 28);
+            this.cmdConnect.Size = new System.Drawing.Size(155, 28);
             this.cmdConnect.TabIndex = 30;
             this.cmdConnect.Text = "Connect";
             this.cmdConnect.UseVisualStyleBackColor = true;

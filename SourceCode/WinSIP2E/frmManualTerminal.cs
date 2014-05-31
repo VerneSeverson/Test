@@ -24,7 +24,8 @@ namespace WinSIP2E
                 
 
         //variables needed for connections
-        public StxEtxHandler connection;                
+        private StxEtxHandler connection;
+        public StxEtxHandler homeConnection; //holder for the connection object if switching off of an active connection
 
         //variables needed to support command history
         private LinkedList<string> outgoingCMDs = new LinkedList<string>();
@@ -70,7 +71,7 @@ namespace WinSIP2E
         private void cmdConnect_Click(object sender, EventArgs e)
         {
             if (cmdConnect.Text == "Connect")
-                Connect();
+                Connect();            
             else
                 Disconnect();         
         }
@@ -174,7 +175,10 @@ namespace WinSIP2E
             if (success)
             {
                 this.Text = "Manual Mode - Connected: " + serverAddr;
-                cmdConnect.Text = "Disconnect";
+                if (rbActiveConnection.Checked == false)
+                    cmdConnect.Text = "Disconnect";
+                else
+                    cmdConnect.Text = "Change Connection Settings";
                 txtTerminal.Focus();
                 gbConnection.Enabled = false;
 
@@ -183,9 +187,9 @@ namespace WinSIP2E
                 tmrKeepAlive.Enabled = true;
                 txtTerminal.ReadOnly = false;
 
-                if (rbActiveConnection.Checked)
-                    cmdConnect.Enabled = false;
-                else
+                //if (rbActiveConnection.Checked)
+                //    cmdConnect.Enabled = false;
+                //else
                     cmdConnect.Enabled = true;
             }
             else
@@ -205,7 +209,8 @@ namespace WinSIP2E
                 if (rbActiveConnection.Checked)
                 {
                     IncomingText("Using existing connection");
-                    serverAddr = WinSIP2E.Properties.Settings.Default.ServerAddress;                    
+                    serverAddr = WinSIP2E.Properties.Settings.Default.ServerAddress;
+                    connection = homeConnection;
                 }
                 else if (rbDefaultConnection.Checked)
                 {
@@ -238,11 +243,17 @@ namespace WinSIP2E
             gbConnection.Enabled = true;
             txtTerminal.ReadOnly = true;
             //disconnect
-            try
-            {                
-                connection.Dispose();   //close the connection                    
+            if (rbActiveConnection.Checked != true)
+            {
+                try
+                { connection.Dispose(); }  //close the connection                                
+                catch { }
             }
-            catch { }
+            else
+            {
+                homeConnection = connection;
+                connection = null;
+            }
             this.Text = "Manual Mode - Disconnected";
             cmdConnect.Text = "Connect";
             tmrKeepAlive.Enabled = false;
@@ -273,21 +284,27 @@ namespace WinSIP2E
             }
 
             //remove any accumulated command so it can be put back on at the end
+            try
+            {
+                int distToEnd = txtTerminal.Text.Length - txtTerminal.SelectionStart;
+                if (accumCMD.Length > 0)
+                    txtTerminal.Text = txtTerminal.Text.Substring(0, txtTerminal.Text.Length - accumCMD.Length);
 
-            int distToEnd = txtTerminal.Text.Length - txtTerminal.SelectionStart;
-            if (accumCMD.Length > 0)
-                txtTerminal.Text = txtTerminal.Text.Substring(0, txtTerminal.Text.Length - accumCMD.Length);
+                txtTerminal.AppendText(text + "\r\n");
 
-            txtTerminal.AppendText(text + "\r\n");
+                if (accumCMD.Length > 0)
+                    txtTerminal.AppendText(accumCMD);
 
-            if (accumCMD.Length > 0)
-                txtTerminal.AppendText(accumCMD);
-
-            txtTerminal.Select(txtTerminal.Text.Length - distToEnd, 0);
-            lastMsg = DateTime.Now;
-            if (connection == null || connection.CommContext == null || connection.CommContext.bConnected == false)
-                if (tmrKeepAlive.Enabled == true)    //only disconnect if this is true (to prevent disconnections before the connection is established)
-                    Disconnect();
+                txtTerminal.Select(txtTerminal.Text.Length - distToEnd, 0);
+                lastMsg = DateTime.Now;
+                if (connection == null || connection.CommContext == null || connection.CommContext.bConnected == false)
+                    if (tmrKeepAlive.Enabled == true)    //only disconnect if this is true (to prevent disconnections before the connection is established)
+                        Disconnect();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Caught an unexpected exception: " + ex);
+            }
         }
 
         #region functions for handling the user interface in the terminal (key strokes)
@@ -500,8 +517,12 @@ namespace WinSIP2E
         {            
             this.Text = "Manual Mode - Disconnected";
 
-            if (connection != null)
-                rbActiveConnection.Enabled = connection.CommContext.bConnected;
+            if ((homeConnection != null) && ( homeConnection.CommContext.bConnected))
+            {
+                rbActiveConnection.Enabled = true; 
+                rbActiveConnection.Checked = true;
+                Connect();
+            }
             else
                 rbActiveConnection.Enabled = false;
         }
