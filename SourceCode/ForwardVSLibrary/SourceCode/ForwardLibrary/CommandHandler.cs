@@ -227,7 +227,7 @@ namespace ForwardLibrary
                     GenericCommandHandler = 500,
                     WinSIPserver = 501,
                     UCR = 502,
-                    NAC = 503
+                    UNAC = 503
                 }
 
                 /// <summary>
@@ -401,6 +401,2644 @@ namespace ForwardLibrary
                     }
                 }
             }
+
+            public class UNAC : CommandHandler
+            {
+                /// <summary>
+                /// constructor for when an STXETX handler is already in place
+                /// </summary>
+                /// <param name="stxetxClient"></param>
+                /// <param name="optionalTS"></param>
+                public UNAC(StxEtxHandler stxetxClient, TraceSource optionalTS = null)
+                    : base(stxetxClient, optionalTS)
+                {
+                    LogID = (int)LogIDs.UNAC;                    
+                }
+
+                #region 3.1 Set NAC Configuration - Server I/F
+                /// <summary>
+                /// Class used to hold data of RSR command
+                /// </summary>
+                public class SETH_Data
+                {
+
+                    /// <summary>
+                    /// Table entry
+                    /// "0" - "3" ("0" is always the default settlement host.)
+                    /// </summary>                    
+                    public string n
+                    {
+                        get { return _n; }
+                        set
+                        {
+                            int num = int.Parse(value); //will throw exceptions if not numeric
+                            if ((num < 0) || (num > 3))
+                                throw new ArgumentOutOfRangeException("n", "The table entry must be between 0 and 3.");
+                            _n = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Host type.
+                    /// "0" - SPS / ADS
+                    /// "1" - EasyHost (with or without Alt. Track support).
+                    /// "2" - Paymentech
+                    /// "3" - Global
+                    /// "5" - First Data (Reserved but not functional in UN02.00)
+                    /// </summary>                    
+                    public string s0
+                    {
+                        get { return _p[0]; }
+                        set
+                        {
+                            int num = int.Parse(value); //will throw exceptions if not numeric                            
+                            _p[0] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Primary telephone number.
+                    /// ASCII telephone number.  The length of the string can be up to 26 characters.
+                    /// The first character of the string can be "T" for tone dialing and "P" for pulse dialing.  
+                    /// If none is specified, tone dialing is set.
+                    /// Each "D" or "d" character embedded within this string causes a 2 second delay.  
+                    /// The "-" character can be embedded and has no effect.  
+                    /// Each "W" embedded within this string will cause the modem dialing to pause and wait for dial tone.
+                    /// </summary>                    
+                    public string s1
+                    {
+                        get { return _p[1]; }
+                        set
+                        {
+                            if (value.Length > 26)
+                                throw new ArgumentOutOfRangeException("s1", "The primary telephone number has a maximum length of 26 characters.");
+                            _p[1] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Secondary telephone number.
+                    /// ASCII telephone number.  The length of the string can be up to 26 characters.
+                    /// The first character of the string can be "T" for tone dialing and "P" for pulse dialing.  
+                    /// If none is specified, tone dialing is set.
+                    /// Each "D" or "d" character embedded within this string causes a 2 second delay.  
+                    /// The "-" character can be embedded and has no effect.  
+                    /// Each "W" embedded within this string will cause the modem dialing to pause and wait for dial tone.
+                    /// </summary>    
+                    public string s2
+                    {
+                        get { return _p[2]; }
+                        set
+                        {
+                            if (value.Length > 26)
+                                throw new ArgumentOutOfRangeException("s2", "The secondary telephone number has a maximum length of 26 characters.");
+                            _p[2] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Misc. host-specific parameter
+                    /// </summary>
+                    public string s3
+                    {
+                        get { return _p[3]; }
+                        set
+                        {                            
+                            _p[3] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Misc. host-specific parameter
+                    /// </summary>
+                    public string s4
+                    {
+                        get { return _p[4]; }
+                        set
+                        {
+                            _p[4] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Misc. host-specific parameter
+                    /// </summary>
+                    public string s5
+                    {
+                        get { return _p[5]; }
+                        set
+                        {
+                            _p[5] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Misc. host-specific parameter
+                    /// </summary>
+                    public string s6
+                    {
+                        get { return _p[6]; }
+                        set
+                        {
+                            _p[6] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Misc. host-specific parameter
+                    /// </summary>
+                    public string s7
+                    {
+                        get { return _p[7]; }
+                        set
+                        {
+                            _p[7] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Misc. host-specific parameter
+                    /// </summary>
+                    public string s8
+                    {
+                        get { return _p[8]; }
+                        set
+                        {
+                            _p[8] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Synchronize system clock with host clock. (Added UN02.51)
+                    /// Blank = no synchronization (starting in UN02.51) (default)
+                    /// +23 to -23 = Enable sync +/- 23 hours (sign character required)
+                    /// </summary>
+                    public string s9
+                    {
+                        get { return _p[9]; }
+                        set
+                        {
+                            _p[9] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Host Modem baud rate (Added in UN01.11).
+                    /// This baud rate is selected every time this host is dialed. 
+                    /// This baud rate is used for both the primary and secondary host numbers. 
+                    /// The value can be 300, 1200 or 2400 (default). If blank, then 2400 baud is used.
+                    /// </summary>
+                    public string s10
+                    {
+                        get { return _p[10]; }
+                        set
+                        {
+                            _p[10] = value;
+                        }
+                    }
+
+                    private string[] _p = new string[11];
+                    private string _n = "";
+
+                    /// <summary>
+                    /// Creates and populates a SETH_Data object
+                    /// 
+                    /// </summary>
+                    /// <param name="incoming">Expecting: "n=s0,s1,s2,..."</param>
+                    /// <returns></returns>
+                    public static SETH_Data Parse(string incoming)
+                    {
+                        /*string[] fields = incoming.Split(',');
+                        if (fields.Length != 10)
+                            throw new ArgumentOutOfRangeException("incoming", "Incorrect number of fields. Expecting 10, found " + fields.Length + ".");*/
+                        string[] nf = incoming.Split('=');
+                        string the_n = nf[0];
+                        incoming = nf[1];
+
+
+                        string[] fields = SeparateFields(incoming);
+
+                        SETH_Data response = new SETH_Data
+                        {
+                            n = the_n,
+                            s0 = fields[0].Trim(),
+                            s1 = fields[1].Trim(),
+                            s2 = fields[1].Trim(),
+                            s3 = fields[2].Trim(),
+                            s4 = fields[3].Trim(),
+                            s5 = fields[4].Trim(),
+                            s6 = fields[5].Trim(),
+                            s7 = fields[6].Trim(),
+                            s8 = fields[7].Trim(),
+                            s9 = fields[8].Trim(),
+                            s10 = fields[9].Trim()
+                        };
+                        return response;
+                    }
+
+
+                    /// <summary>
+                    /// Format the command parameters: "p,t,..."                
+                    /// </summary>
+                    /// <returns>The formatted command parameters</returns>
+                    public override string ToString()
+                    {
+                        return String.Join(",", _p);
+                    }
+                    
+                    /// <summary>
+                    /// custom parsing because of this note in the spec:
+                    /// When sending a list of parameters, use "" (quote-quote) in the fields (between the comma delimiters) you do not want modified.
+                    /// </summary>
+                    /// <param name="incoming"></param>
+                    /// <returns></returns>
+                    private static string[] SeparateFields(string incoming)
+                    {
+                        List<string> fields = new List<string>();
+                        StringBuilder accum = new StringBuilder();
+                        bool inQuote = false;
+                        foreach (char c in incoming)
+                        {
+                            if (c == ',')
+                            {
+                                if (!inQuote)
+                                {
+                                    fields.Add(accum.ToString());
+                                    accum = new StringBuilder();
+                                }
+                            }
+                            accum.Append(c);
+                            if (c == '"')
+                                inQuote = !inQuote;
+                        }
+                        fields.Add(accum.ToString());
+                        return fields.ToArray();
+                    }
+                }
+
+                /// <summary>
+                /// Get UNAC Parameter List.
+                /// 
+                /// This causes the UNAC to return its list of basic parameters.
+                ///                 
+                /// </summary>
+                /// <param name="prm">the PRM response data</param>
+                /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param>                
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                public void SetNSETH(int table_entry, out SETH_Data seth, bool optionalCloseConn = false)
+                {
+                    string command = "NSETH" + table_entry;
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+
+                    try
+                    {                        
+                        seth = SETH_Data.Parse(resps[0].Substring(4));
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+                #endregion
+                #region 3.2 Retrieve NAC Config Settings - Server I/F.
+                /// <summary>
+                /// Class used to hold data of PRM command
+                /// </summary>
+                public class PRM_Data
+                {
+                    
+                    /// <summary>
+                    /// Primary Telephone Number for Settlement Host (#0). 
+                    /// (First character is "T" or "P" for tone or pulse dialing.  Pause character is "d".)  
+                    /// Max length is 26 characters.
+                    /// </summary>                    
+                    public string p0
+                    {
+                        get { return _p[0]; }
+                        set
+                        {
+                            if (value.Length > 26)
+                                throw new ArgumentOutOfRangeException("p0", "Exceeded maximum field length of 26 characters");
+                            else
+                                _p[0] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Secondary Telephone Number for Settlement Host (#0). 
+                    /// (First character is "T" or "P" for tone or pulse dialing.  Pause character is "d".)  
+                    /// Max length is 26 characters.
+                    /// </summary>
+                    public string p1
+                    {
+                        get { return _p[1]; }
+                        set
+                        {
+                            if (value.Length > 26)
+                                throw new ArgumentOutOfRangeException("p1", "Exceeded maximum field length of 26 characters");
+                            else
+                                _p[1] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Terminal ID Number for Settlement Host (#0). Max. 20 characters).
+                    /// </summary>
+                    public string p2
+                    {
+                        get { return _p[2]; }
+                        set
+                        {
+                            if (value.Length > 20)
+                                throw new ArgumentOutOfRangeException("p2", "Exceeded maximum field length of 20 characters");
+                            else
+                                _p[2] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Company ID Number for Settlement Host (#0). Max. 20 characters).
+                    /// </summary>
+                    public string p3
+                    {
+                        get { return _p[3]; }
+                        set
+                        {
+                            if (value.Length > 26)
+                                throw new ArgumentOutOfRangeException("p3", "Exceeded maximum field length of 20 characters");
+                            else
+                                _p[3] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Batch Close Time "hhmm".
+                    /// </summary>
+                    public string p4
+                    {
+                        get { return _p[4]; }
+                        set
+                        {
+                            ValidateHHMMstr(value);                            
+                            _p[4] = value;                            
+                        }
+                    }
+
+                    /// <summary>
+                    /// Send Time 1 "hhmm".
+                    /// </summary>
+                    public string p5
+                    {
+                        get { return _p[5]; }
+                        set
+                        {
+                            ValidateHHMMstr(value);                               
+                            _p[5] = value;                            
+                        }
+                    }
+
+                    /// <summary>
+                    /// Send Time 2 "hhmm".
+                    /// </summary>
+                    public string p6
+                    {
+                        get { return _p[6]; }
+                        set
+                        {
+                            ValidateHHMMstr(value);
+                            _p[6] = value;   
+                        }
+                    }
+
+                    /// <summary>
+                    /// Send Time 3 "hhmm".
+                    /// </summary>
+                    public string p7
+                    {
+                        get { return _p[7]; }
+                        set
+                        {
+                            ValidateHHMMstr(value);
+                            _p[7] = value;   
+                        }
+                    }
+
+                    /// <summary>
+                    /// UNAC Software Version (8 characters max.).
+                    /// </summary>
+                    public string p8
+                    {
+                        get { return _p[8]; }
+                        set
+                        {
+                            if (value.Length > 8)
+                                throw new ArgumentOutOfRangeException("p8", "Exceeded maximum field length of 8 characters");
+                            else
+                                _p[8] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// UNAC Software part number (8 characters max.).
+                    /// </summary>
+                    public string p9
+                    {
+                        get { return _p[9]; }
+                        set
+                        {
+                            if (value.Length > 8)
+                                throw new ArgumentOutOfRangeException("p9", "Exceeded maximum field length of 8 characters");
+                            else
+                                _p[9] = value;
+                        }
+                    }
+
+                    private string[] _p = new string[10];
+
+                    /// <summary>
+                    /// Creates and populates an 
+                    /// </summary>
+                    /// <param name="incoming"></param>
+                    /// <returns></returns>
+                    public static PRM_Data Parse(string incoming)
+                    {
+                        string[] fields = incoming.Split(',');
+                        if (fields.Length != 10)
+                            throw new ArgumentOutOfRangeException("incoming", "Incorrect number of fields, expecting 10 found " + fields.Length);
+
+                        PRM_Data response = new PRM_Data
+                        {
+                            p0 = fields[0].Trim(),
+                            p1 = fields[1].Trim(),
+                            p2 = fields[2].Trim(),
+                            p3 = fields[3].Trim(),
+                            p4 = fields[4].Trim(),
+                            p5 = fields[5].Trim(),
+                            p6 = fields[6].Trim(),
+                            p7 = fields[7].Trim(),
+                            p8 = fields[8].Trim(),
+                            p9 = fields[9].Trim()
+                        };
+                        return response;
+                    }
+
+
+                    /// <summary>
+                    /// Format the command parameters: "p0,p1,p2,..."                
+                    /// </summary>
+                    /// <returns>The formatted command parameters</returns>
+                    public override string ToString()
+                    {
+                        return String.Join(",", _p);
+                    }
+
+                    #region private helper functions
+                    /// <summary>
+                    /// Throw an exception if the string is not valid
+                    /// </summary>
+                    /// <param name="hhmm"></param>
+                    private void ValidateHHMMstr(string hhmm)
+                    {
+                        if (hhmm.Length != 4)
+                            throw new ArgumentOutOfRangeException("hhmm", "The field length is not the required length of 4 characters.");
+
+                        int hh = int.Parse(hhmm.Substring(0, 2));
+                        if ( (hh > 23) || (hh < 0) )
+                            throw new ArgumentOutOfRangeException("hhmm", "The field indicates an invalid time.");
+
+                        int mm = int.Parse(hhmm.Substring(2, 2));
+                        if ( (mm > 59) || (mm < 0) )
+                            throw new ArgumentOutOfRangeException("hhmm", "The field indicates an invalid time.");
+                    }
+                    #endregion
+
+                }
+
+                /// <summary>
+                /// Get UNAC Parameter List.
+                /// 
+                /// This causes the UNAC to return its list of basic parameters.
+                ///                 
+                /// </summary>
+                /// <param name="prm">the PRM response data</param>
+                /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param>                
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                public void NPRM(out PRM_Data prm, bool optionalCloseConn = false)
+                {
+                    string command = "NPRM";
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        prm = PRM_Data.Parse(Vals[1]);
+                        
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+
+                /// <summary>
+                /// Class used to hold data of PR1 command
+                /// </summary>
+                public class PR1_Data
+                {
+
+                    /// <summary>
+                    /// "E" for normal UNAC operation.
+                    /// "B" for unlimited demo mode.
+                    /// "P" for Production Test Mode.
+                    /// "T" for Engineering Test Mode.
+                    /// </summary>                    
+                    public string d
+                    {
+                        get { return _p[0]; }
+                        set
+                        {                            
+                            _p[0] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// # of rings to answer incoming call ("1" to "14").
+                    /// </summary>
+                    public string r
+                    {
+                        get { return _p[1]; }
+                        set
+                        {
+                            int rings = int.Parse(value); //will throw exceptions if not numeric
+                            if ((rings < 1) || (rings > 14))
+                                throw new ArgumentOutOfRangeException("r", "The number of rings to answer must have a value between 1 and 14");
+
+                            _p[1] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Type of concatenation.
+                    /// "D" for daily.
+                    /// "W" for weekly.
+                    /// "M" for monthly.
+                    /// NULL for none.
+                    /// </summary>
+                    public string t
+                    {
+                        get { return _p[2]; }
+                        set
+                        {                            
+                            _p[2] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// v1 (optional). 
+                    /// Specifies days of week ("0" to "6") or days of month ("1" to "31") the concatenated file is to be sent to host. 
+                    /// NULL when field not used.
+                    /// </summary>
+                    public string v1
+                    {
+                        get { return _p[3]; }
+                        set
+                        {
+                            if ( (value != null) && (value.Length > 0) )
+                                int.Parse(value); //will throw exceptions if not numeric
+                            _p[3] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// v2 (optional). 
+                    /// Specifies days of week ("0" to "6") or days of month ("1" to "31") the concatenated file is to be sent to host. 
+                    /// NULL when field not used.
+                    /// </summary>
+                    public string v2
+                    {
+                        get { return _p[4]; }
+                        set
+                        {
+                            if ((value != null) && (value.Length > 0))
+                                int.Parse(value); //will throw exceptions if not numeric
+                            _p[4] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// v3 (optional). 
+                    /// Specifies days of week ("0" to "6") or days of month ("1" to "31") the concatenated file is to be sent to host. 
+                    /// NULL when field not used.
+                    /// </summary>
+                    public string v3
+                    {
+                        get { return _p[5]; }
+                        set
+                        {
+                            if ((value != null) && (value.Length > 0))
+                                int.Parse(value); //will throw exceptions if not numeric
+                            _p[5] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Not defined
+                    /// </summary>
+                    public string p6
+                    {
+                        get { return _p[6]; }
+                        set
+                        {
+                            _p[6] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Not defined
+                    /// </summary>
+                    public string p7
+                    {
+                        get { return _p[7]; }
+                        set
+                        {
+                            _p[7] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Not defined
+                    /// </summary>
+                    public string p8
+                    {
+                        get { return _p[8]; }
+                        set
+                        {
+                            _p[8] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Not defined
+                    /// </summary>
+                    public string p9
+                    {
+                        get { return _p[9]; }
+                        set
+                        {
+                            _p[9] = value;
+                        }
+                    }
+
+                    private string[] _p = new string[10];
+
+                    /// <summary>
+                    /// Creates and populates a PR3_Data object
+                    /// </summary>
+                    /// <param name="incoming"></param>
+                    /// <returns></returns>
+                    public static PR1_Data Parse(string incoming)
+                    {
+                        string[] fields = incoming.Split(',');
+                        if (fields.Length < 3)
+                            throw new ArgumentOutOfRangeException("incoming", "Too few fields. Expecting at least 3, found " + fields.Length + ".");
+
+                        PR1_Data response = new PR1_Data
+                        {
+                            d = fields[0].Trim(),
+                            r = fields[1].Trim(),
+                            t = fields[2].Trim()
+                        };
+
+                        if (fields.Length > 3)
+                            response.v1 = fields[3];
+                        if (fields.Length > 4)
+                            response.v2 = fields[4];
+                        if (fields.Length > 5)
+                            response.v3 = fields[5];
+
+                        return response;
+                    }
+
+
+                    /// <summary>
+                    /// Format the command parameters: "p,t,..."                
+                    /// </summary>
+                    /// <returns>The formatted command parameters</returns>
+                    public override string ToString()
+                    {
+                        return String.Join(",", _p);
+                    }
+                }
+
+                /// <summary>
+                /// Get Modem and Concatenate Status.
+                /// This causes the status of the modem control and concatenation control functions to be returned.
+                /// 
+                /// </summary>
+                /// <param name="pr1">the PR1 response data</param>
+                /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param>                
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                public void NPR1(out PR1_Data pr1, bool optionalCloseConn = false)
+                {
+                    string command = "NPR1";
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        pr1 = PR1_Data.Parse(Vals[1]);
+
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+
+                /// <summary>
+                /// Class used to hold data of PR2 command
+                /// </summary>
+                public class PR2_Data
+                {
+
+                    /// <summary>
+                    /// "N" for not in Portable UNAC Mode.                    
+                    /// </summary>                    
+                    public string p
+                    {
+                        get { return _p[0]; }
+                        set
+                        {
+                            _p[0] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// "E" for beeps enabled
+                    /// "D" for beeps disabled
+                    /// </summary>
+                    public string b
+                    {
+                        get { return _p[1]; }
+                        set
+                        {
+                            if ((value != "E") && (value != "D"))
+                                throw new ArgumentOutOfRangeException("b", "Beeps must be either set to E or D");
+                            _p[1] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Not defined
+                    /// </summary>
+                    public string p2
+                    {
+                        get { return _p[2]; }
+                        set
+                        {
+                            _p[2] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Not defined
+                    /// </summary>
+                    public string p3
+                    {
+                        get { return _p[3]; }
+                        set
+                        {                            
+                            _p[3] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Not defined
+                    /// </summary>
+                    public string p4
+                    {
+                        get { return _p[4]; }
+                        set
+                        {                            
+                            _p[4] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Not defined
+                    /// </summary>
+                    public string p5
+                    {
+                        get { return _p[5]; }
+                        set
+                        {                            
+                            _p[5] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Not defined
+                    /// </summary>
+                    public string p6
+                    {
+                        get { return _p[6]; }
+                        set
+                        {
+                            _p[6] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Not defined
+                    /// </summary>
+                    public string p7
+                    {
+                        get { return _p[7]; }
+                        set
+                        {
+                            _p[7] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Not defined
+                    /// </summary>
+                    public string p8
+                    {
+                        get { return _p[8]; }
+                        set
+                        {
+                            _p[8] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Not defined
+                    /// </summary>
+                    public string p9
+                    {
+                        get { return _p[9]; }
+                        set
+                        {
+                            _p[9] = value;
+                        }
+                    }
+
+                    private string[] _p = new string[10];
+
+                    /// <summary>
+                    /// Creates and populates a PR2_Data object
+                    /// </summary>
+                    /// <param name="incoming"></param>
+                    /// <returns></returns>
+                    public static PR2_Data Parse(string incoming)
+                    {
+                        string[] fields = incoming.Split(',');
+                        if (fields.Length != 10)
+                            throw new ArgumentOutOfRangeException("incoming", "Incorrect number of fields. Expecting 10, found " + fields.Length + ".");
+
+                        PR2_Data response = new PR2_Data
+                        {
+                            p = fields[0].Trim(),
+                            b = fields[1].Trim(),
+                            p2 = fields[2].Trim(),
+                            p3 = fields[3].Trim(),
+                            p4 = fields[4].Trim(),
+                            p5 = fields[5].Trim(),
+                            p6 = fields[6].Trim(),
+                            p7 = fields[7].Trim(),
+                            p8 = fields[8].Trim(),
+                            p9 = fields[9].Trim()
+                        };
+
+                        return response;
+                    }
+
+
+                    /// <summary>
+                    /// Format the command parameters: "p,t,..."                
+                    /// </summary>
+                    /// <returns>The formatted command parameters</returns>
+                    public override string ToString()
+                    {
+                        return String.Join(",", _p);
+                    }
+                }
+
+                /// <summary>
+                /// Get Portable UNAC and Beep Control Status.
+                /// This causes the status of the portable mode operation and the beep control function to be returned.
+                /// 
+                /// </summary>
+                /// <param name="pr2">the PR2 response data</param>
+                /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param>                
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                public void NPR2(out PR2_Data pr2, bool optionalCloseConn = false)
+                {
+                    string command = "NPR2";
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        pr2 = PR2_Data.Parse(Vals[1]);
+
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+                /// <summary>
+                /// Class used to hold data of PR3 command
+                /// </summary>
+                public class PR3_Data
+                {
+
+                    /// <summary>
+                    /// Number of host attempts currently set (="0").
+                    /// </summary>                    
+                    public string ha
+                    {
+                        get { return _p[0]; }
+                        set
+                        {
+                            int.Parse(value); //will throw exceptions if not numeric
+                            _p[0] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Number of months in hot list.
+                    /// </summary>
+                    public string hlm
+                    {
+                        get { return _p[1]; }
+                        set
+                        {
+                            int.Parse(value); //will throw exceptions if not numeric
+                            _p[1] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Number of entries in hot list.
+                    /// </summary>
+                    public string hnbr
+                    {
+                        get { return _p[2]; }
+                        set
+                        {
+                            int.Parse(value); //will throw exceptions if not numeric
+                            _p[2] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Number of entries in batch.
+                    /// </summary>
+                    public string bnbr
+                    {
+                        get { return _p[3]; }
+                        set
+                        {
+                            int.Parse(value); //will throw exceptions if not numeric
+                            _p[3] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Number of entries in message file.
+                    /// </summary>
+                    public string mnbr
+                    {
+                        get { return _p[4]; }
+                        set
+                        {
+                            int.Parse(value); //will throw exceptions if not numeric
+                            _p[4] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Not defined
+                    /// </summary>
+                    public string p5
+                    {
+                        get { return _p[5]; }
+                        set
+                        {
+                            _p[5] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Not defined
+                    /// </summary>
+                    public string p6
+                    {
+                        get { return _p[6]; }
+                        set
+                        {
+                            _p[6] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Not defined
+                    /// </summary>
+                    public string p7
+                    {
+                        get { return _p[7]; }
+                        set
+                        {
+                            _p[7] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Not defined
+                    /// </summary>
+                    public string p8
+                    {
+                        get { return _p[8]; }
+                        set
+                        {
+                            _p[8] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Not defined
+                    /// </summary>
+                    public string p9
+                    {
+                        get { return _p[9]; }
+                        set
+                        {
+                            _p[9] = value;
+                        }
+                    }
+
+                    private string[] _p = new string[10];
+
+                    /// <summary>
+                    /// Creates and populates a PR3_Data object
+                    /// </summary>
+                    /// <param name="incoming"></param>
+                    /// <returns></returns>
+                    public static PR3_Data Parse(string incoming)
+                    {
+                        string[] fields = incoming.Split(',');
+                        if (fields.Length != 10)
+                            throw new ArgumentOutOfRangeException("incoming", "Incorrect number of fields. Expecting 10, found " + fields.Length + ".");
+
+                        PR3_Data response = new PR3_Data
+                        {
+                            ha = fields[0].Trim(),
+                            hlm = fields[1].Trim(),
+                            hnbr = fields[2].Trim(),
+                            bnbr = fields[3].Trim(),
+                            mnbr = fields[4].Trim(),
+                            p5 = fields[5].Trim(),
+                            p6 = fields[6].Trim(),
+                            p7 = fields[7].Trim(),
+                            p8 = fields[8].Trim(),
+                            p9 = fields[9].Trim()
+                        };
+                        return response;
+                    }
+
+
+                    /// <summary>
+                    /// Format the command parameters: "p,t,..."                
+                    /// </summary>
+                    /// <returns>The formatted command parameters</returns>
+                    public override string ToString()
+                    {
+                        return String.Join(",", _p);
+                    }
+                }
+
+                /// <summary>
+                /// Get Host Retries, Hot List, and Batch Status.
+                /// This causes the following status to be returned.
+                /// 
+                /// </summary>
+                /// <param name="pr3">the PR3 response data</param>
+                /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param>                
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                public void NPR3(out PR3_Data pr3, bool optionalCloseConn = false)
+                {
+                    string command = "NPR3";
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        pr3 = PR3_Data.Parse(Vals[1]);
+
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+                /// <summary>
+                /// Class used to hold data of PR7 command
+                /// </summary>
+                public class PR7_Data
+                {
+
+                    /// <summary>
+                    /// Settlement Host Protocol Type
+                    /// "0" 	- SPS / ADS
+                    /// "1"     - EasyHost (with or without Alt. Track support)
+                    /// "2"     - Paymentech
+                    /// "3"     - Global
+                    /// "5"     - First Data (Reserved)
+                    /// </summary>                    
+                    public string p
+                    {
+                        get { return _p[0]; }
+                        set
+                        {
+                            _p[0] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// This is the number of transactions remaining in Production Test Mode.  
+                    /// This will be blank if not in Production Test Mode. (the range can be from "0" to "99").
+                    /// NULL or "0" 	- Not supported
+                    /// </summary>
+                    public string t
+                    {
+                        get { return _p[1]; }
+                        set
+                        {
+                            if (value != null)
+                            {
+                                int num = int.Parse(value);
+                                if ((num > 99) || (num < 0))
+                                    throw new ArgumentOutOfRangeException("t", "Invalid number of transactions remaining.");
+                            }
+                            _p[1] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// undefined
+                    /// </summary>
+                    public string c
+                    {
+                        get { return _p[2]; }
+                        set
+                        {
+                            _p[2] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// undefined
+                    /// </summary>
+                    public string d
+                    {
+                        get { return _p[3]; }
+                        set
+                        {
+                            _p[3] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// undefined
+                    /// </summary>
+                    public string e
+                    {
+                        get { return _p[4]; }
+                        set
+                        {
+                            _p[4] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// undefined
+                    /// </summary>
+                    public string f
+                    {
+                        get { return _p[5]; }
+                        set
+                        {
+                            _p[5] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// undefined
+                    /// </summary>
+                    public string g
+                    {
+                        get { return _p[6]; }
+                        set
+                        {
+                            _p[6] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Undefined
+                    /// </summary>
+                    public string h
+                    {
+                        get { return _p[7]; }
+                        set
+                        {
+                            _p[7] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Undefined
+                    /// </summary>
+                    public string i
+                    {
+                        get { return _p[8]; }
+                        set
+                        {
+                            _p[8] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Undefined
+                    /// </summary>
+                    public string j
+                    {
+                        get { return _p[9]; }
+                        set
+                        {
+                            _p[9] = value;
+                        }
+                    }
+
+                    private string[] _p = new string[10];
+
+                    /// <summary>
+                    /// Creates and populates a PR7_Data object
+                    /// </summary>
+                    /// <param name="incoming"></param>
+                    /// <returns></returns>
+                    public static PR7_Data Parse(string incoming)
+                    {
+                        string[] fields = incoming.Split(',');
+                        if (fields.Length != 10)
+                            throw new ArgumentOutOfRangeException("incoming", "Incorrect number of fields. Expecting 10, found " + fields.Length + ".");
+
+                        PR7_Data response = new PR7_Data
+                        {
+                            p = fields[0].Trim(),
+                            t = fields[1].Trim(),
+                            c = fields[2].Trim(),
+                            d = fields[3].Trim(),
+                            e = fields[4].Trim(),
+                            f = fields[5].Trim(),
+                            g = fields[6].Trim(),
+                            h = fields[7].Trim(),
+                            i = fields[8].Trim(),
+                            j = fields[9].Trim()
+                        };
+                        return response;
+                    }
+
+
+                    /// <summary>
+                    /// Format the command parameters: "p,t,..."                
+                    /// </summary>
+                    /// <returns>The formatted command parameters</returns>
+                    public override string ToString()
+                    {
+                        return String.Join(",", _p);
+                    }
+                }
+
+                /// <summary>
+                /// Get Host Configuration Status.
+                /// This causes the various settings that control operation of the host communication port to be returned.
+                /// 
+                /// </summary>
+                /// <param name="pr7">the PR7 response data</param>
+                /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param>                
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                public void NPR7(out PR7_Data pr7, bool optionalCloseConn = false)
+                {
+                    string command = "NPR7";
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        pr7 = PR7_Data.Parse(Vals[1]);
+
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+                /// <summary>
+                /// Class used to hold data of PRF command
+                /// </summary>
+                public class PRF_Data
+                {
+
+                    /// <summary>
+                    /// Offline Proprietary Card Feature.
+                    /// NULL or "0" 	- Not supported
+                    /// </summary>                    
+                    public string a
+                    {
+                        get { return _p[0]; }
+                        set
+                        {
+                            _p[0] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Portable NAC mode.
+                    /// NULL or "0" 	- Not supported
+                    /// </summary>
+                    public string b
+                    {
+                        get { return _p[1]; }
+                        set
+                        {
+                            _p[1] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// UNAC System Query Reporting Feature
+                    /// NULL or "0" 	- Not supported
+                    /// </summary>
+                    public string c
+                    {
+                        get { return _p[2]; }
+                        set
+                        {
+                            _p[2] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Supported Settlement Host Protocols.
+                    /// NULL or "0"	- ADS
+                    /// "1"		- EasyHost Protocol & SPS
+                    /// "2"		- ADS, EZH, & Paymentech
+                    /// "3" 	- ADS, EZH, Paymentech, & Global
+                    /// "4"		- EZH
+                    /// "5"		- EZH, Global
+                    /// "6"		- ADS, EZH with Alt. Track support
+                    /// "7"		- EZH with Alt. Track, Paymentech, & Global
+                    /// "8"		- EZH with Alt. Track & Paymentech
+                    /// "1xxx"	- ASCII Hex bit map - See following table (Added UN02.00)
+                    /// </summary>
+                    public string d
+                    {
+                        get { return _p[3]; }
+                        set
+                        {
+                            _p[3] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Supported Authorization Host Protocols.
+                    /// NULL	- Host types same as d, above.
+                    /// "0"		- ADS
+                    /// "1"		- EasyHost Protocol & SPS
+                    /// "2"		- ADS, EZH, & Paymentech
+                    /// "3" 	- ADS, EZH, Paymentech, & Global
+                    /// "4"		- EZH
+                    /// "5"		- EZH, Global
+                    /// "6"		- ADS, EZH with Alt. Track support
+                    /// "7"		- EZH with Alt. Track, Paymentech, & Global
+                    /// "8"		- EZH with Alt. Track & Paymentech
+                    /// "1xxx"	- ASCII Hex bit map - See following table (Added UN02.00)
+                    /// </summary>
+                    public string e
+                    {
+                        get { return _p[4]; }
+                        set
+                        {
+                            _p[4] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// UNAC LAN Support
+                    /// Null or "0"	- No LAN
+                    /// "1"		- LAN
+                    /// </summary>
+                    public string f
+                    {
+                        get { return _p[5]; }
+                        set
+                        {
+                            _p[5] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Alternate Settlement Host Support (Added UN02.00)
+                    /// Null or "0"	- No Alt. Host support.
+                    /// "1"		- Alt. Host supported.
+                    /// </summary>
+                    public string g
+                    {
+                        get { return _p[6]; }
+                        set
+                        {
+                            _p[6] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Undefined
+                    /// </summary>
+                    public string h
+                    {
+                        get { return _p[7]; }
+                        set
+                        {
+                            _p[7] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Undefined
+                    /// </summary>
+                    public string i
+                    {
+                        get { return _p[8]; }
+                        set
+                        {
+                            _p[8] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Undefined
+                    /// </summary>
+                    public string j
+                    {
+                        get { return _p[9]; }
+                        set
+                        {
+                            _p[9] = value;
+                        }
+                    }
+
+                    private string[] _p = new string[10];
+
+                    /// <summary>
+                    /// Creates and populates a PRF_Data object
+                    /// </summary>
+                    /// <param name="incoming"></param>
+                    /// <returns></returns>
+                    public static PRF_Data Parse(string incoming)
+                    {
+                        string[] fields = incoming.Split(',');
+                        if (fields.Length != 10)
+                            throw new ArgumentOutOfRangeException("incoming", "Incorrect number of fields, expecting 10 found " + fields.Length);
+
+                        PRF_Data response = new PRF_Data
+                        {
+                            a = fields[0].Trim(),
+                            b = fields[1].Trim(),
+                            c = fields[2].Trim(),
+                            d = fields[3].Trim(),
+                            e = fields[4].Trim(),
+                            f = fields[5].Trim(),
+                            g = fields[6].Trim(),
+                            h = fields[7].Trim(),
+                            i = fields[8].Trim(),
+                            j = fields[9].Trim()
+                        };
+                        return response;
+                    }
+
+
+                    /// <summary>
+                    /// Format the command parameters: "a,b,c,..."                
+                    /// </summary>
+                    /// <returns>The formatted command parameters</returns>
+                    public override string ToString()
+                    {
+                        return String.Join(",", _p);
+                    }
+                }
+
+                /// <summary>
+                /// Get List of UNAC Features.
+                /// There are various different compiled versions of the Version 1 UNAC.  
+                /// The supported features in each version of UNAC can be identified as follows: Command added at UN01.04.
+                /// 
+                /// </summary>
+                /// <param name="prf">the PRF response data</param>
+                /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param>                
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                public void NPRF(out PRF_Data prf, bool optionalCloseConn = false)
+                {
+                    string command = "NPRF";
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        prf = PRF_Data.Parse(Vals[1]);
+
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+
+                /// <summary>
+                /// Class used to hold data of UDT command
+                /// </summary>
+                public class UDT_Data
+                {
+
+                    /// <summary>
+                    /// mmddyyhhjjw string 
+                    /// mm = Month (01-12)
+                    /// dd = Day (01-31)
+                    /// yy = Year (00-99)
+                    /// hh = Hour (00-23)
+                    /// ii = Minutes (00-59)
+                    /// w = Day of Week (0-6, 0 = Sunday)
+                    /// </summary>                    
+                    public string datetimestring
+                    {
+                        get { return _datetimestring; }
+                        set
+                        {
+                            ConvertUNAC_DateTime(value); //will throw exceptions if not proper
+                            _datetimestring = value;
+                        }
+                    }
+
+                    public DateTime UNAC_DateTime
+                    {
+                        get { return ConvertUNAC_DateTime(datetimestring); }
+                        set { _datetimestring = ConvertDateTimeToUNAC_String(value);  }
+                    }
+
+
+                    private string _datetimestring;
+                    /// <summary>
+                    /// Creates and populates a PR3_Data object
+                    /// </summary>
+                    /// <param name="incoming"></param>
+                    /// <returns></returns>
+                    public static UDT_Data Parse(string incoming)
+                    {
+                        string[] fields = incoming.Split(',');
+                        if (fields.Length != 1)
+                            throw new ArgumentOutOfRangeException("incoming", "Incorrect number of fields. Expecting 1, found " + fields.Length + ".");
+
+                        UDT_Data response = new UDT_Data
+                        {
+                            datetimestring = fields[0].Trim(),                            
+                        };
+                        return response;
+                    }
+
+
+                    /// <summary>
+                    /// Format the command parameters: "p,t,..."                
+                    /// </summary>
+                    /// <returns>The formatted command parameters</returns>
+                    public override string ToString()
+                    {
+                        return datetimestring;
+                    }
+
+                    #region private helper functions
+                    /// <summary>
+                    /// Converts mmddyyhhiiw string to DateTime
+                    /// mm = Month (01-12)
+                    /// dd = Day (01-31)
+                    /// yy = Year (00-99)
+                    /// hh = Hour (00-23)
+                    /// ii = Minutes (00-59)
+                    /// w = Day of Week (0-6, 0 = Sunday)
+                    /// </summary>
+                    /// <param name="datetime"></param>
+                    /// <returns></returns>
+                    static public DateTime ConvertUNAC_DateTime(string datetime)
+                    {
+                        if (datetime.Length != "mmddyyhhjjw".Length)
+                            throw new ArgumentException("Invalid date time string.", datetime);
+
+                        //add year 2000 padding
+                        datetime = datetime.Substring(0, "mmdd".Length) + "20" + datetime.Substring("mmdd".Length);
+
+                        //remove day of week
+                        datetime = datetime.Substring(0, "mmddyyyyhhii".Length);
+
+                        //see: http://msdn.microsoft.com/en-us/library/8kb3ddd4(v=vs.110).aspx
+                        return DateTime.ParseExact(datetime, "MMddyyyyHHmm", null); //, CultureInfo.InvariantCulture);
+                    }
+
+                    /// <summary>
+                    /// Converts mmddyyhhiiw string to DateTime
+                    /// mm = Month (01-12)
+                    /// dd = Day (01-31)
+                    /// yy = Year (00-99)
+                    /// hh = Hour (00-23)
+                    /// ii = Minutes (00-59)
+                    /// w = Day of Week (0-6, 0 = Sunday)
+                    /// </summary>
+                    /// <param name="datetime"></param>
+                    /// <returns></returns>
+                    public static string ConvertDateTimeToUNAC_String(DateTime date)
+                    {
+                        string Month, Day, Year, Hour, Minute, DayOfWeek;
+
+                        Month = date.Month.ToString();
+                        if (Month.Length < 2)
+                            Month = "0" + Month;
+
+                        Day = date.Day.ToString();
+                        if (Day.Length < 2)
+                            Day = "0" + Day;
+
+                        Year = date.Year.ToString();
+                        if (Year.Length == 4)
+                            Year = Year.Substring(2);
+
+                        Hour = date.Hour.ToString();
+                        if (Hour.Length < 2)
+                            Hour = "0" + Hour;
+
+                        Minute = date.Minute.ToString();
+                        if (Minute.Length < 2)
+                            Minute = "0" + Minute;
+
+                        DayOfWeek = ((int)date.DayOfWeek).ToString();                        
+
+                        String retString = Month + Day + Year + Hour + Minute + DayOfWeek;
+
+                        return retString;
+                    }
+                    #endregion
+                }
+
+                /// <summary>
+                /// Get Current Date and Time Setting.
+                /// This command causes the settings in the clock/calendar to be returned.
+                /// 
+                /// </summary>
+                /// <param name="udt">the NDR response data</param>
+                /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param>                
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                public void NDR(out UDT_Data udt, bool optionalCloseConn = false)
+                {
+                    string command = "NDR";
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        udt = UDT_Data.Parse(Vals[1]);
+
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+                /// <summary>
+                /// Class used to hold data of UDT command
+                /// </summary>
+                public class UDTS_Data
+                {
+
+                    /// <summary>
+                    /// mmddyyhhiiwss string 
+                    /// mm = Month (01-12)
+                    /// dd = Day (01-31)
+                    /// yy = Year (00-99)
+                    /// hh = Hour (00-23)
+                    /// ii = Minutes (00-59)
+                    /// w = Day of Week (0-6, 0 = Sunday)
+                    /// ss = Seconds (00 - 59)
+                    /// </summary>                    
+                    public string datetimestring
+                    {
+                        get { return _datetimestring; }
+                        set
+                        {
+                            ConvertUNAC_DateTime(value); //will throw exceptions if not proper
+                            _datetimestring = value;
+                        }
+                    }
+
+                    public DateTime UNAC_DateTime
+                    {
+                        get { return ConvertUNAC_DateTime(datetimestring); }
+                        set { _datetimestring = ConvertDateTimeToUNAC_String(value); }
+                    }
+
+
+                    private string _datetimestring;
+                    /// <summary>
+                    /// Creates and populates a PR3_Data object
+                    /// </summary>
+                    /// <param name="incoming"></param>
+                    /// <returns></returns>
+                    public static UDTS_Data Parse(string incoming)
+                    {
+                        string[] fields = incoming.Split(',');
+                        if (fields.Length != 1)
+                            throw new ArgumentOutOfRangeException("incoming", "Incorrect number of fields. Expecting 1, found " + fields.Length + ".");
+
+                        UDTS_Data response = new UDTS_Data
+                        {
+                            datetimestring = fields[0].Trim(),
+                        };
+                        return response;
+                    }
+
+
+                    /// <summary>
+                    /// Format the command parameters: "p,t,..."                
+                    /// </summary>
+                    /// <returns>The formatted command parameters</returns>
+                    public override string ToString()
+                    {
+                        return datetimestring;
+                    }
+
+                    #region private helper functions
+                    /// <summary>
+                    /// Converts mmddyyhhiiwss string to DateTime
+                    /// mm = Month (01-12)
+                    /// dd = Day (01-31)
+                    /// yy = Year (00-99)
+                    /// hh = Hour (00-23)
+                    /// ii = Minutes (00-59)
+                    /// w = Day of Week (0-6, 0 = Sunday)
+                    /// ss = Seconds (00-59)
+                    /// </summary>
+                    /// <param name="datetime"></param>
+                    /// <returns></returns>
+                    static public DateTime ConvertUNAC_DateTime(string datetime)
+                    {
+                        if (datetime.Length != "mmddyyhhjjwss".Length)
+                            throw new ArgumentException("Invalid date time string.", datetime);
+
+                        //add year 2000 padding
+                        datetime = datetime.Substring(0, "mmdd".Length) + "20" + datetime.Substring("mmdd".Length);
+
+                        //remove day of week
+                        datetime = datetime.Substring(0, "mmddyyyyhhii".Length) + datetime.Substring("mmddyyyyhhiiw".Length); ;
+
+                        //see: http://msdn.microsoft.com/en-us/library/8kb3ddd4(v=vs.110).aspx
+                        return DateTime.ParseExact(datetime, "MMddyyyyHHmmss", null); //, CultureInfo.InvariantCulture);
+                    }
+
+                    /// <summary>
+                    /// Converts mmddyyhhiiw string to DateTime
+                    /// mm = Month (01-12)
+                    /// dd = Day (01-31)
+                    /// yy = Year (00-99)
+                    /// hh = Hour (00-23)
+                    /// ii = Minutes (00-59)
+                    /// w = Day of Week (0-6, 0 = Sunday)
+                    /// ss = Seconds (00 - 59)
+                    /// </summary>
+                    /// <param name="datetime"></param>
+                    /// <returns></returns>
+                    public static string ConvertDateTimeToUNAC_String(DateTime date)
+                    {
+                        string Month, Day, Year, Hour, Minute, DayOfWeek, Second;
+
+                        Month = date.Month.ToString();
+                        if (Month.Length < 2)
+                            Month = "0" + Month;
+
+                        Day = date.Day.ToString();
+                        if (Day.Length < 2)
+                            Day = "0" + Day;
+
+                        Year = date.Year.ToString();
+                        if (Year.Length == 4)
+                            Year = Year.Substring(2);
+
+                        Hour = date.Hour.ToString();
+                        if (Hour.Length < 2)
+                            Hour = "0" + Hour;
+
+                        Minute = date.Minute.ToString();
+                        if (Minute.Length < 2)
+                            Minute = "0" + Minute;
+
+                        DayOfWeek = ((int)date.DayOfWeek).ToString();
+
+                        Second = date.Second.ToString();
+                        if (Second.Length < 2)
+                            Second = "0" + Second;
+
+                        String retString = Month + Day + Year + Hour + Minute + DayOfWeek + Second;
+
+                        return retString;
+                    }
+                    #endregion
+                }
+
+                /// <summary>
+                /// Get Current Date and Time Setting with Seconds.
+                /// This command causes the settings in the clock/calendar to be returned with the seconds. Command added at UN01.04.
+                /// 
+                /// </summary>
+                /// <param name="udts">the NDRS response data</param>
+                /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param>                
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                public void NDRS(out UDTS_Data udts, bool optionalCloseConn = false)
+                {
+                    string command = "NDRS";
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        udts = UDTS_Data.Parse(Vals[1]);
+
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+                #endregion
+
+                #region 3.3 Retrieve and Manage NAC Registers - Server I/F
+
+
+                /// <summary>
+                /// Class used to hold data of PR5 command
+                /// </summary>
+                public class PR5_Data
+                {
+
+                    /// <summary>
+                    /// Current batch size
+                    /// </summary>                    
+                    public string bsz
+                    {
+                        get { return _p[0]; }
+                        set
+                        {
+                            int.Parse(value); //will throw exceptions if not numeric
+                            _p[0] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Current hot list size
+                    /// </summary>
+                    public string hsz
+                    {
+                        get { return _p[1]; }
+                        set
+                        {
+                            int.Parse(value); //will throw exceptions if not numeric
+                            _p[1] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Maximum batch size allowed
+                    /// </summary>
+                    public string bmax
+                    {
+                        get { return _p[2]; }
+                        set
+                        {
+                            int.Parse(value); //will throw exceptions if not numeric
+                            _p[2] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Maximum hot list size allowed
+                    /// </summary>
+                    public string hmax
+                    {
+                        get { return _p[3]; }
+                        set
+                        {
+                            int.Parse(value); //will throw exceptions if not numeric
+                            _p[3] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Batch record size
+                    /// </summary>
+                    public string brec
+                    {
+                        get { return _p[4]; }
+                        set
+                        {
+                            int.Parse(value); //will throw exceptions if not numeric
+                            _p[4] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Hot list record size
+                    /// </summary>
+                    public string hrec
+                    {
+                        get { return _p[5]; }
+                        set
+                        {
+                            int.Parse(value); //will throw exceptions if not numeric
+                            _p[5] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Total Memory in UNAC (1=128K, 4=512K)
+                    /// </summary>
+                    public string mem
+                    {
+                        get { return _p[6]; }
+                        set
+                        {
+                            int.Parse(value); //will throw exceptions if not numeric
+                            _p[6] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Memory available for both batch and hot list.
+                    /// </summary>
+                    public string avail
+                    {
+                        get { return _p[7]; }
+                        set
+                        {
+                            int.Parse(value); //will throw exceptions if not numeric
+                            _p[7] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Date of software build (mm/dd/yy).
+                    /// </summary>
+                    public string sdate
+                    {
+                        get { return _p[8]; }
+                        set
+                        {
+                            string[] datefields = sdate.Split('/');
+                            int month = int.Parse(datefields[0]);
+                            int day = int.Parse(datefields[1]);
+                            int year = int.Parse(datefields[2]);
+                            if ((month < 0) || (month > 12) || (day < 0) || (day > 31) || (year < 0) || (year > 99) || (datefields.Length != 3))
+                                throw new ArgumentOutOfRangeException("sdate", "Invalid software build date.");
+
+                            _p[8] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Time of software build (hh:mm:ss).
+                    /// </summary>
+                    public string stime
+                    {
+                        get { return _p[9]; }
+                        set
+                        {
+                            string[] timefields = sdate.Split(':');
+                            int hour = int.Parse(timefields[0]);
+                            int minute = int.Parse(timefields[1]);
+                            int second = int.Parse(timefields[2]);
+                            if ((hour < 0) || (hour > 23) || (minute < 0) || (minute > 59) || (second < 0) || (second > 59) || (timefields.Length != 3))
+                                throw new ArgumentOutOfRangeException("sdate", "Invalid software build date.");
+
+                            _p[9] = value;
+                        }
+                    }
+
+                    private string[] _p = new string[10];
+
+                    /// <summary>
+                    /// Creates and populates a PR5_Data object
+                    /// </summary>
+                    /// <param name="incoming"></param>
+                    /// <returns></returns>
+                    public static PR5_Data Parse(string incoming)
+                    {
+                        string[] fields = incoming.Split(',');
+                        if (fields.Length != 10)
+                            throw new ArgumentOutOfRangeException("incoming", "Incorrect number of fields. Expecting 10, found " + fields.Length + ".");
+
+                        PR5_Data response = new PR5_Data
+                        {
+                            bsz = fields[0].Trim(),
+                            hsz = fields[1].Trim(),
+                            bmax = fields[2].Trim(),
+                            hmax = fields[3].Trim(),
+                            brec = fields[4].Trim(),
+                            hrec = fields[5].Trim(),
+                            mem = fields[6].Trim(),
+                            avail = fields[7].Trim(),
+                            sdate = fields[8].Trim(),
+                            stime = fields[9].Trim()
+                        };
+                        return response;
+                    }
+
+
+                    /// <summary>
+                    /// Format the command parameters: "p,t,..."                
+                    /// </summary>
+                    /// <returns>The formatted command parameters</returns>
+                    public override string ToString()
+                    {
+                        return String.Join(",", _p);
+                    }
+                }
+
+                /// <summary>
+                /// Get Memory Status.
+                /// This causes the status of the memory used for batch and hot list to be returned.
+                /// 
+                /// </summary>
+                /// <param name="pr5">the PR5 response data</param>
+                /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param>                
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                public void NPR5(out PR5_Data pr5, bool optionalCloseConn = false)
+                {
+                    string command = "NPR5";
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        pr5 = PR5_Data.Parse(Vals[1]);
+
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+
+                /// <summary>
+                /// Class used to hold data of PM1 command
+                /// </summary>
+                public class PM1_Data
+                {
+
+                    /// <summary>
+                    /// Modem Firmware Part Number (max. 8 char.)
+                    /// </summary>                    
+                    public string s1
+                    {
+                        get { return _p[0]; }
+                        set
+                        {
+                            if (value.Length > 8)
+                                throw new ArgumentOutOfRangeException("s1", "Modem firmware part number can be a maximum of 8 characters in length.");
+                            _p[0] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Modem Firmware Version (max. 8 char.)
+                    /// </summary>
+                    public string s2
+                    {
+                        get { return _p[1]; }
+                        set
+                        {
+                            if (value.Length > 8)
+                                throw new ArgumentOutOfRangeException("s1", "Modem firmware version can be a maximum of 8 characters in length.");
+                            _p[1] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Modem Firmware Compile date (mmm dd yyyy). (ie. "Oct 6 1999")
+                    /// </summary>
+                    public string s3
+                    {
+                        get { return _p[2]; }
+                        set
+                        {                            
+                            _p[2] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Modem type (max. 8 char.)
+                    /// </summary>
+                    public string s4
+                    {
+                        get { return _p[3]; }
+                        set
+                        {
+                            if (value.Length > 8)
+                                throw new ArgumentOutOfRangeException("s1", "Modem type can be a maximum of 8 characters in length.");                            
+                            _p[3] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// spare (null)
+                    /// </summary>
+                    public string s5
+                    {
+                        get { return _p[4]; }
+                        set
+                        {                            
+                            _p[4] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Status of UNAC modem use ("0" = modem not in use by UNAC, 
+                    /// "1" = modem is in use, or about to be used by UNAC).
+                    /// </summary>
+                    public string s6
+                    {
+                        get { return _p[5]; }
+                        set
+                        {                            
+                            _p[5] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Dialing/Answer Enable
+                    /// = "0", dialing/answering enabled.
+                    /// = "1" to "999", number of minutes remaining in hold-off time.
+                    /// </summary>
+                    public string s7
+                    {
+                        get { return _p[6]; }
+                        set
+                        {
+                            int.Parse(value); //will throw exceptions if not numeric
+                            _p[6] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// spare (Null)
+                    /// </summary>
+                    public string s8
+                    {
+                        get { return _p[7]; }
+                        set
+                        {                            
+                            _p[7] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// spare (Null)
+                    /// </summary>
+                    public string s9
+                    {
+                        get { return _p[8]; }
+                        set
+                        {                            
+                            _p[8] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// spare (Null)
+                    /// </summary>
+                    public string s10
+                    {
+                        get { return _p[9]; }
+                        set
+                        {                            
+                            _p[9] = value;
+                        }
+                    }
+
+                    private string[] _p = new string[10];
+
+                    /// <summary>
+                    /// Creates and populates a PR5_Data object
+                    /// </summary>
+                    /// <param name="incoming"></param>
+                    /// <returns></returns>
+                    public static PM1_Data Parse(string incoming)
+                    {
+                        string[] fields = incoming.Split(',');
+                        if (fields.Length != 10)
+                            throw new ArgumentOutOfRangeException("incoming", "Incorrect number of fields. Expecting 10, found " + fields.Length + ".");
+
+                        PM1_Data response = new PM1_Data
+                        {
+                            s1 = fields[0].Trim(),
+                            s2 = fields[1].Trim(),
+                            s3 = fields[2].Trim(),
+                            s4 = fields[3].Trim(),
+                            s5 = fields[4].Trim(),
+                            s6 = fields[5].Trim(),
+                            s7 = fields[6].Trim(),
+                            s8 = fields[7].Trim(),
+                            s9 = fields[8].Trim(),
+                            s10 = fields[9].Trim()
+                        };
+                        return response;
+                    }
+
+
+                    /// <summary>
+                    /// Format the command parameters: "p,t,..."                
+                    /// </summary>
+                    /// <returns>The formatted command parameters</returns>
+                    public override string ToString()
+                    {
+                        return String.Join(",", _p);
+                    }
+                }
+
+                /// <summary>
+                /// Get Status of Modem Board.
+                /// This retrieves various status concerning the attached modem board.
+                /// 
+                /// </summary>
+                /// <param name="pm1">the PM1 response data</param>
+                /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param>                
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                public void NPM1(out PM1_Data pm1, bool optionalCloseConn = false)
+                {
+                    string command = "NPM1";
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        pm1 = PM1_Data.Parse(Vals[1]);
+
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+                /// <summary>
+                /// Class used to hold data of RSR command
+                /// </summary>
+                public class RSR_Data
+                {
+
+                    /// <summary>
+                    /// Emergency shutdown.
+                    /// "O", for OK.
+                    /// "T", for host time error.
+                    /// "M", for terminal or Merchant ID error.
+                    /// "U", for unexpected card type.
+                    /// "7", for invalid transaction.
+                    /// "D", for Modem failure
+                    /// "p", for Production Test Mode expired.
+                    /// "z", internal UNAC error (misc)
+                    /// </summary>                    
+                    public string r1
+                    {
+                        get { return _p[0]; }
+                        set
+                        {
+                            _p[0] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Number of available slots in the Batch File for new transactions ("0" to "9999").
+                    /// </summary>
+                    public string r2
+                    {
+                        get { return _p[1]; }
+                        set
+                        {
+                            int num = int.Parse(value); //will throw exceptions if not numeric
+                            if ((num < 0) || (num > 9999))
+                                throw new ArgumentOutOfRangeException("r2", "The number of available slots must be between 0 and 9999.");
+                            _p[1] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Dial Status.
+                    /// "N", for not in delay state.
+                    /// "D", for in dial delay state.
+                    /// </summary>
+                    public string r3
+                    {
+                        get { return _p[2]; }
+                        set
+                        {
+                            if ((value != "N") && (value != "D"))
+                                throw new ArgumentOutOfRangeException("r3", "Dial status must be either N or D.");
+                            _p[2] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Dial delay seconds remaining.
+                    /// </summary>
+                    public string r4
+                    {
+                        get { return _p[3]; }
+                        set
+                        {
+                            int.Parse(value); //will throw exceptions if not numeric
+                            _p[3] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Accept UCR Transactions State.
+                    /// "O", NAC is accepting transactions from UCR.
+                    /// "F", Halted, Batch full.
+                    /// "S", Halted, NAC in Shutdown mode.
+                    /// Halted = No "UOK" sent to UCR for Transaction.
+                    /// </summary>
+                    public string r5
+                    {
+                        get { return _p[4]; }
+                        set
+                        {
+                            _p[4] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Additional shutdown information. When UNAC is in shutdown due to host response, 
+                    /// this holds the host type and system reason code returned from the host. 
+                    /// If not in shutdown, this field is blank. (Added UN01.11)
+                    /// Example: 	if shutdown code is "M" caused by EZH then this location might have "1EB" in it.
+                    /// "1" = EZH, "EB" = returned system reason code.
+                    /// </summary>
+                    public string r6
+                    {
+                        get { return _p[5]; }
+                        set
+                        {                            
+                            _p[5] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Not defined
+                    /// </summary>
+                    public string r7
+                    {
+                        get { return _p[6]; }
+                        set
+                        {                            
+                            _p[6] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Not defined
+                    /// </summary>
+                    public string r8
+                    {
+                        get { return _p[7]; }
+                        set
+                        {
+                            _p[7] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Not defined
+                    /// </summary>
+                    public string r9
+                    {
+                        get { return _p[8]; }
+                        set
+                        {                            
+                            _p[8] = value;
+                        }
+                    }
+
+                    /// <summary>
+                    /// Not defined
+                    /// </summary>
+                    public string r10
+                    {
+                        get { return _p[9]; }
+                        set
+                        {
+                            _p[9] = value;
+                        }
+                    }
+
+                    private string[] _p = new string[10];
+
+                    /// <summary>
+                    /// Creates and populates a PR5_Data object
+                    /// </summary>
+                    /// <param name="incoming"></param>
+                    /// <returns></returns>
+                    public static RSR_Data Parse(string incoming)
+                    {
+                        string[] fields = incoming.Split(',');
+                        if (fields.Length != 10)
+                            throw new ArgumentOutOfRangeException("incoming", "Incorrect number of fields. Expecting 10, found " + fields.Length + ".");
+
+                        RSR_Data response = new RSR_Data
+                        {
+                            r1 = fields[0].Trim(),
+                            r2 = fields[1].Trim(),
+                            r3 = fields[2].Trim(),
+                            r4 = fields[3].Trim(),
+                            r5 = fields[4].Trim(),
+                            r6 = fields[5].Trim(),
+                            r7 = fields[6].Trim(),
+                            r8 = fields[7].Trim(),
+                            r9 = fields[8].Trim(),
+                            r10 = fields[9].Trim()
+                        };
+                        return response;
+                    }
+
+
+                    /// <summary>
+                    /// Format the command parameters: "p,t,..."                
+                    /// </summary>
+                    /// <returns>The formatted command parameters</returns>
+                    public override string ToString()
+                    {
+                        return String.Join(",", _p);
+                    }
+                }
+
+                /// <summary>
+                /// UNAC Operating Status.
+                /// This command causes the current operating status of the UNAC to be returned.
+                /// 
+                /// </summary>
+                /// <param name="rsr">the RSR response data</param>
+                /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param>                
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                public void NRSR(out RSR_Data rsr, bool optionalCloseConn = false)
+                {
+                    string command = "NRSR";
+                    List<string> resps = SendCommand(command, 1, optionalCloseConn);
+
+                    try
+                    {
+                        string[] Vals = resps[0].Split('=');
+                        if (Vals.Length != 2)
+                            throw new ResponseException("Invalid response received.", command, resps);
+
+                        rsr = RSR_Data.Parse(Vals[1]);
+
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when interpretting the response.", command, resps, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+
+                #endregion
+            }
+
+
 
             public class WinSIPserver : CommandHandler
             {                
