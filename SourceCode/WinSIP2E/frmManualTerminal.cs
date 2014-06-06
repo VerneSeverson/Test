@@ -622,5 +622,19 @@ namespace WinSIP2E
             catch { }
         }
 
+        private void btnSendScript_Click(object sender, EventArgs e)
+        {
+            LoadAndSendScriptFile();
+        }
+
+        private void LoadAndSendScriptFile()
+        {            
+            SendScriptFile sendScript = new SendScriptFile(connection, Program.WinSIP_TS);
+            sendScript.LogID = connection.CommContext.ConnectionID;
+            OperationStatusDialog frm = new OperationStatusDialog();
+            frm.operation = sendScript;
+            frm.ShowDialog();
+        }
+
     }
 }

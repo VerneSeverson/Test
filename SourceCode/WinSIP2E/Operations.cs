@@ -6,6 +6,7 @@ using ForwardLibrary.WinSIPserver;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Security;
@@ -14,6 +15,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace WinSIP2E
 {
@@ -1085,6 +1087,7 @@ namespace WinSIP2E
 
         public class EstabilishPassthroughConnection : Operation
         {
+
             #region Properties
             /// <summary>
             /// Recommended interval to check Status in
@@ -1305,6 +1308,385 @@ namespace WinSIP2E
                             break;                    
                 }
             }
+            #endregion
+        }
+
+        public class SendScriptFile : Operation
+        {
+
+            #region Properties
+            /// <summary>
+            /// Recommended interval to check Status in
+            /// milliseconds
+            /// </summary>
+            public override int RefreshInterval { get { return 100; } }
+
+            /// <summary>
+            /// Whether or not the operation can be canceled
+            /// </summary>
+            public override bool AllowCancel { get { return true; } }
+
+            /// <summary>
+            /// If this is set to true, it is requested that the user acknowledge
+            /// the final status message. (i.e. OperationStatusDialog should 
+            /// make the user press OK to close the dialog box)
+            /// </summary>
+            public override bool RequireUserOK
+            {
+                get { return true; }
+            }
+
+            private string _StatusErrorMessage = null;
+            public override string StatusMessage
+            {
+                get
+                {
+                    if (_StatusErrorMessage == null)
+                    {
+                        if (CurrentState == WorkState.SendingScript)
+                            return "Sending line " + CurrentLine + " of " + ScriptLines.Count() + ".";
+                        else
+                            return GetStatusOkMsg(CurrentState);
+                    }
+                    else
+                        return _StatusErrorMessage;
+                }
+            }
+
+            public override string SubjectLine
+            {
+                get { return "Sending script file " + Path.GetFileNameWithoutExtension(FileName); }
+            }
+
+
+            private CompletionCode _Status = CompletionCode.NotStarted;
+            public override CompletionCode Status
+            {
+                get { return _Status; }
+            }
+            
+            public override int StatusPercent { 
+                get 
+                {
+                    if (PendingUserMessage.Length > 0)
+                    {
+                        DialogResult res = MessageBox.Show(PendingUserMessage, "Attention", MessageBoxButtons.OKCancel);
+                        if (res == DialogResult.Cancel)
+                            Cancel();
+                        else
+                            PendingUserMessage = "";
+                    }
+
+                    if (CurrentState != WorkState.SendingScript)
+                        return GetStatusCompletionPercent(CurrentState);
+                    else
+                        return (CurrentLine * 100) / ScriptLines.Count();
+                } 
+            }
+
+            private StxEtxHandler Handler;
+
+            public StxEtxHandler Connection
+            {
+                get { return Handler; }
+            }
+
+            private string FileName;
+            private IEnumerable<string> ScriptLines;
+            private int CurrentLine = 0;
+            private string PendingUserMessage = "";
+
+            private WorkState _CurrentState = WorkState.Idle;
+            private WorkState CurrentState
+            {
+                get { return _CurrentState; }
+                set
+                {
+                    CheckUserCancel();
+                    _CurrentState = value;
+                    LogMsg(TraceEventType.Verbose, StatusMessage);
+                }
+            }
+
+            #endregion
+
+
+            #region API
+            /// <summary>
+            /// Function to start the operation
+            /// Will throw InvalidOperation exception if Status != NotStarted
+            /// </summary>
+            public override void Start()
+            {
+                StartDel caller = this.DoTheWork;
+                caller.BeginInvoke(delegate(IAsyncResult arr) { caller.EndInvoke(arr); }, null);
+            }
+
+            /// <summary>
+            /// Function to cancel the operation
+            /// Will throw InvalidOperation exception if Status != InProgress
+            /// OR if AllowCancel == false
+            /// </summary>
+            public override void Cancel()
+            {
+                _Status = CompletionCode.UserCancelReq;
+            }
+            #endregion
+
+            #region constructors
+            /// <summary>
+            /// Possible exceptions:
+            /// ArgumentNullException
+            /// </summary>
+            /// <param name="handler">The active command handler object.</param>
+            /// <param name="fileName">The name of the script file to send.</param>                        
+            /// <exception cref="System.ArgumentNullException">Thrown when any argument other then LogTS is null</exception>            
+            public SendScriptFile(StxEtxHandler handler, string fileName, TraceSource LogTS = null)
+            {
+                if ( (handler == null) || (fileName == null) )
+                    throw new ArgumentNullException();
+
+                this.Handler = handler;
+                this.FileName = fileName;                
+
+                if (LogTS != null)
+                    this.LogTS = LogTS;
+                else
+                    this.LogTS = new TraceSource("DummyTS");
+            }
+
+            /// <summary>
+            /// The user will be prompted to locate the script file to send.            
+            /// </summary>
+            /// <param name="handler">An active StxEtxHandler object.</param>            
+            /// <exception cref="System.ArgumentNullException">Thrown when any argument other then LogTS is null</exception>            
+            /// /// <exception cref="System.OperationCanceledException">Thrown when the user presses cancel when prompted to select a script file</exception>      
+            public SendScriptFile(StxEtxHandler handler, TraceSource LogTS = null)
+            {
+                if (handler == null)
+                    throw new ArgumentNullException();
+
+                this.Handler = handler;
+                if (!DetermineScriptFileName(out this.FileName))
+                    throw new OperationCanceledException("Sending the script file was canceled by the user.");
+
+                if (LogTS != null)
+                    this.LogTS = LogTS;
+                else
+                    this.LogTS = new TraceSource("DummyTS");
+            }
+
+            #endregion
+
+
+            #region main working functions
+            enum WorkState
+            {
+                [StatusOkMsg("Preparing to send script."),
+                StatusErrorMsg("Failed to prepare script."),
+                StatusCompletionPercent(0)]
+                Idle,
+                [StatusOkMsg("Validating script file."),
+                StatusErrorMsg("Failed to validate the script file."),
+                StatusCompletionPercent(1)]
+                LoadingScript,   
+                [StatusOkMsg("Sending script..."),
+                StatusErrorMsg("Failed to send script."),
+                StatusCompletionPercent(2)]
+                SendingScript,                
+                [StatusOkMsg("Script file successfully sent."),
+                StatusErrorMsg("Should not see this message."),
+                StatusCompletionPercent(100)]
+                Finish
+            }
+
+            private void DoTheWork()
+            {
+
+                try
+                {
+                    string tempStr;
+
+                    //0. Empty receive buffer
+                    while (Handler.ReceiveData(out tempStr, 100))
+                        ;
+
+                    //1. Read in the script file
+                    CurrentState = WorkState.LoadingScript;
+                    ScriptLines = File.ReadLines(FileName);
+
+                    //2. Send the script
+                    CurrentState = WorkState.SendingScript;
+                    foreach (string line in ScriptLines)
+                    {
+                        CurrentLine++;
+                        ProcessScriptLine(line);
+
+                        //If the user has to OK something
+                        while (PendingUserMessage.Length > 0)
+                        {
+                            Thread.Sleep(100);
+                            CheckUserCancel();                            
+                        }
+                    }
+                                        
+                    //3. Done
+                    CurrentState = WorkState.Finish;
+
+                    //4. Mark completed
+                    _Status = CompletionCode.FinishedSuccess;
+
+                }
+                catch (OperationCanceledException ex)
+                {
+                    _StatusErrorMessage = "User canceled the operation.";
+                    _Status = CompletionCode.UserCancelFinish;
+                    LogMsg(TraceEventType.Verbose, ex.ToString());
+                }
+                catch (Exception ex)
+                {
+                    _StatusErrorMessage = GetStatusErrorMsg(CurrentState) + " " + ex.Message;
+                    _Status = CompletionCode.FinishedError;
+                    LogMsg(TraceEventType.Warning, ex.ToString());
+                }
+            }
+            #endregion
+
+
+            #region Private helper functions
+            /// <summary>
+            /// Call this function to locate the script file
+            /// </summary>
+            /// <param name="fileName"></param>
+            /// <returns></returns>
+            private bool DetermineScriptFileName(out string fileName)
+            {
+                OpenFileDialog fDialog = new OpenFileDialog();
+                fDialog.Title = "Select script file to send";
+                fDialog.InitialDirectory = Properties.Settings.Default.LastManualBrowseFolder;
+                fDialog.CheckFileExists = true;
+                fDialog.CheckPathExists = true;
+                fDialog.Multiselect = false;
+                fDialog.Filter = "Script Files (.cmd)|*.cmd";
+                fDialog.FilterIndex = 1;
+
+                if (fDialog.ShowDialog() == DialogResult.OK)
+                {
+                    fileName = fDialog.FileName;
+                    Properties.Settings.Default.LastManualBrowseFolder = Path.GetDirectoryName(fDialog.FileName);
+                    return true;
+                }
+                else
+                {
+                    fileName = null;
+                    return false;
+                }
+            }
+
+            private void CheckUserCancel()
+            {
+                if (Status == CompletionCode.UserCancelReq)
+                    throw new OperationCanceledException("User canceled the operation");
+            }
+
+            private void ProcessScriptLine(string scriptLine)
+            {
+                //1. Remove comment
+                scriptLine = RemoveComment(scriptLine);
+                
+                //2. Remove whitespace
+                scriptLine = scriptLine.Trim();
+
+                //3. Parse it
+                try
+                {
+                    ParseScriptLine(scriptLine);
+                }
+                catch (ResponseErrorCodeException ex)
+                {
+                    PendingUserMessage = "Received an error message. Press OK to send the remaining script lines.";
+                    LogMsg(TraceEventType.Information, PendingUserMessage);
+                }
+                
+            }
+
+            private void ParseScriptLine(string scriptLine)
+            {
+                switch (scriptLine.Substring(0, 1))
+                {
+                    case "#":
+                        //handle both # and ##
+                        string workingLine = scriptLine.Substring(1);
+                        bool allowAbortDelay = false;
+                        if (workingLine.Substring(0, 1) == "#")
+                        {
+                            allowAbortDelay = true;
+                            workingLine = workingLine.Substring(1);
+                        }
+                        int delay = int.Parse(workingLine);
+
+                        LogMsg(TraceEventType.Verbose, "Delay " + delay + " second(s).");
+
+                        if (!allowAbortDelay)
+                            Thread.Sleep(delay * 100);
+                        else
+                            CheckForResponse(delay * 100);
+
+                        break;
+
+                    case "!":
+                        PendingUserMessage = scriptLine.Substring(1);
+                        break;
+
+
+                    default:
+                        CheckForResponse(0);
+                        Handler.SendCommand(scriptLine);
+                        break;
+                }
+            }
+
+            private string RemoveComment(string scriptLine)
+            {
+                int comment = scriptLine.IndexOf("//");
+                if (comment == 0)
+                    return "";
+                else if (comment > 0)
+                    return scriptLine.Substring(0, comment);
+                else
+                    return scriptLine;
+                
+            }
+
+            /// <summary>
+            /// Get all responses. 
+            /// Throws an exception if an error message is found.
+            /// </summary>
+            /// <param name="max_block">The maximum time (in ms) to block</param>
+            /// <returns>An array of responses (null if no responses)</returns>
+            /// <exception cref="System.ResponseErrorCodeException">Thrown when an error code is received.</exception>            
+            private string[] CheckForResponse(int max_block)
+            {
+                List<string> resps = new List<string>();
+                string tempStr;
+                while (Handler.ReceiveData(out tempStr, max_block))
+                {
+                    if ((tempStr != null) && (tempStr.Length > 0))
+                    {                        
+                        resps.Add(tempStr);
+                    }
+                }
+
+                foreach(string str in resps)
+                    if (tempStr.StartsWith("ER"))
+                        throw new ResponseErrorCodeException("Received an error response.", "", resps);
+
+                if (resps.Count > 0)
+                    return resps.ToArray();
+                else
+                    return null;
+            }
+            
             #endregion
         }
     }

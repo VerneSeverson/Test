@@ -46,6 +46,7 @@
             this.cmdConnect = new System.Windows.Forms.Button();
             this.label4 = new System.Windows.Forms.Label();
             this.tmrKeepAlive = new System.Windows.Forms.Timer(this.components);
+            this.btnSendScript = new System.Windows.Forms.Button();
             this.gbConnection.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -222,11 +223,22 @@
             this.tmrKeepAlive.Interval = 10000;
             this.tmrKeepAlive.Tick += new System.EventHandler(this.tmrKeepAlive_Tick);
             // 
+            // btnSendScript
+            // 
+            this.btnSendScript.Location = new System.Drawing.Point(5, 729);
+            this.btnSendScript.Name = "btnSendScript";
+            this.btnSendScript.Size = new System.Drawing.Size(122, 29);
+            this.btnSendScript.TabIndex = 32;
+            this.btnSendScript.Text = "Program from Script";
+            this.btnSendScript.UseVisualStyleBackColor = true;
+            this.btnSendScript.Click += new System.EventHandler(this.btnSendScript_Click);
+            // 
             // frmManualTerminal
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(584, 761);
+            this.Controls.Add(this.btnSendScript);
             this.Controls.Add(this.label4);
             this.Controls.Add(this.cmdConnect);
             this.Controls.Add(this.chkBase64Encode);
@@ -264,5 +276,6 @@
         private System.Windows.Forms.Button cmdConnect;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Timer tmrKeepAlive;
+        private System.Windows.Forms.Button btnSendScript;
     }
 }
