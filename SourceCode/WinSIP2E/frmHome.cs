@@ -492,6 +492,19 @@ namespace WinSIP2E
 
         }
         #endregion
+
+        private void txtPassword_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Return)
+            {
+                LoginToServer();
+            }
+        }
+
+        private void txtPassword_TextChanged(object sender, EventArgs e)
+        {
+
+        }
     }
 
 }

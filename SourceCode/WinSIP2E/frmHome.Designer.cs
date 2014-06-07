@@ -46,12 +46,14 @@
             this.lblgbNAC_Inst1 = new System.Windows.Forms.Label();
             this.lblgbNAC_Inst2 = new System.Windows.Forms.Label();
             this.btnConnect = new System.Windows.Forms.Button();
+            this.txtID = new System.Windows.Forms.TextBox();
             this.gbLogin = new System.Windows.Forms.GroupBox();
             this.cmdSettings = new System.Windows.Forms.Button();
             this.label167 = new System.Windows.Forms.Label();
             this.lblgbLoginInst1 = new System.Windows.Forms.Label();
             this.lblgbLoginInst2 = new System.Windows.Forms.Label();
             this.cmdLogIn = new System.Windows.Forms.Button();
+            this.txtUsername = new System.Windows.Forms.TextBox();
             this.tabMainServers_Old = new System.Windows.Forms.TabPage();
             this.groupBox10 = new System.Windows.Forms.GroupBox();
             this.numericUpDown1 = new System.Windows.Forms.NumericUpDown();
@@ -554,8 +556,6 @@
             this.lblNAC_or2 = new System.Windows.Forms.Label();
             this.cmdDisconnect = new System.Windows.Forms.Button();
             this.cmdLogOut = new System.Windows.Forms.Button();
-            this.txtID = new System.Windows.Forms.TextBox();
-            this.txtUsername = new System.Windows.Forms.TextBox();
             this.tabControl_Main.SuspendLayout();
             this.tabMainConnect.SuspendLayout();
             this.groupBox3.SuspendLayout();
@@ -653,6 +653,8 @@
             this.txtPassword.PasswordChar = '*';
             this.txtPassword.Size = new System.Drawing.Size(180, 20);
             this.txtPassword.TabIndex = 1;
+            this.txtPassword.TextChanged += new System.EventHandler(this.txtPassword_TextChanged);
+            this.txtPassword.KeyDown += new System.Windows.Forms.KeyEventHandler(this.txtPassword_KeyDown);
             // 
             // label1
             // 
@@ -813,6 +815,15 @@
             this.btnConnect.UseVisualStyleBackColor = true;
             this.btnConnect.Click += new System.EventHandler(this.btnConnect_Click);
             // 
+            // txtID
+            // 
+            this.txtID.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::WinSIP2E.Properties.Settings.Default, "UnitID", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
+            this.txtID.Location = new System.Drawing.Point(120, 64);
+            this.txtID.Name = "txtID";
+            this.txtID.Size = new System.Drawing.Size(158, 20);
+            this.txtID.TabIndex = 2;
+            this.txtID.Text = global::WinSIP2E.Properties.Settings.Default.UnitID;
+            // 
             // gbLogin
             // 
             this.gbLogin.Controls.Add(this.cmdSettings);
@@ -883,6 +894,16 @@
             this.cmdLogIn.Text = "Log in";
             this.cmdLogIn.UseVisualStyleBackColor = true;
             this.cmdLogIn.Click += new System.EventHandler(this.cmdLogIn_click);
+            // 
+            // txtUsername
+            // 
+            this.txtUsername.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::WinSIP2E.Properties.Settings.Default, "UserName", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
+            this.txtUsername.Location = new System.Drawing.Point(96, 16);
+            this.txtUsername.Name = "txtUsername";
+            this.txtUsername.Size = new System.Drawing.Size(180, 20);
+            this.txtUsername.TabIndex = 0;
+            this.txtUsername.Text = global::WinSIP2E.Properties.Settings.Default.UserName;
+            this.txtUsername.TextChanged += new System.EventHandler(this.txtUsername_TextChanged);
             // 
             // tabMainServers_Old
             // 
@@ -5801,25 +5822,6 @@
             this.cmdLogOut.Text = "Log out";
             this.cmdLogOut.UseVisualStyleBackColor = true;
             this.cmdLogOut.Click += new System.EventHandler(this.cmdLogOut_Click);
-            // 
-            // txtID
-            // 
-            this.txtID.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::WinSIP2E.Properties.Settings.Default, "UnitID", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
-            this.txtID.Location = new System.Drawing.Point(120, 64);
-            this.txtID.Name = "txtID";
-            this.txtID.Size = new System.Drawing.Size(158, 20);
-            this.txtID.TabIndex = 2;
-            this.txtID.Text = global::WinSIP2E.Properties.Settings.Default.UnitID;
-            // 
-            // txtUsername
-            // 
-            this.txtUsername.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::WinSIP2E.Properties.Settings.Default, "UserName", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
-            this.txtUsername.Location = new System.Drawing.Point(96, 16);
-            this.txtUsername.Name = "txtUsername";
-            this.txtUsername.Size = new System.Drawing.Size(180, 20);
-            this.txtUsername.TabIndex = 0;
-            this.txtUsername.Text = global::WinSIP2E.Properties.Settings.Default.UserName;
-            this.txtUsername.TextChanged += new System.EventHandler(this.txtUsername_TextChanged);
             // 
             // frmHome
             // 
