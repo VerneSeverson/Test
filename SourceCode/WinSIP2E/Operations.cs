@@ -1367,15 +1367,7 @@ namespace WinSIP2E
             
             public override int StatusPercent { 
                 get 
-                {
-                    if (PendingUserMessage.Length > 0)
-                    {
-                        DialogResult res = MessageBox.Show(PendingUserMessage, "Attention", MessageBoxButtons.OKCancel);
-                        if (res == DialogResult.Cancel)
-                            Cancel();
-                        else
-                            PendingUserMessage = "";
-                    }
+                {                    
 
                     if (CurrentState != WorkState.SendingScript)
                         return GetStatusCompletionPercent(CurrentState);
@@ -1523,11 +1515,20 @@ namespace WinSIP2E
                         ProcessScriptLine(line);
 
                         //If the user has to OK something
-                        while (PendingUserMessage.Length > 0)
+                        if (PendingUserMessage.Length > 0)
+                        {
+                            DialogResult res = MessageBox.Show(PendingUserMessage, "Attention", MessageBoxButtons.OKCancel);
+                            if (res == DialogResult.Cancel)
+                                Cancel();
+                            else
+                                PendingUserMessage = "";
+                        }
+                        CheckUserCancel();
+                        /*while (PendingUserMessage.Length > 0)
                         {
                             Thread.Sleep(100);
                             CheckUserCancel();                            
-                        }
+                        }*/
                     }
                                         
                     //3. Done
@@ -1600,7 +1601,8 @@ namespace WinSIP2E
                 //3. Parse it
                 try
                 {
-                    ParseScriptLine(scriptLine);
+                    if (scriptLine.Length > 0)
+                        ParseScriptLine(scriptLine);
                 }
                 catch (ResponseErrorCodeException ex)
                 {
@@ -1623,14 +1625,14 @@ namespace WinSIP2E
                             allowAbortDelay = true;
                             workingLine = workingLine.Substring(1);
                         }
-                        int delay = int.Parse(workingLine);
+                        int delay = int.Parse(workingLine);                                        
 
-                        LogMsg(TraceEventType.Verbose, "Delay " + delay + " second(s).");
+                        LogMsg(TraceEventType.Verbose, "Delay " + delay + " second" + ((delay > 0) ? "s" : "") + ".");
 
                         if (!allowAbortDelay)
-                            Thread.Sleep(delay * 100);
+                            Thread.Sleep(delay * 1000);
                         else
-                            CheckForResponse(delay * 100);
+                            CheckForResponse(delay * 1000);
 
                         break;
 
