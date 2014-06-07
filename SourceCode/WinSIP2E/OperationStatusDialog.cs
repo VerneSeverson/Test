@@ -80,5 +80,9 @@ namespace WinSIP2E
                 operation.Cancel();
             }
         }
+
+        private void OperationStatusDialog_KeyDown(object sender, KeyEventArgs e)
+        {            
+        }
     }
 }

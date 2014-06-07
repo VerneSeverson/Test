@@ -1208,7 +1208,7 @@ namespace WinSIP2E
             /// <exception cref="System.ArgumentNullException">Thrown when any argument other then LogTS is null</exception>            
             public EstabilishPassthroughConnection(string ID, BNAC_Table.ID_Type idType, WinSIPserver serverHandler, TraceSource LogTS = null)
             {
-                if ((ID == null) || (idType == null) || (serverHandler == null))
+                if ((ID == null) || (serverHandler == null))
                     throw new ArgumentNullException();
 
                 this.ServerHandler = serverHandler;
@@ -1344,7 +1344,11 @@ namespace WinSIP2E
                     if (_StatusErrorMessage == null)
                     {
                         if (CurrentState == WorkState.SendingScript)
-                            return "Sending line " + CurrentLine + " of " + ScriptLines.Count() + ".";
+                            try
+                            {
+                                return "Sending command " + CurrentLine + " of " + ScriptLines.Count() + ".";
+                            }
+                            catch { return "Sending commands..."; }
                         else
                             return GetStatusOkMsg(CurrentState);
                     }
@@ -1372,7 +1376,12 @@ namespace WinSIP2E
                     if (CurrentState != WorkState.SendingScript)
                         return GetStatusCompletionPercent(CurrentState);
                     else
-                        return (CurrentLine * 100) / ScriptLines.Count();
+                        try
+                        {
+                            return (CurrentLine * 100) / ScriptLines.Count();
+                        }
+                        catch
+                        { return 0; }
                 } 
             }
 
@@ -1396,7 +1405,10 @@ namespace WinSIP2E
                 {
                     CheckUserCancel();
                     _CurrentState = value;
-                    LogMsg(TraceEventType.Verbose, StatusMessage);
+                    if (_CurrentState == WorkState.SendingScript)
+                        LogMsg(TraceEventType.Verbose, "Sending script file commands...");
+                    else
+                        LogMsg(TraceEventType.Verbose, StatusMessage);
                 }
             }
 
@@ -1505,13 +1517,18 @@ namespace WinSIP2E
 
                     //1. Read in the script file
                     CurrentState = WorkState.LoadingScript;
-                    ScriptLines = File.ReadLines(FileName);
+                    ScriptLines = File.ReadAllLines(FileName);
 
                     //2. Send the script
                     CurrentState = WorkState.SendingScript;
                     foreach (string line in ScriptLines)
                     {
                         CurrentLine++;
+
+                        //are we still connected?
+                        if (!Handler.CommContext.bConnected)
+                            throw new System.ObjectDisposedException("The connection closed.");
+
                         ProcessScriptLine(line);
 
                         //If the user has to OK something
@@ -1523,12 +1540,9 @@ namespace WinSIP2E
                             else
                                 PendingUserMessage = "";
                         }
+
+                        //see if the user has canceled the operation
                         CheckUserCancel();
-                        /*while (PendingUserMessage.Length > 0)
-                        {
-                            Thread.Sleep(100);
-                            CheckUserCancel();                            
-                        }*/
                     }
                                         
                     //3. Done
@@ -1540,9 +1554,9 @@ namespace WinSIP2E
                 }
                 catch (OperationCanceledException ex)
                 {
-                    _StatusErrorMessage = "User canceled the operation.";
+                    _StatusErrorMessage = "User canceled sending the script file.";
                     _Status = CompletionCode.UserCancelFinish;
-                    LogMsg(TraceEventType.Verbose, ex.ToString());
+                    LogMsg(TraceEventType.Verbose, _StatusErrorMessage);
                 }
                 catch (Exception ex)
                 {
@@ -1604,7 +1618,7 @@ namespace WinSIP2E
                     if (scriptLine.Length > 0)
                         ParseScriptLine(scriptLine);
                 }
-                catch (ResponseErrorCodeException ex)
+                catch (ResponseErrorCodeException)
                 {
                     PendingUserMessage = "Received an error message. Press OK to send the remaining script lines.";
                     LogMsg(TraceEventType.Information, PendingUserMessage);
@@ -1643,7 +1657,9 @@ namespace WinSIP2E
 
                     default:
                         CheckForResponse(0);
-                        Handler.SendCommand(scriptLine);
+                        if (!Handler.SendCommand(scriptLine))
+                            PendingUserMessage = "Failed to send command: " + scriptLine +
+                                "\r\n\r\n Press OK to continue.";
                         break;
                 }
             }

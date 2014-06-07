@@ -71,6 +71,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.CancelButton = this.cmdOKCancel;
             this.ClientSize = new System.Drawing.Size(434, 243);
             this.Controls.Add(this.txtStatus);
             this.Controls.Add(this.cmdOKCancel);
@@ -78,6 +79,7 @@
             this.Name = "OperationStatusDialog";
             this.Text = "OperationStatusDialog";
             this.Load += new System.EventHandler(this.OperationStatusDialog_Load);
+            this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.OperationStatusDialog_KeyDown);
             this.ResumeLayout(false);
             this.PerformLayout();
 
