@@ -455,7 +455,7 @@ namespace WinSIP2E
             lastMsg = DateTime.Now;
             outgoingCMDs.AddFirst(cmd);
             //txtTerminal.Text += "\r\nSent (" + DateTime.Now.ToString("HH:mm:ss.ff") + ") --> <STX>" + cmd + "<ETX>\r\n";
-            connection.AsyncSendCommand(cmd, 0);
+            connection.SendCommandNB(cmd, 0);
 
         }
         #endregion
