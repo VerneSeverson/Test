@@ -306,6 +306,18 @@ namespace ForwardLibrary
                                         Responses.Add(reply);
 
                                 }
+
+                                if (Responses.Count == 1)
+                                {
+                                    string resp = Responses[0];
+                                    if (resp == "ERM")
+                                        throw new ResponseErrorCodeException("Received an unexpected ERM.", command, Responses);
+                                    else if (resp == "ERP")
+                                        throw new ResponseErrorCodeException("The user does not have permission to use this command.", command, Responses);
+                                    if (resp == "ERL")
+                                        throw new ResponseErrorCodeException("The communication link is not suitable for this command.", command, Responses);
+                                }
+                                    
                                 //see if we found all the responses we were looking for
                                 if (Responses.Count < NumResponses)
                                 {

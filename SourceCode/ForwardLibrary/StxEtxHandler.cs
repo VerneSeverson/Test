@@ -667,7 +667,7 @@ namespace ForwardLibrary
 
                     //moved up one level to get this message before ACK: CommContext.LogMsg(TraceEventType.Verbose, "STXETX RCVD: <STX>" + cmd + "<ETX>") ;
 
-                    char inCmdTable = '0';
+                    char inCmdTable = 'M';
                     if (CommandTable != null)
                         inCmdTable = DoCmdTable(theCommand);
                     if ((inCmdTable != '0') && bAllowAllCmds)
