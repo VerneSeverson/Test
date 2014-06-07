@@ -142,8 +142,16 @@ namespace ForwardLibrary
                 {
                     public const int DEF_NUM_RETRIES = 3;
                     public const int DEF_RETRY_TIMEOUT_MS = 3000;
+                    public const int DEF_NB_Safe_TIMEOUT_MS = 60000; //after this much time is passed, NB_Safe is signaled
 
                     public AutoResetEvent AckFound = null;
+                    
+                    /// <summary>
+                    /// Used for signaling between NB sends and blocking sends
+                    /// This is necessary because a NB send tries to get the command
+                    /// out before blocking
+                    /// </summary>
+                    public AutoResetEvent NB_Safe =  new AutoResetEvent(true);
 
                     public void AddStxEtx(out byte[] dataOut, byte[] dataIn)
                     {
@@ -276,6 +284,71 @@ namespace ForwardLibrary
 
 
                 #region Send Commands
+                void SendDataNB(byte[] data)
+                {
+                    byte[] theData;
+                    SendingContext.AddStxEtx(out theData, data);
+
+                    string dat;
+                    if (data != null)
+                        dat = System.Text.Encoding.Default.GetString(data);
+                    else
+                        dat = "";
+
+                    CommContext.LogMsg(TraceEventType.Verbose, "STXETX SENT: <STX>" + dat + "<ETX>");
+                    CommContext.Write(theData);
+                }
+
+                /// <summary>
+                /// Private function called that should ONLY BE CALLED by a SendCommand function 
+                /// 
+                /// The function assumes that the initial send of data has already taken place
+                /// </summary>
+                /// <param name="data"></param>
+                /// <param name="optionalRetries"></param>
+                /// <param name="optionalRetryTime"></param>
+                /// <returns></returns>
+                bool SendDataHandleAck(byte[] data, int optionalRetries = SendContext.DEF_NUM_RETRIES, int optionalRetryTime = SendContext.DEF_RETRY_TIMEOUT_MS)
+                {
+                    bool bFoundAck = false;
+                    try
+                    {
+                        while (optionalRetries >= 0)
+                        {
+                            bool reply = SendingContext.AckFound.WaitOne(optionalRetryTime);
+                            if (reply == true)  //got an ack!
+                            {
+                                bFoundAck = true;
+                                break;
+                            }
+                            else
+                            {
+                                SendDataNB(data);
+                                optionalRetries -= 1;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        if (data != null)
+                            CommContext.LogMsg(TraceEventType.Verbose, "Caught exception when waiting for an ACK to this message: <STX>" + System.Text.Encoding.Default.GetString(data.ToArray()) + "<ETX>. optionalRetries: " + optionalRetries.ToString() + ". Exception: " + ex.ToString());
+                        else
+                            CommContext.LogMsg(TraceEventType.Verbose, "Caught exception when waiting for an ACK to this message: <STX><ETX>. optionalRetries: " + optionalRetries.ToString() + ". Exception: " + ex.ToString());
+                    }
+                    finally
+                    {
+                        try { SendingContext.AckFound.Dispose(); }
+                        catch { }
+                        SendingContext.AckFound = null;
+
+                        //important to prevent the STX/ETX handler from locking
+                        //if (StxEtxAck == ACK_SEARCH)
+                        //    StxEtxAck = STX_SEARCH;
+                    }
+
+                    return bFoundAck;
+                }
+
                 /// <summary>
                 /// Send an STX ETX formatted command (STX and ETX are added here). 
                 /// Blocks until ack received or connection fails.
@@ -287,62 +360,31 @@ namespace ForwardLibrary
                 public bool SendCommand(byte[] data, int optionalRetries = SendContext.DEF_NUM_RETRIES, int optionalRetryTime = SendContext.DEF_RETRY_TIMEOUT_MS)
                 {
                     bool bFoundAck = false;
-                    #region Add STX ETX, call new byte array "theData"
-                    byte[] theData;                    
-                    SendingContext.AddStxEtx(out theData, data);
-                    #endregion
-
-                    lock (SendingContext)
+                    bool bGotNB_Safe = false;
+                    try
                     {
-                        SendingContext.AckFound = new AutoResetEvent(false);
-                        StxEtxAck = ACK_SEARCH;
+                        bGotNB_Safe = SendingContext.NB_Safe.WaitOne(SendContext.DEF_NB_Safe_TIMEOUT_MS);
+                        if (!bGotNB_Safe)
+                            CommContext.LogMsg(TraceEventType.Error, "Unable to get a lock on the send context after waiting for " + SendContext.DEF_NB_Safe_TIMEOUT_MS/1000 + " seconds. Breaking the lock.");
 
-                        try
+                        lock (SendingContext)
                         {
-                            while (optionalRetries >= 0)
-                            {
-                                string dat;
-                                if (data != null)
-                                    dat = System.Text.Encoding.Default.GetString(data);
-                                else
-                                    dat = "";
+                            SendingContext.AckFound = new AutoResetEvent(false);
+                            //StxEtxAck = ACK_SEARCH;
 
-                                CommContext.LogMsg(TraceEventType.Verbose, "STXETX SENT: <STX>" + dat + "<ETX>");
-                                CommContext.Write(theData);
+                            SendDataNB(data);
+                            bFoundAck = SendDataHandleAck(data, optionalRetries, optionalRetryTime);
 
-                                bool reply = SendingContext.AckFound.WaitOne(optionalRetryTime);
-                                if (reply == true)  //got an ack!
-                                {
-                                    bFoundAck = true;
-                                    break;
-                                }
-                                else
-                                    optionalRetries -= 1;
-                            }
                         }
-                        /* want the calling function to catch the exceptions... catch (Exception e)
-                        {
-                            Console.WriteLine(e);
-                            throw e;
-                        }*/
-                        catch (Exception ex)
-                        {
-                            if (data != null)
-                                CommContext.LogMsg(TraceEventType.Verbose, "Caught exception when waiting for an ACK to this message: <STX>" + System.Text.Encoding.Default.GetString(data.ToArray()) + "<ETX>. optionalRetries: " + optionalRetries.ToString() + ". Exception: " + ex.ToString());
-                            else
-                                CommContext.LogMsg(TraceEventType.Verbose, "Caught exception when waiting for an ACK to this message: <STX><ETX>. optionalRetries: " + optionalRetries.ToString() + ". Exception: " + ex.ToString());
-                        }
-                        finally
-                        {
-                            try { SendingContext.AckFound.Dispose(); }
-                            catch { }
-                            SendingContext.AckFound = null;
-
-                            //important to prevent the STX/ETX handler from locking
-                            if (StxEtxAck == ACK_SEARCH)
-                                StxEtxAck = STX_SEARCH;
-                        }
-
+                    }
+                    catch (Exception ex)
+                    {
+                        CommContext.LogMsg(TraceEventType.Error, "Caught an unexpected exception when sending the command: <STX>" + System.Text.Encoding.Default.GetString(data.ToArray()) + "<ETX>. optionalRetries: " + optionalRetries.ToString() + ". Exception: " + ex.ToString());
+                    }
+                    finally
+                    {
+                        if (bGotNB_Safe)
+                            SendingContext.NB_Safe.Set();
                     }
                     return bFoundAck;
                 }
@@ -363,10 +405,14 @@ namespace ForwardLibrary
 
                 #region NON-BLOCKING SEND CALLS
                 delegate bool AsyncSendCommandCaller(byte[] data, int optionalRetries = SendContext.DEF_NUM_RETRIES, int optionalRetryTime = SendContext.DEF_RETRY_TIMEOUT_MS);
-                delegate bool AsyncSendCommandCallerStr(string data, int optionalRetries = SendContext.DEF_NUM_RETRIES, int optionalRetryTime = SendContext.DEF_RETRY_TIMEOUT_MS);
+                delegate bool AsyncSendCommandCallerStr(string data, int optionalRetries = SendContext.DEF_NUM_RETRIES, int optionalRetryTime = SendContext.DEF_RETRY_TIMEOUT_MS);                
 
                 /// <summary>
                 /// Asynchronous function call for SendCommand()
+                /// 
+                /// If there is nothing going on with SendCommand(), this function
+                /// will first get the data on its way to the comm interface 
+                /// before yielding to a worker thread.
                 /// </summary>
                 /// <param name="data"></param>
                 /// <param name="optionalRetries"></param>
@@ -380,13 +426,37 @@ namespace ForwardLibrary
                                                     AsyncCallback callback = null,
                                                     Object state = null)
                 {
-                    AsyncSendCommandCaller caller = new AsyncSendCommandCaller(this.SendCommand);
-                    IAsyncResult result = caller.BeginInvoke(data, optionalRetries, optionalRetryTime, callback, state);
+                    IAsyncResult result;
+                    AsyncSendCommandCaller caller;
+                    if (SendingContext.NB_Safe.WaitOne(0))
+                    {
+                        SendingContext.AckFound = new AutoResetEvent(false);
+                        //StxEtxAck = ACK_SEARCH;
+                        SendDataNB(data);
+                        caller = delegate(byte[] dat, int retry, int retryTime)
+                        {
+                            bool retVal = false;
+                            lock (SendingContext)
+                            {
+                                retVal = SendDataHandleAck(dat, retry, retryTime);
+                                SendingContext.NB_Safe.Set();
+                            }
+                            return retVal;
+                        };                        
+                    }
+                    else                    
+                        caller = new AsyncSendCommandCaller(this.SendCommand);
+
+                    result = caller.BeginInvoke(data, optionalRetries, optionalRetryTime, callback, state);                   
                     return result;
                 }
 
                 /// <summary>
                 /// Asynchronous function call for SendCommand()
+                /// 
+                /// If there is nothing going on with SendCommand(), this function
+                /// will first get the data on its way to the comm interface 
+                /// before yielding to a worker thread.
                 /// </summary>
                 /// <param name="data"></param>
                 /// <param name="optionalRetries"></param>
@@ -400,9 +470,7 @@ namespace ForwardLibrary
                                                     AsyncCallback callback = null,
                                                     Object state = null)
                 {
-                    AsyncSendCommandCallerStr caller = new AsyncSendCommandCallerStr(this.SendCommand);
-                    IAsyncResult result = caller.BeginInvoke(data, optionalRetries, optionalRetryTime, callback, state);
-                    return result;
+                    return BeginSendCommand(System.Text.Encoding.ASCII.GetBytes(data), optionalRetries, optionalRetryTime, callback, state);                                        
                 }
 
                 /// <summary>
@@ -419,34 +487,40 @@ namespace ForwardLibrary
 
                 //
                 /// <summary>
-                /// Non-blocking send command where the user doesn't care if the message gets sent
+                /// Non-blocking send command where the user doesn't care if the message is successfully sent
+                /// 
+                /// If this function is called before a previous command has finished sending,
+                /// the new command will be queued up to sent after the previous command finishes.
+                /// 
                 /// </summary>
                 /// <param name="data"></param>
                 /// <param name="optionalRetries"></param>
                 /// <param name="optionalRetryTime"></param>
-                public void AsyncSendCommand(byte[] data,
+                public void SendCommandNB(byte[] data,
                                                     int optionalRetries = SendContext.DEF_NUM_RETRIES,
                                                     int optionalRetryTime = SendContext.DEF_RETRY_TIMEOUT_MS)
                 {
                     BeginSendCommand(data,
                         optionalRetries, optionalRetryTime,
                         callback: delegate(IAsyncResult ar)
-                    {
-                        try { EndSendCommand(ar); }
-                        catch (Exception e)
                         {
-                            if (CommContext.bConnected == false)
-                                CommContext.LogMsg(TraceEventType.Verbose, "Sending failed. This socket is disconnected, which is most likely the reason that the Sending function failed: " + e.ToString());
-                            else
-                                CommContext.LogMsg(TraceEventType.Error, "Sending failed and the CommContext thinks the socket is still connected: " + e.ToString());
-                        }
-                    });
-                }
-                public void AsyncSendCommand(string data,
+                            try { EndSendCommand(ar); }
+                            catch (Exception e)
+                            {
+                                if (CommContext.bConnected == false)
+                                    CommContext.LogMsg(TraceEventType.Verbose, "Sending failed. This socket is disconnected, which is most likely the reason that the Sending function failed: " + e.ToString());
+                                else
+                                    CommContext.LogMsg(TraceEventType.Error, "Sending failed and the CommContext thinks the socket is still connected: " + e.ToString());
+                            }
+                        });
+                }               
+
+
+                public void SendCommandNB(string data,
                                                     int optionalRetries = SendContext.DEF_NUM_RETRIES,
                                                     int optionalRetryTime = SendContext.DEF_RETRY_TIMEOUT_MS)
                 {
-                    AsyncSendCommand(System.Text.Encoding.ASCII.GetBytes(data), optionalRetries, optionalRetryTime);
+                    SendCommandNB(System.Text.Encoding.ASCII.GetBytes(data), optionalRetries, optionalRetryTime);
                 }
                 #endregion
 
@@ -506,68 +580,70 @@ namespace ForwardLibrary
                             if (bEnd)
                                 break;
 
-                            switch (StxEtxAck)
+                            if (theByte == 0x06)
                             {
-                                case STX_SEARCH:
-                                    if (theByte == 0x02)
+                                CommContext.LogMsg(TraceEventType.Verbose, "STXETX RCVD: <ACK>");
+                                StxEtxAck = STX_SEARCH;
+                                if (SendingContext.AckFound != null)
+                                {
+                                    try
                                     {
-                                        ReceivedData = new MemoryStream();
-                                        StxEtxAck = ETX_SEARCH;
+                                        SendingContext.AckFound.Set(); //release the thread that was writing
                                     }
-                                    break;
-
-                                case ETX_SEARCH:
-                                    if (theByte == 0x03)
+                                    catch (Exception ex)
                                     {
-                                        //command is finished     
-                                        CommContext.LogMsg(TraceEventType.Verbose, "STXETX RCVD: <STX>" + System.Text.Encoding.Default.GetString(ReceivedData.ToArray()) + "<ETX>");
-
-                                        CommContext.Write(new byte[1] { 0x06 });    //send ACK                                        
-                                        CommContext.LogMsg(TraceEventType.Verbose, "STXETX SENT: <ACK>"); 
-
-                                        StxEtxAck = STX_SEARCH; //go back to looking for an STX
-
-                                        //process the parsed command
-                                        ProcessCommand(ReceivedData);                                        
-
-                                        //protocol only allows one command and then an ack, so toss the rest of the data                                        
-                                        bEnd = true;
+                                        CommContext.LogMsg(TraceEventType.Error, ex);
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                switch (StxEtxAck)
+                                {
+                                    case STX_SEARCH:
+                                        if (theByte == 0x02)
+                                        {
+                                            ReceivedData = new MemoryStream();
+                                            StxEtxAck = ETX_SEARCH;
+                                        }
                                         break;
-                                    }
-                                    else
-                                    {
-                                        try
-                                        {
-                                            ReceivedData.WriteByte(theByte);
-                                        }
-                                        catch (Exception ex)
-                                        {
-                                            CommContext.LogMsg(TraceEventType.Error, ex);
-                                            //something is wrong with the memory stream, get rid of it and dump all data                                        
-                                            StxEtxAck = STX_SEARCH;
-                                        }
-                                    }
 
-                                    break;
+                                    case ETX_SEARCH:
+                                        if (theByte == 0x03)
+                                        {
+                                            //command is finished     
+                                            CommContext.LogMsg(TraceEventType.Verbose, "STXETX RCVD: <STX>" + System.Text.Encoding.Default.GetString(ReceivedData.ToArray()) + "<ETX>");
 
-                                case ACK_SEARCH:
-                                    if (theByte == 0x06)
-                                    {
-                                        CommContext.LogMsg(TraceEventType.Verbose, "STXETX RCVD: <ACK>");
-                                        StxEtxAck = STX_SEARCH;
-                                        if (SendingContext.AckFound != null)
+                                            CommContext.Write(new byte[1] { 0x06 });    //send ACK                                        
+                                            CommContext.LogMsg(TraceEventType.Verbose, "STXETX SENT: <ACK>");
+
+                                            StxEtxAck = STX_SEARCH; //go back to looking for an STX
+
+                                            //process the parsed command
+                                            ProcessCommand(ReceivedData);
+
+                                            //protocol only allows one command and then an ack, so toss the rest of the data                                        
+                                            bEnd = true;
+                                            break;
+                                        }
+                                        else if (theByte == 0x02)                                        
+                                            ReceivedData = new MemoryStream();                                                                                    
+                                        else
                                         {
                                             try
                                             {
-                                                SendingContext.AckFound.Set(); //release the thread that was writing
+                                                ReceivedData.WriteByte(theByte);
                                             }
                                             catch (Exception ex)
                                             {
                                                 CommContext.LogMsg(TraceEventType.Error, ex);
+                                                //something is wrong with the memory stream, get rid of it and dump all data                                        
+                                                StxEtxAck = STX_SEARCH;
                                             }
                                         }
-                                    }
-                                    break;
+
+                                        break;
+                                }
                             }
                         }
 
@@ -601,7 +677,7 @@ namespace ForwardLibrary
                         NewMsgEvt.Set();
                     }
                     else if ((inCmdTable != '0') && !bAllowAllCmds && cmd.Length > 0)
-                        AsyncSendCommand(System.Text.Encoding.ASCII.GetBytes("ER" + inCmdTable));
+                        SendCommandNB(System.Text.Encoding.ASCII.GetBytes("ER" + inCmdTable));
 
 
                     return true;
