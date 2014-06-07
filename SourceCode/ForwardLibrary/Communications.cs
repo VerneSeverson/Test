@@ -1,5 +1,6 @@
 ﻿using ForwardLibrary.Crypto;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -688,6 +689,9 @@ namespace ForwardLibrary
             }
 
             #region Public methods overridden in Client Context
+            Queue<byte[]> MessagesToWrite = new Queue<byte[]>();
+            bool WriteInProgress = false;
+            Object WriteProtect = new Object();
             /// <summary>
             /// Implementation of the Write method -- should be non-blocking and thread safe
             /// </summary>
@@ -704,8 +708,20 @@ namespace ForwardLibrary
                     if (bReportAllMsgData)
                         LogMsg(TraceEventType.Verbose, "TCP WRITE: " + data.ToString());
 
-                    Stream.BeginWrite(data, 0, data.Length, this.OnWriteCompleted, this);
-                    lastSent = DateTime.Now;
+                    //An exception is thrown if BeginWrite is called before EndWrite -- so use a queue
+                    lock (WriteProtect)
+                    {
+                        if (!WriteInProgress)
+                        {
+                            WriteInProgress = true;
+                            Stream.BeginWrite(data, 0, data.Length, this.OnWriteCompleted, this);
+                            lastSent = DateTime.Now;
+                        }
+                        else
+                            MessagesToWrite.Enqueue(data);
+                    }
+                                            
+                    
                     bRetVal = true;
                 }
                 catch (IOException e)
@@ -825,6 +841,17 @@ namespace ForwardLibrary
                     {
                         try
                         {
+                            lock (WriteProtect)
+                            {
+                                if (MessagesToWrite.Count > 0)
+                                {
+                                    byte[] data = MessagesToWrite.Dequeue();                                        
+                                    Stream.BeginWrite(data, 0, data.Length, this.OnWriteCompleted, this);
+                                    lastSent = DateTime.Now;
+                                }
+                                else
+                                    WriteInProgress = false;                                
+                            }
                             EventCallback(new ClientWroteDataEvent(this));   //callback will remove context if no more reading should be done
                         }
                         catch (Exception e)
