@@ -526,6 +526,55 @@ namespace ForwardLibrary
 
                 #endregion
 
+
+                #region Periodic Pinging functions
+                /// <summary>
+                /// This function enables/disables periodically sending STX ETX messages 
+                /// to the remote device to ensure that the connection stays alive and that
+                /// the peer is present.
+                /// </summary>
+                /// <param name="enable">Set to true to periodically send STX ETX messages to the peer</param>
+                /// <param name="optionalMaxIdleTime">Maximum connection idle time before an STX ETX should be sent</param>
+                public virtual void PeriodicPing(bool enable, TimeSpan MaxIdleTime)
+                {
+                    PeriodicPingDone.Set(); //end any current pinging
+                    if (enable)
+                    {                        
+                        PeriodicPingDone = new AutoResetEvent(false);
+                        PeriodicPingDel caller = this.HandlePeriodicPing;
+                        caller.BeginInvoke(MaxIdleTime, delegate(IAsyncResult ar) { caller.EndInvoke(ar); }, null);
+                    }                    
+                }
+
+                private AutoResetEvent PeriodicPingDone = new AutoResetEvent(false);       //signal this when a helper thread is no longer needed to keep the connection alive
+                delegate void PeriodicPingDel(TimeSpan MaxIdleTime);
+
+                /// <summary>
+                /// Internal helper function for periodically polling
+                /// </summary>
+                void HandlePeriodicPing(TimeSpan MaxIdleTime)
+                {
+                    bool bDone = false;
+                    try
+                    {
+                        while (bDone == false)
+                        {
+                            TimeSpan timeSinceLast = DateTime.Now - CommContext.lastRcvd;
+                            if (timeSinceLast > MaxIdleTime)
+                                SendCommand((byte[])null);
+
+                            bDone = PeriodicPingDone.WaitOne(MaxIdleTime - timeSinceLast);
+                        }
+                    }
+                    catch
+                    {
+                        //no need to report this, any excption is most likely due to the session request being canceled
+                        //or the client disconnecting
+                        //Console.WriteLine(e);
+                    }
+                }
+                #endregion
+
                 #region Event handling
                 /// <summary>
                 /// Used to handle communication events
