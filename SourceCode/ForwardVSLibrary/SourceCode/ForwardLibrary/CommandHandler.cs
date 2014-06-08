@@ -238,11 +238,11 @@ namespace ForwardLibrary
                 
                 public TraceSource ts;
 
-                protected StxEtxHandler _stxetxClient = null;
+                protected IProtocolHandler _ProtocolHandler = null;
 
-                public StxEtxHandler StxEtxPeer
+                public IProtocolHandler ProtocolHandler
                 {
-                    get { return _stxetxClient; }
+                    get { return _ProtocolHandler; }
                 }
                 
                 /// <summary>
@@ -250,14 +250,14 @@ namespace ForwardLibrary
                 /// </summary>
                 /// <param name="stxetxClient"></param>
                 /// <param name="optionalTS"></param>
-                public CommandHandler(StxEtxHandler stxetxClient, TraceSource optionalTS = null)
+                public CommandHandler(IProtocolHandler client, TraceSource optionalTS = null)
                 {
                     if (optionalTS == null)
                         ts = new TraceSource("dummy");
                     else
                         ts = optionalTS;
 
-                    this._stxetxClient = stxetxClient;
+                    this._ProtocolHandler = client;
                     
                 }
 
@@ -275,7 +275,7 @@ namespace ForwardLibrary
                         ts = optionalTS;
 
                     LogMsg(TraceEventType.Information, "Initiating connection to: " + hostname);
-                    _stxetxClient = new StxEtxHandler(new TCPconnManager(ts).ConnectToServer(hostname, optionalPort), true);
+                    _ProtocolHandler = new StxEtxHandler(new TCPconnManager(ts).ConnectToServer(hostname, optionalPort), true);
                     LogMsg(TraceEventType.Information, "Server connection established.");
                 }
 
@@ -304,17 +304,17 @@ namespace ForwardLibrary
                     {
                         while (optionalRetries-- > 0)
                         {
-                            if (_stxetxClient.CommContext.bConnected == false)
+                            if (_ProtocolHandler.CommContext.bConnected == false)
                                 throw new UnresponsiveConnectionException("Connection has disconnected.", command);
 
-                            if (_stxetxClient.SendCommand(command))
+                            if (_ProtocolHandler.SendCommand(command))
                             {
                                 string reply = null;
                                 bool result = true;
                                 int giveUp = NumResponses + 3;
                                 while (result && Responses.Count < NumResponses && giveUp-- > 0)
                                 {
-                                    result = _stxetxClient.ReceiveData(out reply, optionalTimeout * 1000);
+                                    result = _ProtocolHandler.ReceiveData(out reply, optionalTimeout * 1000);
                                     if (reply != null)
                                         Responses.Add(reply);
 
@@ -393,8 +393,8 @@ namespace ForwardLibrary
                 {
                     try
                     {
-                        _stxetxClient.Dispose();
-                        _stxetxClient = null;
+                        _ProtocolHandler.Dispose();
+                        _ProtocolHandler = null;
                     }
                     catch
                     {
@@ -409,8 +409,8 @@ namespace ForwardLibrary
                 /// </summary>
                 /// <param name="stxetxClient"></param>
                 /// <param name="optionalTS"></param>
-                public UNAC(StxEtxHandler stxetxClient, TraceSource optionalTS = null)
-                    : base(stxetxClient, optionalTS)
+                public UNAC(IProtocolHandler client, TraceSource optionalTS = null)
+                    : base(client, optionalTS)
                 {
                     LogID = (int)LogIDs.UNAC;                    
                 }
@@ -3048,7 +3048,8 @@ namespace ForwardLibrary
                 /// </summary>
                 /// <param name="stxetxClient"></param>
                 /// <param name="optionalTS"></param>
-                public WinSIPserver(StxEtxHandler stxetxClient, TraceSource optionalTS = null) :base(stxetxClient, optionalTS)
+                public WinSIPserver(IProtocolHandler stxetxClient, TraceSource optionalTS = null)
+                    : base(stxetxClient, optionalTS)
                 {
                     LogID = (int) LogIDs.WinSIPserver;
                 }

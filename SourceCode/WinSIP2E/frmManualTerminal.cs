@@ -24,8 +24,8 @@ namespace WinSIP2E
                 
 
         //variables needed for connections
-        private StxEtxHandler connection;
-        public StxEtxHandler homeConnection; //holder for the connection object if switching off of an active connection
+        private IProtocolHandler connection;
+        public IProtocolHandler homeConnection; //holder for the connection object if switching off of an active connection
 
         //variables needed to support command history
         private LinkedList<string> outgoingCMDs = new LinkedList<string>();
@@ -118,9 +118,9 @@ namespace WinSIP2E
             }
         }
 
-        private StxEtxHandler CreateConnObject(string serverAddr, string serverName, int connectionPort, CommLogMessages msgs)
+        private IProtocolHandler CreateConnObject(string serverAddr, string serverName, int connectionPort, CommLogMessages msgs)
         {
-            StxEtxHandler theConnection = null;
+            IProtocolHandler theConnection = null;
             if (connectionPort == 1100)
                 theConnection = new StxEtxHandler(new TCPconnManager(Program.WinSIP_TS, msgs).ConnectToServer(serverAddr, connectionPort), true);
             else if (connectionPort == 443 || connectionPort == 1101)    //Server should use SSL, but utility does not need to provide a certificate
@@ -455,7 +455,7 @@ namespace WinSIP2E
             lastMsg = DateTime.Now;
             outgoingCMDs.AddFirst(cmd);
             //txtTerminal.Text += "\r\nSent (" + DateTime.Now.ToString("HH:mm:ss.ff") + ") --> <STX>" + cmd + "<ETX>\r\n";
-            connection.AsyncSendCommand(cmd, 0);
+            connection.SendCommandNB(cmd, 0);
 
         }
         #endregion
@@ -620,6 +620,20 @@ namespace WinSIP2E
                 }
             }
             catch { }
+        }
+
+        private void btnSendScript_Click(object sender, EventArgs e)
+        {
+            LoadAndSendScriptFile();
+        }
+
+        private void LoadAndSendScriptFile()
+        {            
+            SendScriptFile sendScript = new SendScriptFile(connection, Program.WinSIP_TS);
+            sendScript.LogID = connection.CommContext.ConnectionID;
+            OperationStatusDialog frm = new OperationStatusDialog();
+            frm.operation = sendScript;
+            frm.ShowDialog();
         }
 
     }
