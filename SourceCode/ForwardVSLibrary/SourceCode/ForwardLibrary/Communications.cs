@@ -554,12 +554,16 @@ namespace ForwardLibrary
 
         public class ClientWroteDataEvent : ClientEvent
         {
-
+            public byte[] SentData;
             public ClientWroteDataEvent(ClientContext _context)
             {
                 Context = _context;
             }
-
+            public ClientWroteDataEvent(byte[] SentData, ClientContext _context)
+            {
+                Context = _context;
+                this.SentData = SentData;
+            }
         }
 
         public enum DisconnectReason : int { UNEXPECTED_DISCONNECT = 0, CLIENT_DISCONNECT = 1 };

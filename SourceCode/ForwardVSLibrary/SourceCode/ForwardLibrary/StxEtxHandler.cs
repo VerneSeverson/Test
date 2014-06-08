@@ -12,13 +12,187 @@ namespace ForwardLibrary
 {
     namespace Communications
     {
+        public static class ProtocolDefaults
+        {
+            public const int DEF_NUM_RETRIES = 3;
+            public const int DEF_RETRY_TIMEOUT_MS = 3000;            
+        }
+
+        public interface IProtocolHandler
+        {
+
+            ClientContext CommContext { get; set; }
+
+            #region Communication events
+            /// <summary>
+            /// Registers a callback to receive protocol communication events:
+            /// ClientReceivedDataEvent, ClientWroteDataEvent,
+            /// and ClientDisconnectedEvent. These events are generated
+            /// asynchronously and contain protocol-level information. For
+            /// example, for STX/ETX handlers, STX, ETX, and ACK will not be
+            /// included in the data when these events are created; futhermore
+            /// a ClientWroteDataEvent will only be created after the protocol
+            /// knows that the client has received the data (ACK received).
+            /// </summary>
+            /// <param name="EventCallback">The delegate to call</param>
+            void AddCommEventHandler(EventNotify EventCallback);
+
+            /// <summary>
+            /// Unregisters a callback delegate from receiving protocol 
+            /// communication events.
+            /// </summary>
+            /// <param name="EventCallback"></param>
+            void RemoveCommEventHandler(EventNotify EventCallback);
+
+            #endregion
+
+            /// <summary>
+            /// This function enables/disables periodically sending STX ETX messages 
+            /// to the remote device to ensure that the connection stays alive and that
+            /// the peer is present.
+            /// </summary>
+            /// <param name="enable">Set to true to periodically send STX ETX messages to the peer</param>
+            /// <param name="optionalMaxIdleTime">Maximum connection idle time before an STX ETX should be sent</param>
+            void PeriodicPing(bool enable, TimeSpan MaxIdleTime);
+
+            #region receive functions
+            /// <summary>
+            /// Get received data in a FIFO manner.
+            /// This function blocks until either a command is available or a timeout occurs.
+            /// An exception is thrown if the connection goes down or any other error prevents successful completion.
+            /// NOTE: this function is synchronized, so it is thread safe, however it will block until all previous
+            /// function calls complete.
+            /// </summary>
+            /// <param name="theData">The received data</param>
+            /// <param name="timeRcvd">The time that this command was received</param>
+            /// <param name="optionalTimeout">Amount of time (in ms) before function gives up and returns</param>
+            /// <returns>True if another command is present, otherwise false</returns>
+            bool ReceiveData(out string theData, out DateTime timeRcvd, int optionalTimeout = 30000);
+
+            /// <summary>
+            /// Get latest STX ETX command in a FIFO manner.
+            /// This function blocks until either a command is available or a timeout occurs.
+            /// An exception is thrown if the connection goes down or any other error prevents successful completion.
+            /// NOTE: this function is synchronized, so it is thread safe, however it will block until all previous
+            /// function calls complete.
+            /// </summary>
+            /// <param name="theData">The received data</param>
+            /// <param name="optionalTimeout">Amount of time (in ms) before function gives up and returns</param>
+            /// <returns>True if another command is present, otherwise false</returns>
+            bool ReceiveData(out string theData, int optionalTimeout = 30000);
+            #endregion
+
+            #region send functions
+            /// <summary>
+            /// Send command (protocol-dependent characters are added here). 
+            /// Blocks until protocol determines the message was received or connection fails.
+            /// </summary>
+            /// <param name="data">the data to send (can be null)</param>
+            /// <param name="optionalRetries">Number of retries if protocol supports it</param>
+            /// <param name="optionalRetryTime">Amount of time (in ms) between retries</param>
+            /// <returns>True if an ACK was recieved, otherwise false</returns>
+            bool SendCommand(byte[] data, int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES, int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS);
+
+            /// <summary>
+            /// Send command (protocol-dependent characters are added here). 
+            /// Blocks until protocol determines the message was received or connection fails.
+            /// </summary>
+            /// <param name="data">the data to send (can be null)</param>
+            /// <param name="optionalRetries">Number of retries if protocol supports it</param>
+            /// <param name="optionalRetryTime">Amount of time (in ms) between retries</param>
+            /// <returns>True if an ACK was recieved, otherwise false</returns>
+            bool SendCommand(string data, int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES, int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS);
+
+            /// <summary>
+            /// Asynchronous function call for SendCommand()
+            /// 
+            /// If there is nothing going on with SendCommand(), this function
+            /// will first get the data on its way to the comm interface 
+            /// before yielding to a worker thread.
+            /// </summary>
+            /// <param name="data"></param>
+            /// <param name="optionalRetries"></param>
+            /// <param name="optionalRetryTime"></param>
+            /// <param name="callback"></param>
+            /// <param name="state"></param>
+            /// <returns></returns>
+            IAsyncResult BeginSendCommand(byte[] data,
+                                                int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES,
+                                                int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS,
+                                                AsyncCallback callback = null,
+                                                Object state = null);
+
+            
+            /// <summary>
+            /// Asynchronous function call for SendCommand()
+            /// 
+            /// If there is nothing going on with SendCommand(), this function
+            /// will first get the data on its way to the comm interface 
+            /// before yielding to a worker thread.
+            /// </summary>
+            /// <param name="data"></param>
+            /// <param name="optionalRetries"></param>
+            /// <param name="optionalRetryTime"></param>
+            /// <param name="callback"></param>
+            /// <param name="state"></param>            
+            /// <returns></returns>
+            IAsyncResult BeginSendCommand(string data,
+                                                int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES,
+                                                int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS,
+                                                AsyncCallback callback = null,
+                                                Object state = null);
+            
+            /// <summary>
+            /// Call to end asynchronous sending
+            /// </summary>
+            /// <param name="ar"></param>
+            /// <returns></returns>
+            bool EndSendCommand(IAsyncResult ar);
+
+
+            //
+            /// <summary>
+            /// Non-blocking send command where the user doesn't care if the message is successfully sent
+            /// 
+            /// If this function is called before a previous command has finished sending,
+            /// the new command will be queued up to sent after the previous command finishes.
+            /// 
+            /// </summary>
+            /// <param name="data"></param>
+            /// <param name="optionalRetries"></param>
+            /// <param name="optionalRetryTime"></param>
+            void SendCommandNB(byte[] data, int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES,
+                                int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS);
+
+            //
+            /// <summary>
+            /// Non-blocking send command where the user doesn't care if the message is successfully sent
+            /// 
+            /// If this function is called before a previous command has finished sending,
+            /// the new command will be queued up to sent after the previous command finishes.
+            /// 
+            /// </summary>
+            /// <param name="data"></param>
+            /// <param name="optionalRetries"></param>
+            /// <param name="optionalRetryTime"></param>
+            void SendCommandNB(string data, int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES,
+                                            int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS);
+            #endregion
+
+            /// <summary>
+            /// Force a clean up of the resources (not safe to use after this is called)
+            /// </summary>
+            void Dispose();            
+
+        }
+
         namespace STXETX
         {
             public class CommandAndFunction
             {
-                public delegate void CommandFunction(MemoryStream theCommand, StxEtxHandler source);
-                public delegate bool CommandPermission(MemoryStream theCommand, StxEtxHandler source);
-                public delegate bool CommandSecurity(MemoryStream theCommand, StxEtxHandler source);
+                public delegate void CommandFunction(MemoryStream theCommand, IProtocolHandler source);
+                public delegate bool CommandPermission(MemoryStream theCommand, IProtocolHandler source);
+                public delegate bool CommandSecurity(MemoryStream theCommand, IProtocolHandler source);
                 string command;
                 CommandFunction function;
                 CommandPermission permission;
@@ -39,9 +213,9 @@ namespace ForwardLibrary
                 {
                     command = theCommand;
                     function = theFunc;
-                    
-                    permission = delegate(MemoryStream a, StxEtxHandler b) {return true;} ;
-                    security = delegate(MemoryStream a, StxEtxHandler b) { return true; }; 
+
+                    permission = delegate(MemoryStream a, IProtocolHandler b) { return true; };
+                    security = delegate(MemoryStream a, IProtocolHandler b) { return true; }; 
                 }
 
                 /// <summary>
@@ -76,16 +250,24 @@ namespace ForwardLibrary
                     function = theFunc;
 
                     permission = permissionCheck;
-                    security = delegate(MemoryStream a, StxEtxHandler b) { return true; }; 
+                    security = delegate(MemoryStream a, IProtocolHandler b) { return true; }; 
                 }
             }
 
-            public class StxEtxHandler
+            public class StxEtxHandler : IProtocolHandler
             {
+
+                #region properties
+                private ClientContext _CommContext = null;
                 /// <summary>
                 /// Communication object being used
                 /// </summary>
-                public ClientContext CommContext = null;
+                public ClientContext CommContext
+                {
+                    get { return _CommContext; }
+                    set { _CommContext = value; }
+                }
+
 
                 /// <summary>
                 /// If false, a received command must be present in the CommandTable
@@ -115,7 +297,10 @@ namespace ForwardLibrary
                 bool bDisconnectEventHandled = false;
 
                 private ConcurrentQueue<ReceivedMsgLog> RxMsgs = new ConcurrentQueue<ReceivedMsgLog>();
-                public AutoResetEvent NewMsgEvt = new AutoResetEvent(false);
+                private AutoResetEvent NewMsgEvt = new AutoResetEvent(false);
+
+                private LinkedList<EventNotify> EventCallbacks = new LinkedList<EventNotify>();
+                private Object EventCallbacksSync = new Object();
 
                 /// <summary>
                 /// Used for storing STX ETX messages that have been received
@@ -140,10 +325,7 @@ namespace ForwardLibrary
 
                 class SendContext
                 {
-                    public const int DEF_NUM_RETRIES = 3;
-                    public const int DEF_RETRY_TIMEOUT_MS = 3000;
                     public const int DEF_NB_Safe_TIMEOUT_MS = 60000; //after this much time is passed, NB_Safe is signaled
-
                     public AutoResetEvent AckFound = null;
                     
                     /// <summary>
@@ -173,7 +355,9 @@ namespace ForwardLibrary
                         catch { }
                     }
                 }
+                #endregion
 
+                #region constructors
                 /// <summary>
                 /// Constructor -- adds the EventHandler delegate to context
                 /// when an StxEtxClient is done being used, a DisconnectEvent
@@ -189,18 +373,16 @@ namespace ForwardLibrary
                     CommContext = context;
                     context.EventCallback = OnClientEvent;
                 }
+                #endregion                
 
                 /// <summary>
                 /// Force a clean up of the resources (not safe to use after this is called)
                 /// </summary>
                 public void Dispose()
                 {
-
                     if (CommContext.bConnected)
                         try { CommContext.Close(); }
                         catch { }
-
-
                 }
 
                 #region Receive Commands
@@ -284,6 +466,7 @@ namespace ForwardLibrary
 
 
                 #region Send Commands
+                #region helper functions
                 void SendDataNB(byte[] data)
                 {
                     byte[] theData;
@@ -308,7 +491,7 @@ namespace ForwardLibrary
                 /// <param name="optionalRetries"></param>
                 /// <param name="optionalRetryTime"></param>
                 /// <returns></returns>
-                bool SendDataHandleAck(byte[] data, int optionalRetries = SendContext.DEF_NUM_RETRIES, int optionalRetryTime = SendContext.DEF_RETRY_TIMEOUT_MS)
+                bool SendDataHandleAck(byte[] data, int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES, int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS)
                 {
                     bool bFoundAck = false;
                     try
@@ -319,6 +502,9 @@ namespace ForwardLibrary
                             if (reply == true)  //got an ack!
                             {
                                 bFoundAck = true;
+
+                                //publish successful send to event subscribers
+                                PublishEvent(new ClientWroteDataEvent(data, CommContext));
                                 break;
                             }
                             else
@@ -348,6 +534,7 @@ namespace ForwardLibrary
 
                     return bFoundAck;
                 }
+                #endregion
 
                 /// <summary>
                 /// Send an STX ETX formatted command (STX and ETX are added here). 
@@ -357,7 +544,7 @@ namespace ForwardLibrary
                 /// <param name="optionalRetries">Number of retries if no ACK is received</param>
                 /// <param name="optionalRetryTime">Amount of time (in ms) between retries</param>
                 /// <returns>True if an ACK was recieved, otherwise false</returns>
-                public bool SendCommand(byte[] data, int optionalRetries = SendContext.DEF_NUM_RETRIES, int optionalRetryTime = SendContext.DEF_RETRY_TIMEOUT_MS)
+                public bool SendCommand(byte[] data, int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES, int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS)
                 {
                     bool bFoundAck = false;
                     bool bGotNB_Safe = false;
@@ -397,15 +584,15 @@ namespace ForwardLibrary
                 /// <param name="optionalRetries">Number of retries if no ACK is received</param>
                 /// <param name="optionalRetryTime">Amount of time (in ms) between retries</param>
                 /// <returns>True if an ACK was recieved, otherwise false</returns>
-                public bool SendCommand(string data, int optionalRetries = SendContext.DEF_NUM_RETRIES, int optionalRetryTime = SendContext.DEF_RETRY_TIMEOUT_MS)
+                public bool SendCommand(string data, int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES, int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS)
                 {
                     return SendCommand(System.Text.Encoding.ASCII.GetBytes(data), optionalRetries, optionalRetryTime);
                 }
 
 
                 #region NON-BLOCKING SEND CALLS
-                delegate bool AsyncSendCommandCaller(byte[] data, int optionalRetries = SendContext.DEF_NUM_RETRIES, int optionalRetryTime = SendContext.DEF_RETRY_TIMEOUT_MS);
-                delegate bool AsyncSendCommandCallerStr(string data, int optionalRetries = SendContext.DEF_NUM_RETRIES, int optionalRetryTime = SendContext.DEF_RETRY_TIMEOUT_MS);                
+                delegate bool AsyncSendCommandCaller(byte[] data, int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES, int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS);
+                delegate bool AsyncSendCommandCallerStr(string data, int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES, int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS);                
 
                 /// <summary>
                 /// Asynchronous function call for SendCommand()
@@ -421,8 +608,8 @@ namespace ForwardLibrary
                 /// <param name="state"></param>
                 /// <returns></returns>
                 public IAsyncResult BeginSendCommand(byte[] data,
-                                                    int optionalRetries = SendContext.DEF_NUM_RETRIES,
-                                                    int optionalRetryTime = SendContext.DEF_RETRY_TIMEOUT_MS,
+                                                    int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES,
+                                                    int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS,
                                                     AsyncCallback callback = null,
                                                     Object state = null)
                 {
@@ -465,8 +652,8 @@ namespace ForwardLibrary
                 /// <param name="state"></param>            
                 /// <returns></returns>
                 public IAsyncResult BeginSendCommand(string data,
-                                                    int optionalRetries = SendContext.DEF_NUM_RETRIES,
-                                                    int optionalRetryTime = SendContext.DEF_RETRY_TIMEOUT_MS,
+                                                    int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES,
+                                                    int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS,
                                                     AsyncCallback callback = null,
                                                     Object state = null)
                 {
@@ -497,8 +684,8 @@ namespace ForwardLibrary
                 /// <param name="optionalRetries"></param>
                 /// <param name="optionalRetryTime"></param>
                 public void SendCommandNB(byte[] data,
-                                                    int optionalRetries = SendContext.DEF_NUM_RETRIES,
-                                                    int optionalRetryTime = SendContext.DEF_RETRY_TIMEOUT_MS)
+                                                    int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES,
+                                                    int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS)
                 {
                     BeginSendCommand(data,
                         optionalRetries, optionalRetryTime,
@@ -517,8 +704,8 @@ namespace ForwardLibrary
 
 
                 public void SendCommandNB(string data,
-                                                    int optionalRetries = SendContext.DEF_NUM_RETRIES,
-                                                    int optionalRetryTime = SendContext.DEF_RETRY_TIMEOUT_MS)
+                                                    int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES,
+                                                    int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS)
                 {
                     SendCommandNB(System.Text.Encoding.ASCII.GetBytes(data), optionalRetries, optionalRetryTime);
                 }
@@ -535,7 +722,7 @@ namespace ForwardLibrary
                 /// </summary>
                 /// <param name="enable">Set to true to periodically send STX ETX messages to the peer</param>
                 /// <param name="optionalMaxIdleTime">Maximum connection idle time before an STX ETX should be sent</param>
-                public virtual void PeriodicPing(bool enable, TimeSpan MaxIdleTime)
+                public void PeriodicPing(bool enable, TimeSpan MaxIdleTime)
                 {
                     PeriodicPingDone.Set(); //end any current pinging
                     if (enable)
@@ -575,6 +762,65 @@ namespace ForwardLibrary
                 }
                 #endregion
 
+                #region Protocol communication events
+                /// <summary>
+                /// Registers a callback to receive protocol communication events:
+                /// ClientReceivedDataEvent, ClientWroteDataEvent,
+                /// and ClientDisconnectedEvent. These events are generated
+                /// asynchronously and contain protocol-level information. For
+                /// example, for STX/ETX handlers, STX, ETX, and ACK will not be
+                /// included in the data when these events are created; futhermore
+                /// a ClientWroteDataEvent will only be created after the protocol
+                /// knows that the client has received the data (ACK received).
+                /// </summary>
+                /// <param name="EventCallback">The delegate to call</param>
+                public void AddCommEventHandler(EventNotify EventCallback)
+                {
+                    lock (EventCallbacksSync)
+                    {
+                        EventCallbacks.AddLast(EventCallback);
+                    }
+                }
+
+                /// <summary>
+                /// Unregisters a callback delegate from receiving protocol 
+                /// communication events.
+                /// </summary>
+                /// <param name="EventCallback"></param>
+                public void RemoveCommEventHandler(EventNotify EventCallback)
+                {
+                    lock (EventCallbacksSync)
+                    {
+                        EventCallbacks.Remove(EventCallback);
+                    }
+                }
+
+                #region private helper functions
+                /// <summary>
+                /// Called to publish the events in an asynchronous manner
+                /// so that we don't slow anything down in the main operation.
+                /// </summary>
+                /// <param name="theEvent"></param>
+                private void PublishEvent(ClientEvent theEvent)
+                {
+                    lock (EventCallbacksSync)
+                    {
+                        foreach (EventNotify callback in EventCallbacks)
+                        {
+                            try
+                            {
+                                callback.BeginInvoke(theEvent, delegate(IAsyncResult arr) { callback.EndInvoke(arr); }, null);
+                            }
+                            catch (Exception ex)
+                            {
+                                CommContext.LogMsg(TraceEventType.Warning, "Protocol callback failed: " + ex.ToString());
+                            }
+                        }
+                    }
+                }
+                #endregion
+                #endregion
+
                 #region Event handling
                 /// <summary>
                 /// Used to handle communication events
@@ -606,6 +852,8 @@ namespace ForwardLibrary
                     {
                         bDisconnectEventHandled = true;
 
+                        //notify event subscribers
+                        PublishEvent(theEvent);
                         lock (DisconnectDatLock)
                         {
                             try
@@ -702,6 +950,7 @@ namespace ForwardLibrary
 
                 #endregion
 
+                #region Processing a recieved command
                 /// <summary>
                 /// Process the command received. If the command exists in the 
                 /// command look up table, then call its corresponding function
@@ -712,13 +961,12 @@ namespace ForwardLibrary
                 /// <returns></returns>
                 protected bool ProcessCommand(MemoryStream theCommand)
                 {
-                    String cmd = System.Text.Encoding.Default.GetString(theCommand.ToArray());
-
+                    String cmd = System.Text.Encoding.Default.GetString(theCommand.ToArray());                    
                     //moved up one level to get this message before ACK: CommContext.LogMsg(TraceEventType.Verbose, "STXETX RCVD: <STX>" + cmd + "<ETX>") ;
 
                     char inCmdTable = 'M';
-                    if (CommandTable != null)
-                        inCmdTable = DoCmdTable(theCommand);
+                    if (CommandTable != null)                    
+                        inCmdTable = DoCmdTable(theCommand);                    
                     if ((inCmdTable != '0') && bAllowAllCmds)
                     {
                         ReceivedMsgLog msglog = new ReceivedMsgLog(cmd);
@@ -728,6 +976,9 @@ namespace ForwardLibrary
                     else if ((inCmdTable != '0') && !bAllowAllCmds && cmd.Length > 0)
                         SendCommandNB(System.Text.Encoding.ASCII.GetBytes("ER" + inCmdTable));
 
+                    //if we received valid data, publish received data to event subscribers
+                    if ((inCmdTable == '0') || (bAllowAllCmds && cmd.Length > 0) )                        
+                        PublishEvent(new ClientWroteDataEvent(theCommand.ToArray(), CommContext));
 
                     return true;
                 }
@@ -792,6 +1043,7 @@ namespace ForwardLibrary
 
                     return errorCode; // (bFound && bSecurity && bPermission);        //true indicates data was sent
                 }
+                #endregion
             }
         }
     }
