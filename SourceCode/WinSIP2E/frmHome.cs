@@ -493,17 +493,23 @@ namespace WinSIP2E
         }
         #endregion
 
-        private void txtPassword_KeyDown(object sender, KeyEventArgs e)
+
+        private void txtPassword_KeyPress(object sender, KeyPressEventArgs e)
         {
-            if (e.KeyCode == Keys.Return)
+            if (e.KeyChar == '\r')
             {
+                e.Handled = true;
                 LoginToServer();
             }
         }
 
-        private void txtPassword_TextChanged(object sender, EventArgs e)
+        private void txtID_KeyPress(object sender, KeyPressEventArgs e)
         {
-
+            if (e.KeyChar == '\r')
+            {
+                e.Handled = true;
+                PassthroughConnect();
+            }
         }
     }
 
