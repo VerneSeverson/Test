@@ -1,4 +1,5 @@
-﻿using ForwardLibrary.Communications.CommandHandlers;
+﻿using ForwardLibrary.Communications;
+using ForwardLibrary.Communications.CommandHandlers;
 using ForwardLibrary.Crypto;
 using ForwardLibrary.Default;
 using ForwardLibrary.WinSIPserver;
@@ -288,8 +289,8 @@ namespace WinSIP2E
             frmManualTerminal frm = new frmManualTerminal();
             try
             {
-                if (activeConnection.StxEtxPeer.CommContext.bConnected)
-                    frm.homeConnection = activeConnection.StxEtxPeer;
+                if (activeConnection.ProtocolHandler.CommContext.bConnected)
+                    frm.homeConnection = activeConnection.ProtocolHandler;
             }
             catch { }
 
@@ -343,10 +344,17 @@ namespace WinSIP2E
                         frm.operation = login;
                         frm.ShowDialog();
 
-                        //4. Handle the results
-                        activeConnection = login.ServerConnection;
+                        //4. Link the active connection to WinSIP
                         if (login.Status == Operation.CompletionCode.FinishedSuccess)
+                        {
+                            activeConnection = login.ServerConnection;
+                            activeConnection.ProtocolHandler.PeriodicPing(true, TimeSpan.FromSeconds(Program.ConnectionPingTime));
+                            activeConnection.ProtocolHandler.AddCommEventHandler(this.ActiveConnectionEvents);
+                            Program.bServerDisconnectExpected = false;
+
+                        //5. Update the UI
                             UpdateUI_ServerLoginChange(true);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -364,11 +372,32 @@ namespace WinSIP2E
         /// Call this function to log out and disconnect from the server
         /// </summary>
         private void LogoutOfServer()
-        {                        
+        {
+            Program.bServerDisconnectExpected = true;   //indicate that the disconnect which is about to occur is expected        
             try { activeConnection.Dispose(); }
             catch { }
             activeConnection = null;
             UpdateUI_ServerLoginChange(false);
+        }
+
+        
+        /// <summary>
+        /// Used to handle communication events from connection to WinSIPserver        
+        /// </summary>
+        /// <param name="ev"></param>
+        protected void ActiveConnectionEvents(ClientEvent ev)
+        {
+            //only handle disconnect events
+            if (ev is ClientDisconnectedEvent)
+            {
+                if (!Program.bServerDisconnectExpected)
+                {
+                    //take action only if it is unexpected
+                    MessageBox.Show("The connection to the WinSIP server has ended unexpectedly. Please login again.", "WinSIP has Disconnected", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    Program.bServerDisconnectExpected = true;
+                    LogoutOfServer();
+                }
+            }
         }
 
         /// <summary>
@@ -384,7 +413,7 @@ namespace WinSIP2E
                 WinSIPserver connection = activeConnection;
                 if (connection == null)
                     MessageBox.Show("An active connection to a WinSIP server is required to initiate a passthrough connection", "No active server connection", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                else if (connection.StxEtxPeer.CommContext.bConnected == false)
+                else if (connection.ProtocolHandler.CommContext.bConnected == false)
                     MessageBox.Show("An active connection to a WinSIP server is required to initiate a passthrough connection", "No active server connection", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 else
                 {
@@ -436,6 +465,11 @@ namespace WinSIP2E
         /// <param name="connected"></param>
         private void UpdateUI_ServerLoginChange(bool connected)
         {
+            if (InvokeRequired)
+            {
+                this.BeginInvoke(new Action(() => UpdateUI_ServerLoginChange(connected)));
+                return;
+            }
             gbLogin.Enabled = !connected;            
             cmdLogOut.Enabled = connected;
             lblServerConnected.Visible = connected;

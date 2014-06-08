@@ -120,7 +120,7 @@ namespace WinSIP2E
                     }
                 };
 
-                StxEtxHandler connection = new StxEtxHandler(cm.ConnectToServer(ServerAddress, ServerPort), true);
+                IProtocolHandler connection = new StxEtxHandler(cm.ConnectToServer(ServerAddress, ServerPort), true);
                 return new WinSIPserver(connection, LogTS);
             }
 
@@ -146,7 +146,7 @@ namespace WinSIP2E
                     }
                 };
 
-                StxEtxHandler connection = new StxEtxHandler(cm.ConnectToServer(ServerAddress, ServerPort), true);
+                IProtocolHandler connection = new StxEtxHandler(cm.ConnectToServer(ServerAddress, ServerPort), true);
                 return new WinSIPserver(connection, LogTS);
             }
             #endregion
@@ -1291,7 +1291,7 @@ namespace WinSIP2E
 
             private void WaitForBNR()
             {
-                StxEtxHandler handler = ServerHandler.StxEtxPeer;
+                IProtocolHandler handler = ServerHandler.ProtocolHandler;
 
                 //Manually poll the received responses, waiting for a BNR
                 while (true)
@@ -1385,9 +1385,9 @@ namespace WinSIP2E
                 } 
             }
 
-            private StxEtxHandler Handler;
+            private IProtocolHandler Handler;
 
-            public StxEtxHandler Connection
+            public IProtocolHandler Connection
             {
                 get { return Handler; }
             }
@@ -1445,7 +1445,7 @@ namespace WinSIP2E
             /// <param name="handler">The active command handler object.</param>
             /// <param name="fileName">The name of the script file to send.</param>                        
             /// <exception cref="System.ArgumentNullException">Thrown when any argument other then LogTS is null</exception>            
-            public SendScriptFile(StxEtxHandler handler, string fileName, TraceSource LogTS = null)
+            public SendScriptFile(IProtocolHandler handler, string fileName, TraceSource LogTS = null)
             {
                 if ( (handler == null) || (fileName == null) )
                     throw new ArgumentNullException();
@@ -1465,7 +1465,7 @@ namespace WinSIP2E
             /// <param name="handler">An active StxEtxHandler object.</param>            
             /// <exception cref="System.ArgumentNullException">Thrown when any argument other then LogTS is null</exception>            
             /// /// <exception cref="System.OperationCanceledException">Thrown when the user presses cancel when prompted to select a script file</exception>      
-            public SendScriptFile(StxEtxHandler handler, TraceSource LogTS = null)
+            public SendScriptFile(IProtocolHandler handler, TraceSource LogTS = null)
             {
                 if (handler == null)
                     throw new ArgumentNullException();
