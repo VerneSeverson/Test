@@ -1527,7 +1527,7 @@ namespace WinSIP2E
 
                         //are we still connected?
                         if (!Handler.CommContext.bConnected)
-                            throw new System.ObjectDisposedException("The connection closed.");
+                            throw new UnresponsiveConnectionException("The connection closed.", "");
 
                         ProcessScriptLine(line);
 
