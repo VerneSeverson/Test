@@ -841,21 +841,22 @@ namespace ForwardLibrary
                 try
                 {
                     Stream.EndWrite(ar);
+                    lock (WriteProtect)
+                    {
+                        if (MessagesToWrite.Count > 0)
+                        {
+                            byte[] data = MessagesToWrite.Dequeue();
+                            Stream.BeginWrite(data, 0, data.Length, this.OnWriteCompleted, this);
+                            lastSent = DateTime.Now;
+                        }
+                        else
+                            WriteInProgress = false;
+                    }
+
                     if (EventCallback != null)
                     {
                         try
-                        {
-                            lock (WriteProtect)
-                            {
-                                if (MessagesToWrite.Count > 0)
-                                {
-                                    byte[] data = MessagesToWrite.Dequeue();                                        
-                                    Stream.BeginWrite(data, 0, data.Length, this.OnWriteCompleted, this);
-                                    lastSent = DateTime.Now;
-                                }
-                                else
-                                    WriteInProgress = false;                                
-                            }
+                        {                            
                             EventCallback(new ClientWroteDataEvent(this));   //callback will remove context if no more reading should be done
                         }
                         catch (Exception e)
