@@ -6,9 +6,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+
+
 
 namespace WinSIP2E
 {
@@ -25,6 +28,24 @@ namespace WinSIP2E
         /// </summary>
         public const int ConnectionPingTime = 30;
 
+        /// <summary>
+        /// Allowable idle time in seconds.
+        /// 
+        /// In regards to the primary connection, if no user interaction has 
+        /// taken plance within this time (with WinSIP), the connection will
+        /// be terminated. 
+        /// In regards to manual mode connections, if no commands are sent 
+        /// to the connection within this time, it will be disconnected.
+        /// 
+        /// Set this value to 0 to disable timeout checking
+        /// </summary>
+        public static int IdleTimeout = IdleTimeoutDefault;
+
+        /// <summary>
+        /// Default value of IdleTimeout
+        /// </summary>
+        public const int IdleTimeoutDefault = 5; //60 * 5;
+
 
         /// <summary>
         /// Set to true if we are expecting a disconnect from the server
@@ -33,6 +54,46 @@ namespace WinSIP2E
         /// ended).
         /// </summary>
         public static bool bServerDisconnectExpected = false;
+
+        #region Last user input time
+        [DllImport("user32.dll")]
+        static extern bool GetLastInputInfo(ref LASTINPUTINFO plii);
+
+        [StructLayout(LayoutKind.Sequential)]
+        struct LASTINPUTINFO
+        {
+            public static readonly int SizeOf = Marshal.SizeOf(typeof(LASTINPUTINFO));
+
+            [MarshalAs(UnmanagedType.U4)]
+            public UInt32 cbSize;
+            [MarshalAs(UnmanagedType.U4)]
+            public UInt32 dwTime;
+        }
+
+        /// <summary>
+        /// Determine the amount of time since the last user interaction with this program
+        /// http://www.pinvoke.net/default.aspx/Structures/LASTINPUTINFO.html
+        /// </summary>
+        /// <returns>number of seconecs since the last user interaction</returns>
+        public static int GetLastInputTime()
+        {
+            uint idleTime = 0;
+            LASTINPUTINFO lastInputInfo = new LASTINPUTINFO();
+            lastInputInfo.cbSize = (uint) Marshal.SizeOf(lastInputInfo);
+            lastInputInfo.dwTime = 0;
+
+            uint envTicks = (uint)Environment.TickCount;
+
+            if (GetLastInputInfo(ref lastInputInfo))
+            {
+                uint lastInputTick = lastInputInfo.dwTime;
+
+                idleTime = envTicks - lastInputTick;
+            }
+
+            return (int) ((idleTime > 0) ? (idleTime / 1000) : 0);
+        }
+        #endregion
 
         /// <summary>
         /// The main entry point for the application.

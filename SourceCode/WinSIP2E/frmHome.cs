@@ -525,6 +525,34 @@ namespace WinSIP2E
             lblgbNAC_Inst2.Visible = false;
 
         }
+
+        
+        bool bCheckingIdle = false; 
+        private void CheckUI_Timeout()
+        {
+            if (!bCheckingIdle) //the timer will keep re-entring this if we don't protect it
+            {
+                bCheckingIdle = true;
+                try
+                {
+                    if ((Program.GetLastInputTime() > Program.IdleTimeout) && (activeConnection != null))
+                    {
+                        IdleTimeout timeout = new IdleTimeout(DateTime.Now + TimeSpan.FromSeconds(30), activeConnection.ProtocolHandler.CommContext, Program.WinSIP_TS);
+                        OperationStatusDialog dlg = new OperationStatusDialog();
+                        dlg.operation = timeout;
+                        dlg.ShowDialog();
+
+                        //connection was closed:
+                        if (timeout.Status != Operation.CompletionCode.UserCancelFinish)
+                            LogoutOfServer();
+                    }
+                }
+                finally
+                {
+                    bCheckingIdle = false;
+                }
+            }
+        }
         #endregion
 
 
@@ -545,6 +573,22 @@ namespace WinSIP2E
                 PassthroughConnect();
             }
         }
+
+        private void tmrStatus_Tick(object sender, EventArgs e)
+        {
+            CheckUI_Timeout();
+            /*if (activeConnection != null)
+            {
+                //TimeSpan IdleTime = DateTime.Now - activeConnection.ProtocolHandler.LastSent;
+                //if ((IdleTime.TotalSeconds > Program.ConnectionIdleTimeout) && (Program.ConnectionIdleTimeout > 0))
+                //{
+                //
+                //}
+                
+            }*/
+        }
+
+        
     }
 
 }
