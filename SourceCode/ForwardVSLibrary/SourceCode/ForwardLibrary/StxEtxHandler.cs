@@ -21,6 +21,13 @@ namespace ForwardLibrary
         public interface IProtocolHandler
         {
 
+            /// <summary>
+            /// The last time the user used the protocol handler to successfully send data.
+            /// 
+            /// Note that periodic ping messages do not cause this to be updated.
+            /// </summary>
+            DateTime LastSent { get; }
+
             ClientContext CommContext { get; set; }
 
             #region Communication events
@@ -258,6 +265,17 @@ namespace ForwardLibrary
             {
 
                 #region properties
+
+                private DateTime _LastSent;
+                /// <summary>
+                /// The last time the user used the protocol handler to successfully send data.
+                /// Note that periodic ping messages do not cause this to be updated.
+                /// </summary>
+                public DateTime LastSent
+                {
+                    get { return _LastSent; }
+                }
+
                 private ClientContext _CommContext = null;
                 /// <summary>
                 /// Communication object being used
@@ -491,7 +509,7 @@ namespace ForwardLibrary
                 /// <param name="optionalRetries"></param>
                 /// <param name="optionalRetryTime"></param>
                 /// <returns></returns>
-                bool SendDataHandleAck(byte[] data, int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES, int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS)
+                bool SendDataHandleAck(byte[] data, int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES, int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS, bool optionalUpdateLastSent = true)
                 {
                     bool bFoundAck = false;
                     try
@@ -502,6 +520,9 @@ namespace ForwardLibrary
                             if (reply == true)  //got an ack!
                             {
                                 bFoundAck = true;
+
+                                if (optionalUpdateLastSent)
+                                    _LastSent = DateTime.Now;
 
                                 //publish successful send to event subscribers
                                 PublishEvent(new ClientWroteDataEvent(data, CommContext));
@@ -534,17 +555,17 @@ namespace ForwardLibrary
 
                     return bFoundAck;
                 }
-                #endregion
 
                 /// <summary>
-                /// Send an STX ETX formatted command (STX and ETX are added here). 
-                /// Blocks until ack received or connection fails.
+                /// Does the work of SendCommand but gives the option of specifying whether the 
+                /// LastSent date time should be updated.
                 /// </summary>
-                /// <param name="data">the data to send (can be null)</param>
-                /// <param name="optionalRetries">Number of retries if no ACK is received</param>
-                /// <param name="optionalRetryTime">Amount of time (in ms) between retries</param>
-                /// <returns>True if an ACK was recieved, otherwise false</returns>
-                public bool SendCommand(byte[] data, int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES, int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS)
+                /// <param name="data"></param>
+                /// <param name="optionalRetries"></param>
+                /// <param name="optionalRetryTime"></param>
+                /// <param name="UpdateLastSent"></param>
+                /// <returns></returns>
+                private bool SendCommand(byte[] data, bool UpdateLastSent, int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES, int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS)
                 {
                     bool bFoundAck = false;
                     bool bGotNB_Safe = false;
@@ -552,7 +573,7 @@ namespace ForwardLibrary
                     {
                         bGotNB_Safe = SendingContext.NB_Safe.WaitOne(SendContext.DEF_NB_Safe_TIMEOUT_MS);
                         if (!bGotNB_Safe)
-                            CommContext.LogMsg(TraceEventType.Error, "Unable to get a lock on the send context after waiting for " + SendContext.DEF_NB_Safe_TIMEOUT_MS/1000 + " seconds. Breaking the lock.");
+                            CommContext.LogMsg(TraceEventType.Error, "Unable to get a lock on the send context after waiting for " + SendContext.DEF_NB_Safe_TIMEOUT_MS / 1000 + " seconds. Breaking the lock.");
 
                         lock (SendingContext)
                         {
@@ -560,7 +581,7 @@ namespace ForwardLibrary
                             //StxEtxAck = ACK_SEARCH;
 
                             SendDataNB(data);
-                            bFoundAck = SendDataHandleAck(data, optionalRetries, optionalRetryTime);
+                            bFoundAck = SendDataHandleAck(data, optionalRetries, optionalRetryTime, UpdateLastSent);
 
                         }
                     }
@@ -574,6 +595,22 @@ namespace ForwardLibrary
                             SendingContext.NB_Safe.Set();
                     }
                     return bFoundAck;
+                }
+                #endregion
+
+                
+                /// <summary>
+                /// Send an STX ETX formatted command (STX and ETX are added here). 
+                /// Blocks until ack received or connection fails.
+                /// </summary>
+                /// <param name="data">the data to send (can be null)</param>
+                /// <param name="optionalRetries">Number of retries if no ACK is received</param>
+                /// <param name="optionalRetryTime">Amount of time (in ms) between retries</param>
+                /// <param name="optionalRetryTime">Amount of time (in ms) between retries</param>
+                /// <returns>True if an ACK was recieved, otherwise false</returns>
+                public bool SendCommand(byte[] data, int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES, int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS)
+                {
+                    return SendCommand(data, true, optionalRetries, optionalRetryTime);
                 }
 
                 /// <summary>
@@ -748,7 +785,7 @@ namespace ForwardLibrary
                         {
                             TimeSpan timeSinceLast = DateTime.Now - CommContext.lastRcvd;
                             if (timeSinceLast > MaxIdleTime)
-                                SendCommand((byte[])null);
+                                SendCommand((byte[])null, false);
 
                             bDone = PeriodicPingDone.WaitOne(MaxIdleTime - timeSinceLast);
                         }
