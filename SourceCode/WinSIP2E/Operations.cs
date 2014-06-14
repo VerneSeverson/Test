@@ -2,6 +2,7 @@
 using ForwardLibrary.Communications.CommandHandlers;
 using ForwardLibrary.Communications.STXETX;
 using ForwardLibrary.Crypto;
+using ForwardLibrary.Default;
 using ForwardLibrary.WinSIPserver;
 using System;
 using System.Collections.Generic;
@@ -1731,7 +1732,7 @@ namespace WinSIP2E
             public override bool RequireUserOK
             {
                 get {
-                    if (Status != CompletionCode.UserCancelFinish)
+                    if (Status == CompletionCode.UserCancelFinish)
                         return false;
                     else
                         return true; 
@@ -1746,7 +1747,7 @@ namespace WinSIP2E
                     if (_StatusErrorMessage == null)
                     {
                         if (Status == CompletionCode.InProgress)
-                            return InProgressMsg + " in " + (int) ((DisconnectAt - DateTime.Now).TotalSeconds) + " seconds. Press cancel to remain connected.";
+                            return string.Format(InProgressMsg, (int)((DisconnectAt - DateTime.Now).TotalSeconds)); //InProgressMsg + " in " + (int) ((DisconnectAt - DateTime.Now).TotalSeconds) + " seconds. Press cancel to remain connected.";
                         else if (Status == CompletionCode.FinishedSuccess)
                             return ConnectionEndMessage;
                         else
@@ -1789,10 +1790,11 @@ namespace WinSIP2E
             private DateTime CreatedAt = DateTime.Now;
             
             /// <summary>
-            /// The message that is displayed while waiting for the timeout. Default value:
-            /// "WinSIP has been idle for several minutes. The connection will be terminated"
+            /// The message that is displayed while waiting for the timeout. It must contain the
+            /// substring "{0}" where the remaining seconds should appear. Default value:
+            /// "WinSIP has been idle for several minutes. The connection will be terminated in {0} seconds. Press cancel to remain connected."
             /// </summary>
-            public string InProgressMsg = "WinSIP has been idle for several minutes. The connection will be terminated";
+            public string InProgressMsg = "WinSIP has been idle for several minutes. The connection will be terminated in {0} seconds. Press cancel to remain connected.";
 
             /// <summary>
             /// The message that is displayed when the connection has timed out. Default value:
@@ -1800,7 +1802,11 @@ namespace WinSIP2E
             /// </summary>
             public string ConnectionEndMessage = "WinSIP has timed out. The connection to the server has ended.";
 
-            private ClientContext ContextToDisconnect;
+            /// <summary>
+            /// The function to call when the timeout event occurs
+            /// </summary>
+            private VoidDel TimedOutFunction;
+            //private ClientContext ContextToDisconnect;
             #endregion
 
             #region API
@@ -1834,13 +1840,13 @@ namespace WinSIP2E
             /// <param name="handler">The active command handler object.</param>
             /// <param name="fileName">The name of the script file to send.</param>                        
             /// <exception cref="System.ArgumentNullException">Thrown when any argument other then LogTS is null</exception>            
-            public IdleTimeout(DateTime disconnectAt, ClientContext connectionToEnd, TraceSource LogTS = null)
+            public IdleTimeout(DateTime disconnectAt, VoidDel timedOutFunction, TraceSource LogTS = null)
             {
-                if ( (disconnectAt == null) || (connectionToEnd == null) )
+                if ((disconnectAt == null) || (timedOutFunction == null))
                     throw new ArgumentNullException();
 
                 this.DisconnectAt = disconnectAt;
-                this.ContextToDisconnect = connectionToEnd;                
+                this.TimedOutFunction = timedOutFunction;                
 
                 if (LogTS != null)
                     this.LogTS = LogTS;
@@ -1864,8 +1870,8 @@ namespace WinSIP2E
                         Thread.Sleep(100);
                     }
 
-                    //time's up and no cancel -- so let's take down the connection:
-                    ContextToDisconnect.Close();
+                    //time's up and no cancel -- so let's call the timeout function
+                    TimedOutFunction();
 
                     //Mark completed
                     _Status = CompletionCode.FinishedSuccess;
@@ -1873,7 +1879,7 @@ namespace WinSIP2E
                 }
                 catch (OperationCanceledException)
                 {
-                    _StatusErrorMessage = "User canceled sending the disconnect.";
+                    _StatusErrorMessage = "User canceled sending the disconnect."; //this message won't appear because the dialog box will close
                     _Status = CompletionCode.UserCancelFinish;
                     LogMsg(TraceEventType.Verbose, _StatusErrorMessage);
                 }

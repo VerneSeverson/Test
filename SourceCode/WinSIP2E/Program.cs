@@ -24,7 +24,7 @@ namespace WinSIP2E
         public const int GlobalLogID = 0;
 
         /// <summary>
-        /// Time between pings sent to a default STX ETX connection
+        /// Time in seconds between pings sent to a default STX ETX connection
         /// </summary>
         public const int ConnectionPingTime = 30;
 
@@ -44,7 +44,7 @@ namespace WinSIP2E
         /// <summary>
         /// Default value of IdleTimeout
         /// </summary>
-        public const int IdleTimeoutDefault = 5; //60 * 5;
+        public const int IdleTimeoutDefault = 60 * 5;
 
 
         /// <summary>
@@ -94,6 +94,7 @@ namespace WinSIP2E
             return (int) ((idleTime > 0) ? (idleTime / 1000) : 0);
         }
         #endregion
+        
 
         /// <summary>
         /// The main entry point for the application.

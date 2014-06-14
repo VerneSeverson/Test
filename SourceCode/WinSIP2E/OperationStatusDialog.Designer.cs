@@ -44,6 +44,7 @@
             // 
             // cmdOKCancel
             // 
+            this.cmdOKCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
             this.cmdOKCancel.Location = new System.Drawing.Point(175, 208);
             this.cmdOKCancel.Name = "cmdOKCancel";
             this.cmdOKCancel.Size = new System.Drawing.Size(100, 23);
@@ -78,6 +79,7 @@
             this.Controls.Add(this.prgProgressBar);
             this.Name = "OperationStatusDialog";
             this.Text = "OperationStatusDialog";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.OperationStatusDialog_FormClosing);
             this.Load += new System.EventHandler(this.OperationStatusDialog_Load);
             this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.OperationStatusDialog_KeyDown);
             this.ResumeLayout(false);

@@ -537,14 +537,14 @@ namespace WinSIP2E
                 {
                     if ((Program.GetLastInputTime() > Program.IdleTimeout) && (activeConnection != null))
                     {
-                        IdleTimeout timeout = new IdleTimeout(DateTime.Now + TimeSpan.FromSeconds(30), activeConnection.ProtocolHandler.CommContext, Program.WinSIP_TS);
+                        IdleTimeout timeout = new IdleTimeout(DateTime.Now + TimeSpan.FromSeconds(30), this.LogoutOfServer, Program.WinSIP_TS);
                         OperationStatusDialog dlg = new OperationStatusDialog();
                         dlg.operation = timeout;
                         dlg.ShowDialog();
 
                         //connection was closed:
-                        if (timeout.Status != Operation.CompletionCode.UserCancelFinish)
-                            LogoutOfServer();
+                        //if (timeout.Status != Operation.CompletionCode.UserCancelFinish)
+                        //    LogoutOfServer();
                     }
                 }
                 finally
@@ -577,15 +577,6 @@ namespace WinSIP2E
         private void tmrStatus_Tick(object sender, EventArgs e)
         {
             CheckUI_Timeout();
-            /*if (activeConnection != null)
-            {
-                //TimeSpan IdleTime = DateTime.Now - activeConnection.ProtocolHandler.LastSent;
-                //if ((IdleTime.TotalSeconds > Program.ConnectionIdleTimeout) && (Program.ConnectionIdleTimeout > 0))
-                //{
-                //
-                //}
-                
-            }*/
         }
 
         

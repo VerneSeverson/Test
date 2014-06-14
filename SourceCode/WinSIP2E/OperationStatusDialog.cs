@@ -84,5 +84,15 @@ namespace WinSIP2E
         private void OperationStatusDialog_KeyDown(object sender, KeyEventArgs e)
         {            
         }
+
+        private void OperationStatusDialog_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            //validate that the form can close:
+            if ((operation.Status != Operation.CompletionCode.FinishedSuccess)
+                && (operation.Status != Operation.CompletionCode.UserCancelFinish)
+                && (operation.Status != Operation.CompletionCode.FinishedError))
+                e.Cancel = true;
+            
+        }
     }
 }
