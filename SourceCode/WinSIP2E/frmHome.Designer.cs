@@ -28,9 +28,10 @@
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(frmHome));
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle9 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle10 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle3 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle4 = new System.Windows.Forms.DataGridViewCellStyle();
             this.txtPassword = new System.Windows.Forms.TextBox();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
@@ -46,14 +47,12 @@
             this.lblgbNAC_Inst1 = new System.Windows.Forms.Label();
             this.lblgbNAC_Inst2 = new System.Windows.Forms.Label();
             this.btnConnect = new System.Windows.Forms.Button();
-            this.txtID = new System.Windows.Forms.TextBox();
             this.gbLogin = new System.Windows.Forms.GroupBox();
             this.cmdSettings = new System.Windows.Forms.Button();
             this.label167 = new System.Windows.Forms.Label();
             this.lblgbLoginInst1 = new System.Windows.Forms.Label();
             this.lblgbLoginInst2 = new System.Windows.Forms.Label();
             this.cmdLogIn = new System.Windows.Forms.Button();
-            this.txtUsername = new System.Windows.Forms.TextBox();
             this.tabMainServers_Old = new System.Windows.Forms.TabPage();
             this.groupBox10 = new System.Windows.Forms.GroupBox();
             this.numericUpDown1 = new System.Windows.Forms.NumericUpDown();
@@ -556,6 +555,9 @@
             this.lblNAC_or2 = new System.Windows.Forms.Label();
             this.cmdDisconnect = new System.Windows.Forms.Button();
             this.cmdLogOut = new System.Windows.Forms.Button();
+            this.txtID = new System.Windows.Forms.TextBox();
+            this.txtUsername = new System.Windows.Forms.TextBox();
+            this.tmrStatus = new System.Windows.Forms.Timer(this.components);
             this.tabControl_Main.SuspendLayout();
             this.tabMainConnect.SuspendLayout();
             this.groupBox3.SuspendLayout();
@@ -814,16 +816,6 @@
             this.btnConnect.UseVisualStyleBackColor = true;
             this.btnConnect.Click += new System.EventHandler(this.btnConnect_Click);
             // 
-            // txtID
-            // 
-            this.txtID.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::WinSIP2E.Properties.Settings.Default, "UnitID", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
-            this.txtID.Location = new System.Drawing.Point(120, 64);
-            this.txtID.Name = "txtID";
-            this.txtID.Size = new System.Drawing.Size(158, 20);
-            this.txtID.TabIndex = 2;
-            this.txtID.Text = global::WinSIP2E.Properties.Settings.Default.UnitID;
-            this.txtID.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.txtID_KeyPress);
-            // 
             // gbLogin
             // 
             this.gbLogin.Controls.Add(this.cmdSettings);
@@ -894,16 +886,6 @@
             this.cmdLogIn.Text = "Log in";
             this.cmdLogIn.UseVisualStyleBackColor = true;
             this.cmdLogIn.Click += new System.EventHandler(this.cmdLogIn_click);
-            // 
-            // txtUsername
-            // 
-            this.txtUsername.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::WinSIP2E.Properties.Settings.Default, "UserName", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
-            this.txtUsername.Location = new System.Drawing.Point(96, 16);
-            this.txtUsername.Name = "txtUsername";
-            this.txtUsername.Size = new System.Drawing.Size(180, 20);
-            this.txtUsername.TabIndex = 0;
-            this.txtUsername.Text = global::WinSIP2E.Properties.Settings.Default.UserName;
-            this.txtUsername.TextChanged += new System.EventHandler(this.txtUsername_TextChanged);
             // 
             // tabMainServers_Old
             // 
@@ -4698,25 +4680,25 @@
             // dataGridView1
             // 
             this.dataGridView1.AllowUserToAddRows = false;
-            dataGridViewCellStyle9.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle9.BackColor = System.Drawing.SystemColors.Control;
-            dataGridViewCellStyle9.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle9.ForeColor = System.Drawing.SystemColors.WindowText;
-            dataGridViewCellStyle9.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle9.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle9.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
-            this.dataGridView1.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle9;
+            dataGridViewCellStyle3.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle3.BackColor = System.Drawing.SystemColors.Control;
+            dataGridViewCellStyle3.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            dataGridViewCellStyle3.ForeColor = System.Drawing.SystemColors.WindowText;
+            dataGridViewCellStyle3.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle3.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle3.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
+            this.dataGridView1.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle3;
             this.dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.dataGridView1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
             this.dataGridViewTextBoxColumn1});
-            dataGridViewCellStyle10.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle10.BackColor = System.Drawing.SystemColors.Window;
-            dataGridViewCellStyle10.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle10.ForeColor = System.Drawing.SystemColors.ControlText;
-            dataGridViewCellStyle10.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle10.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle10.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
-            this.dataGridView1.DefaultCellStyle = dataGridViewCellStyle10;
+            dataGridViewCellStyle4.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle4.BackColor = System.Drawing.SystemColors.Window;
+            dataGridViewCellStyle4.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            dataGridViewCellStyle4.ForeColor = System.Drawing.SystemColors.ControlText;
+            dataGridViewCellStyle4.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle4.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle4.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
+            this.dataGridView1.DefaultCellStyle = dataGridViewCellStyle4;
             this.dataGridView1.Location = new System.Drawing.Point(15, 42);
             this.dataGridView1.Name = "dataGridView1";
             this.dataGridView1.Size = new System.Drawing.Size(511, 233);
@@ -5823,6 +5805,32 @@
             this.cmdLogOut.UseVisualStyleBackColor = true;
             this.cmdLogOut.Click += new System.EventHandler(this.cmdLogOut_Click);
             // 
+            // txtID
+            // 
+            this.txtID.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::WinSIP2E.Properties.Settings.Default, "UnitID", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
+            this.txtID.Location = new System.Drawing.Point(120, 64);
+            this.txtID.Name = "txtID";
+            this.txtID.Size = new System.Drawing.Size(158, 20);
+            this.txtID.TabIndex = 2;
+            this.txtID.Text = global::WinSIP2E.Properties.Settings.Default.UnitID;
+            this.txtID.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.txtID_KeyPress);
+            // 
+            // txtUsername
+            // 
+            this.txtUsername.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::WinSIP2E.Properties.Settings.Default, "UserName", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
+            this.txtUsername.Location = new System.Drawing.Point(96, 16);
+            this.txtUsername.Name = "txtUsername";
+            this.txtUsername.Size = new System.Drawing.Size(180, 20);
+            this.txtUsername.TabIndex = 0;
+            this.txtUsername.Text = global::WinSIP2E.Properties.Settings.Default.UserName;
+            this.txtUsername.TextChanged += new System.EventHandler(this.txtUsername_TextChanged);
+            // 
+            // tmrStatus
+            // 
+            this.tmrStatus.Enabled = true;
+            this.tmrStatus.Interval = 500;
+            this.tmrStatus.Tick += new System.EventHandler(this.tmrStatus_Tick);
+            // 
             // frmHome
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -6513,6 +6521,7 @@
         private System.Windows.Forms.Button cmdSettings;
         private System.Windows.Forms.Button cmdConsole;
         private System.Windows.Forms.Button cmdManual;
+        private System.Windows.Forms.Timer tmrStatus;
     }
 }
 

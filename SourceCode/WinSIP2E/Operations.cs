@@ -2,6 +2,7 @@
 using ForwardLibrary.Communications.CommandHandlers;
 using ForwardLibrary.Communications.STXETX;
 using ForwardLibrary.Crypto;
+using ForwardLibrary.Default;
 using ForwardLibrary.WinSIPserver;
 using System;
 using System.Collections.Generic;
@@ -1424,6 +1425,7 @@ namespace WinSIP2E
             {
                 StartDel caller = this.DoTheWork;
                 caller.BeginInvoke(delegate(IAsyncResult arr) { caller.EndInvoke(arr); }, null);
+                _Status = CompletionCode.InProgress;
             }
 
             /// <summary>
@@ -1510,7 +1512,7 @@ namespace WinSIP2E
                 try
                 {
                     string tempStr;
-
+                    
                     //0. Empty receive buffer
                     while (Handler.ReceiveData(out tempStr, 100))
                         ;
@@ -1552,7 +1554,7 @@ namespace WinSIP2E
                     _Status = CompletionCode.FinishedSuccess;
 
                 }
-                catch (OperationCanceledException ex)
+                catch (OperationCanceledException)
                 {
                     _StatusErrorMessage = "User canceled sending the script file.";
                     _Status = CompletionCode.UserCancelFinish;
@@ -1706,6 +1708,195 @@ namespace WinSIP2E
             }
             
             #endregion
+        }
+
+        public class IdleTimeout : Operation
+        {
+            #region Properties
+            /// <summary>
+            /// Recommended interval to check Status in
+            /// milliseconds
+            /// </summary>
+            public override int RefreshInterval { get { return 100; } }
+
+            /// <summary>
+            /// Whether or not the operation can be canceled
+            /// </summary>
+            public override bool AllowCancel { get { return true; } }
+
+            /// <summary>
+            /// If this is set to true, it is requested that the user acknowledge
+            /// the final status message. (i.e. OperationStatusDialog should 
+            /// make the user press OK to close the dialog box)
+            /// </summary>
+            public override bool RequireUserOK
+            {
+                get {
+                    if (Status == CompletionCode.UserCancelFinish)
+                        return false;
+                    else
+                        return true; 
+                }
+            }
+
+            private string _StatusErrorMessage = null;
+            public override string StatusMessage
+            {
+                get
+                {
+                    if (_StatusErrorMessage == null)
+                    {
+                        if (Status == CompletionCode.InProgress)
+                            return string.Format(InProgressMsg, (int)((DisconnectAt - DateTime.Now).TotalSeconds)); //InProgressMsg + " in " + (int) ((DisconnectAt - DateTime.Now).TotalSeconds) + " seconds. Press cancel to remain connected.";
+                        else if (Status == CompletionCode.FinishedSuccess)
+                            return ConnectionEndMessage;
+                        else
+                            return "";
+                    }
+                    else
+                        return _StatusErrorMessage;
+                }
+            }
+
+            public override string SubjectLine
+            {
+                get { return "Idle Timeout"; }
+            }
+
+
+            private CompletionCode _Status = CompletionCode.NotStarted;
+            public override CompletionCode Status
+            {
+                get { return _Status; }
+            }
+
+            public override int StatusPercent
+            {
+                get
+                {
+                    if (DateTime.Compare(DateTime.Now, DisconnectAt) > 0)
+                        return 100;
+                    else
+                    {
+                        TimeSpan TotalTime = DisconnectAt - CreatedAt;
+                        TimeSpan RemainingTime = DisconnectAt - DateTime.Now;
+                        return ((int)(RemainingTime.TotalSeconds * 100 / (TotalTime.TotalSeconds)));
+                    }
+                }
+            }
+
+            
+            private DateTime DisconnectAt;
+            private DateTime CreatedAt = DateTime.Now;
+            
+            /// <summary>
+            /// The message that is displayed while waiting for the timeout. It must contain the
+            /// substring "{0}" where the remaining seconds should appear. Default value:
+            /// "WinSIP has been idle for several minutes. The connection will be terminated in {0} seconds. Press cancel to remain connected."
+            /// </summary>
+            public string InProgressMsg = "WinSIP has been idle for several minutes. The connection will be terminated in {0} seconds. Press cancel to remain connected.";
+
+            /// <summary>
+            /// The message that is displayed when the connection has timed out. Default value:
+            /// "WinSIP has timed out. The connection to the server has ended."
+            /// </summary>
+            public string ConnectionEndMessage = "WinSIP has timed out. The connection to the server has ended.";
+
+            /// <summary>
+            /// The function to call when the timeout event occurs
+            /// </summary>
+            private VoidDel TimedOutFunction;
+            //private ClientContext ContextToDisconnect;
+            #endregion
+
+            #region API
+            /// <summary>
+            /// Function to start the operation
+            /// Will throw InvalidOperation exception if Status != NotStarted
+            /// </summary>
+            public override void Start()
+            {
+                StartDel caller = this.DoTheWork;
+                caller.BeginInvoke(delegate(IAsyncResult arr) { caller.EndInvoke(arr); }, null);
+                _Status = CompletionCode.InProgress;
+            }
+
+            /// <summary>
+            /// Function to cancel the operation
+            /// Will throw InvalidOperation exception if Status != InProgress
+            /// OR if AllowCancel == false
+            /// </summary>
+            public override void Cancel()
+            {
+                _Status = CompletionCode.UserCancelReq;
+            }
+            #endregion
+
+            #region constructors
+            /// <summary>
+            /// Possible exceptions:
+            /// ArgumentNullException
+            /// </summary>
+            /// <param name="handler">The active command handler object.</param>
+            /// <param name="fileName">The name of the script file to send.</param>                        
+            /// <exception cref="System.ArgumentNullException">Thrown when any argument other then LogTS is null</exception>            
+            public IdleTimeout(DateTime disconnectAt, VoidDel timedOutFunction, TraceSource LogTS = null)
+            {
+                if ((disconnectAt == null) || (timedOutFunction == null))
+                    throw new ArgumentNullException();
+
+                this.DisconnectAt = disconnectAt;
+                this.TimedOutFunction = timedOutFunction;                
+
+                if (LogTS != null)
+                    this.LogTS = LogTS;
+                else
+                    this.LogTS = new TraceSource("DummyTS");
+            }
+
+            #endregion
+
+
+            #region main working functions            
+            private void DoTheWork()
+            {
+
+                try
+                {                    
+
+                    while (DateTime.Compare(DateTime.Now, DisconnectAt) < 0)
+                    {
+                        CheckUserCancel();
+                        Thread.Sleep(100);
+                    }
+
+                    //time's up and no cancel -- so let's call the timeout function
+                    TimedOutFunction();
+
+                    //Mark completed
+                    _Status = CompletionCode.FinishedSuccess;
+
+                }
+                catch (OperationCanceledException)
+                {
+                    _StatusErrorMessage = "User canceled sending the disconnect."; //this message won't appear because the dialog box will close
+                    _Status = CompletionCode.UserCancelFinish;
+                    LogMsg(TraceEventType.Verbose, _StatusErrorMessage);
+                }
+                catch (Exception ex)
+                {
+                    _StatusErrorMessage = "Unexpected exception occured: " + ex.Message;
+                    _Status = CompletionCode.FinishedError;
+                    LogMsg(TraceEventType.Warning, ex.ToString());
+                }
+            }
+            #endregion
+
+            private void CheckUserCancel()
+            {
+                if (Status == CompletionCode.UserCancelReq)
+                    throw new OperationCanceledException("User canceled the operation");
+            }
         }
     }
 

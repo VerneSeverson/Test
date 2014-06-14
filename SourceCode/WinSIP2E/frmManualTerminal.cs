@@ -99,12 +99,15 @@ namespace WinSIP2E
             
                 //3. create the connection with security settings based on the port
                 if (rbActiveConnection.Checked == false)
-                    connection = CreateConnObject(serverAddr, serverName, connectionPort, msgs);                        
-            
+                {
+                    connection = CreateConnObject(serverAddr, serverName, connectionPort, msgs);
+                    //3a. setup periodic pinging
+                    connection.PeriodicPing(true, TimeSpan.FromSeconds(Program.ConnectionPingTime));
+                }
 
                 //4. setup the listener so it only grabs messages related to this connection
                 thisListener.FilterByEventID(connection.CommContext.ConnectionID);
-            
+                            
                 //5. manage the form settings for a new connection
                 UpdateFormConnection(true, serverAddr);
             }
@@ -240,6 +243,12 @@ namespace WinSIP2E
 
         private void Disconnect()
         {
+            if (InvokeRequired)
+            {
+                this.BeginInvoke(new Action(() => Disconnect()));
+                return;
+            }
+
             gbConnection.Enabled = true;
             txtTerminal.ReadOnly = true;
             //disconnect
@@ -257,7 +266,7 @@ namespace WinSIP2E
             this.Text = "Manual Mode - Disconnected";
             cmdConnect.Text = "Connect";
             tmrKeepAlive.Enabled = false;
-
+            CheckHomeConnection();
             try
             {
                 if (thisListener != null)
@@ -515,18 +524,35 @@ namespace WinSIP2E
 
         #endregion
 
+        /// <summary>
+        /// Call this function when disconnected to check if the home screen's 
+        /// communication context is connected. If it is, provide the user
+        /// an option to connect using this and optionally automatically 
+        /// establish the connection.
+        /// </summary>
+        /// <param name="ConnectIfAvailable">whether or not to start connecting via the home screen's communication context</param>
+        private void CheckHomeConnection (bool ConnectIfAvailable = false)
+        {
+            if ((homeConnection != null) && (homeConnection.CommContext.bConnected))
+            {
+                rbActiveConnection.Enabled = true;
+                rbActiveConnection.Checked = true;
+                if (ConnectIfAvailable)
+                    Connect();
+            }
+            else
+            {
+                rbActiveConnection.Enabled = false;
+                if (rbActiveConnection.Checked)
+                    rbDefaultConnection.Checked = true;
+            }
+        }
+
         private void frmManualTerminal_Load(object sender, EventArgs e)
         {            
             this.Text = "Manual Mode - Disconnected";
-
-            if ((homeConnection != null) && ( homeConnection.CommContext.bConnected))
-            {
-                rbActiveConnection.Enabled = true; 
-                rbActiveConnection.Checked = true;
-                Connect();
-            }
-            else
-                rbActiveConnection.Enabled = false;
+            CheckHomeConnection(true);
+            
         }
 
         //LOG CLASS FOR MANUAL MODE
@@ -588,19 +614,42 @@ namespace WinSIP2E
                 CommandAccumulated(accumCMD + data_read);
                 accumCMD = "";
                 txtTerminal.Text += data_read + "\r\n";
-                txtTerminal.Select(txtTerminal.Text.Length, 0); //txtTerminal.SelectionStart = txtTerminal.Text.Length;
+                txtTerminal.Select(txtTerminal.Text.Length, 0); 
             }
         }
 
         private void tmrKeepAlive_Tick(object sender, EventArgs e)
         {
-            TimeSpan sinceLastMsg = DateTime.Now - lastMsg;
-            if (sinceLastMsg.TotalSeconds > 45)
-                CommandAccumulated("");
+            //only do idle disconnects if not using the 
+            if ((connection != null) && (connection.CommContext.bConnected) && !rbActiveConnection.Checked)                
+                CheckManual_Timeout();       
+            
+        }
 
+
+        bool bCheckingIdle = false; 
+        private void CheckManual_Timeout()
+        {
             TimeSpan sinceLastUserMsg = DateTime.Now - lastUserMsg;
-            if (sinceLastUserMsg.TotalSeconds > 300)
-                Disconnect();       //should probably have a text box that gives the user an option to stay connected.
+            if (!bCheckingIdle) //the timer will keep re-entring this if we don't protect it
+            {                
+                try
+                {
+                    bCheckingIdle = true;
+                    if ((sinceLastUserMsg.TotalSeconds > Program.IdleTimeout) && (connection != null))
+                    {
+                        IdleTimeout timeout = new IdleTimeout(DateTime.Now + TimeSpan.FromSeconds(30), this.Disconnect, Program.WinSIP_TS);
+                        timeout.InProgressMsg = "The manual terminal has been idle for several minutes. The connection will be terminated in {0} seconds. Press cancel to remain connected.";
+                        OperationStatusDialog dlg = new OperationStatusDialog();
+                        dlg.operation = timeout;
+                        dlg.ShowDialog();
+                    }
+                }
+                finally
+                {
+                    bCheckingIdle = false;
+                }
+            }
         }
 
         private void txtTerminal_TextChanged(object sender, EventArgs e)
@@ -618,6 +667,12 @@ namespace WinSIP2E
                     Program.WinSIP_TS.Switch.Level = oldSourceLevel;
                     thisListener = null;
                 }
+            }
+            catch { }
+
+            try
+            {
+                Disconnect();
             }
             catch { }
         }

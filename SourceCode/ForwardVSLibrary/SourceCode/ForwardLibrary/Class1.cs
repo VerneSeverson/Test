@@ -194,6 +194,10 @@ namespace ForwardLibrary
             }
 
         }
+
+
+        //It is handy to have a void delegate type defined:
+        public delegate void VoidDel();
     }
     public class Class1
     {
