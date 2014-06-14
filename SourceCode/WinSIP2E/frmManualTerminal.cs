@@ -682,7 +682,10 @@ namespace WinSIP2E
             LoadAndSendScriptFile();
         }
 
-        private void LoadAndSendScriptFile()
+        /// <summary>
+        /// Call this function to send a script out of the manual window
+        /// </summary>
+        public void LoadAndSendScriptFile()
         {            
             SendScriptFile sendScript = new SendScriptFile(connection, Program.WinSIP_TS);
             sendScript.LogID = connection.CommContext.ConnectionID;

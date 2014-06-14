@@ -470,7 +470,9 @@ namespace WinSIP2E
                 this.BeginInvoke(new Action(() => UpdateUI_ServerLoginChange(connected)));
                 return;
             }
-            gbLogin.Enabled = !connected;            
+            //update the various group boxes:
+            gbLogin.Enabled = !connected;    
+        
             cmdLogOut.Enabled = connected;
             lblServerConnected.Visible = connected;
             lblServerNotConnected.Visible = !connected;
@@ -484,7 +486,10 @@ namespace WinSIP2E
         /// <param name="connected"></param>
         private void UpdateUI_PassthroughConnectChange(bool connected)
         {
+            //update the various group boxes:
             gbNAC.Enabled = !connected;
+            gbNACsettingsFiles.Enabled = connected;
+
             cmdDisconnect.Enabled = connected;
 
             lblNAC_OK.Visible = connected;
@@ -577,6 +582,36 @@ namespace WinSIP2E
         private void tmrStatus_Tick(object sender, EventArgs e)
         {
             CheckUI_Timeout();
+        }
+
+        private void cmdSendScript_Click(object sender, EventArgs e)
+        {
+            frmManualTerminal frm = new frmManualTerminal();
+            try
+            {
+                //frmManualTerminal                 
+                try
+                {
+                    if (activeConnection.ProtocolHandler.CommContext.bConnected)
+                        frm.homeConnection = activeConnection.ProtocolHandler;
+                }
+                catch { }
+                frm.Show(this);
+                frm.LoadAndSendScriptFile();                
+
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Caught an unexpected exception: " + ex);
+            }
+            finally
+            {
+                try { frm.Close(); }
+                catch { }
+            }
         }
 
         

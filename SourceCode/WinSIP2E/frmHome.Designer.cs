@@ -30,8 +30,8 @@
         {
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(frmHome));
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle3 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle4 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
             this.txtPassword = new System.Windows.Forms.TextBox();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
@@ -505,8 +505,8 @@
             this.tabMainTools = new System.Windows.Forms.TabPage();
             this.tabTools_Files = new System.Windows.Forms.TabControl();
             this.tabToolsFiles = new System.Windows.Forms.TabPage();
-            this.groupBox45 = new System.Windows.Forms.GroupBox();
-            this.button25 = new System.Windows.Forms.Button();
+            this.gbNACsettingsFiles = new System.Windows.Forms.GroupBox();
+            this.cmdSendScript = new System.Windows.Forms.Button();
             this.button29 = new System.Windows.Forms.Button();
             this.button30 = new System.Windows.Forms.Button();
             this.groupBox44 = new System.Windows.Forms.GroupBox();
@@ -555,9 +555,9 @@
             this.lblNAC_or2 = new System.Windows.Forms.Label();
             this.cmdDisconnect = new System.Windows.Forms.Button();
             this.cmdLogOut = new System.Windows.Forms.Button();
+            this.tmrStatus = new System.Windows.Forms.Timer(this.components);
             this.txtID = new System.Windows.Forms.TextBox();
             this.txtUsername = new System.Windows.Forms.TextBox();
-            this.tmrStatus = new System.Windows.Forms.Timer(this.components);
             this.tabControl_Main.SuspendLayout();
             this.tabMainConnect.SuspendLayout();
             this.groupBox3.SuspendLayout();
@@ -637,7 +637,7 @@
             this.tabMainTools.SuspendLayout();
             this.tabTools_Files.SuspendLayout();
             this.tabToolsFiles.SuspendLayout();
-            this.groupBox45.SuspendLayout();
+            this.gbNACsettingsFiles.SuspendLayout();
             this.groupBox44.SuspendLayout();
             this.tabToolsUtilities.SuspendLayout();
             this.groupBox47.SuspendLayout();
@@ -4680,25 +4680,25 @@
             // dataGridView1
             // 
             this.dataGridView1.AllowUserToAddRows = false;
-            dataGridViewCellStyle3.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle3.BackColor = System.Drawing.SystemColors.Control;
-            dataGridViewCellStyle3.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle3.ForeColor = System.Drawing.SystemColors.WindowText;
-            dataGridViewCellStyle3.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle3.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle3.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
-            this.dataGridView1.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle3;
+            dataGridViewCellStyle1.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle1.BackColor = System.Drawing.SystemColors.Control;
+            dataGridViewCellStyle1.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            dataGridViewCellStyle1.ForeColor = System.Drawing.SystemColors.WindowText;
+            dataGridViewCellStyle1.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle1.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle1.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
+            this.dataGridView1.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle1;
             this.dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.dataGridView1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
             this.dataGridViewTextBoxColumn1});
-            dataGridViewCellStyle4.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle4.BackColor = System.Drawing.SystemColors.Window;
-            dataGridViewCellStyle4.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle4.ForeColor = System.Drawing.SystemColors.ControlText;
-            dataGridViewCellStyle4.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle4.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle4.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
-            this.dataGridView1.DefaultCellStyle = dataGridViewCellStyle4;
+            dataGridViewCellStyle2.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle2.BackColor = System.Drawing.SystemColors.Window;
+            dataGridViewCellStyle2.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            dataGridViewCellStyle2.ForeColor = System.Drawing.SystemColors.ControlText;
+            dataGridViewCellStyle2.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle2.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle2.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
+            this.dataGridView1.DefaultCellStyle = dataGridViewCellStyle2;
             this.dataGridView1.Location = new System.Drawing.Point(15, 42);
             this.dataGridView1.Name = "dataGridView1";
             this.dataGridView1.Size = new System.Drawing.Size(511, 233);
@@ -5308,7 +5308,7 @@
             // tabToolsFiles
             // 
             this.tabToolsFiles.BackColor = System.Drawing.SystemColors.Control;
-            this.tabToolsFiles.Controls.Add(this.groupBox45);
+            this.tabToolsFiles.Controls.Add(this.gbNACsettingsFiles);
             this.tabToolsFiles.Controls.Add(this.groupBox44);
             this.tabToolsFiles.Location = new System.Drawing.Point(4, 22);
             this.tabToolsFiles.Name = "tabToolsFiles";
@@ -5317,26 +5317,27 @@
             this.tabToolsFiles.TabIndex = 0;
             this.tabToolsFiles.Text = "Files";
             // 
-            // groupBox45
+            // gbNACsettingsFiles
             // 
-            this.groupBox45.Controls.Add(this.button25);
-            this.groupBox45.Controls.Add(this.button29);
-            this.groupBox45.Controls.Add(this.button30);
-            this.groupBox45.Location = new System.Drawing.Point(27, 141);
-            this.groupBox45.Name = "groupBox45";
-            this.groupBox45.Size = new System.Drawing.Size(223, 168);
-            this.groupBox45.TabIndex = 9;
-            this.groupBox45.TabStop = false;
-            this.groupBox45.Text = "NAC Settings Files";
+            this.gbNACsettingsFiles.Controls.Add(this.cmdSendScript);
+            this.gbNACsettingsFiles.Controls.Add(this.button29);
+            this.gbNACsettingsFiles.Controls.Add(this.button30);
+            this.gbNACsettingsFiles.Location = new System.Drawing.Point(27, 141);
+            this.gbNACsettingsFiles.Name = "gbNACsettingsFiles";
+            this.gbNACsettingsFiles.Size = new System.Drawing.Size(223, 168);
+            this.gbNACsettingsFiles.TabIndex = 9;
+            this.gbNACsettingsFiles.TabStop = false;
+            this.gbNACsettingsFiles.Text = "NAC Settings Files";
             // 
-            // button25
+            // cmdSendScript
             // 
-            this.button25.Location = new System.Drawing.Point(19, 37);
-            this.button25.Name = "button25";
-            this.button25.Size = new System.Drawing.Size(119, 25);
-            this.button25.TabIndex = 1;
-            this.button25.Text = "Send Script File";
-            this.button25.UseVisualStyleBackColor = true;
+            this.cmdSendScript.Location = new System.Drawing.Point(19, 37);
+            this.cmdSendScript.Name = "cmdSendScript";
+            this.cmdSendScript.Size = new System.Drawing.Size(119, 25);
+            this.cmdSendScript.TabIndex = 1;
+            this.cmdSendScript.Text = "Send Script File";
+            this.cmdSendScript.UseVisualStyleBackColor = true;
+            this.cmdSendScript.Click += new System.EventHandler(this.cmdSendScript_Click);
             // 
             // button29
             // 
@@ -5805,6 +5806,12 @@
             this.cmdLogOut.UseVisualStyleBackColor = true;
             this.cmdLogOut.Click += new System.EventHandler(this.cmdLogOut_Click);
             // 
+            // tmrStatus
+            // 
+            this.tmrStatus.Enabled = true;
+            this.tmrStatus.Interval = 500;
+            this.tmrStatus.Tick += new System.EventHandler(this.tmrStatus_Tick);
+            // 
             // txtID
             // 
             this.txtID.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::WinSIP2E.Properties.Settings.Default, "UnitID", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
@@ -5824,12 +5831,6 @@
             this.txtUsername.TabIndex = 0;
             this.txtUsername.Text = global::WinSIP2E.Properties.Settings.Default.UserName;
             this.txtUsername.TextChanged += new System.EventHandler(this.txtUsername_TextChanged);
-            // 
-            // tmrStatus
-            // 
-            this.tmrStatus.Enabled = true;
-            this.tmrStatus.Interval = 500;
-            this.tmrStatus.Tick += new System.EventHandler(this.tmrStatus_Tick);
             // 
             // frmHome
             // 
@@ -5977,7 +5978,7 @@
             this.tabMainTools.ResumeLayout(false);
             this.tabTools_Files.ResumeLayout(false);
             this.tabToolsFiles.ResumeLayout(false);
-            this.groupBox45.ResumeLayout(false);
+            this.gbNACsettingsFiles.ResumeLayout(false);
             this.groupBox44.ResumeLayout(false);
             this.tabToolsUtilities.ResumeLayout(false);
             this.groupBox47.ResumeLayout(false);
@@ -6505,8 +6506,8 @@
         private System.Windows.Forms.Label label157;
         private System.Windows.Forms.Label label166;
         private System.Windows.Forms.Label label167;
-        private System.Windows.Forms.GroupBox groupBox45;
-        private System.Windows.Forms.Button button25;
+        private System.Windows.Forms.GroupBox gbNACsettingsFiles;
+        private System.Windows.Forms.Button cmdSendScript;
         private System.Windows.Forms.Button button29;
         private System.Windows.Forms.Button button30;
         private System.Windows.Forms.GroupBox groupBox44;
