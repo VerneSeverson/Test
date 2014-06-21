@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -262,6 +263,273 @@ namespace ForwardLibrary
 
                 return address;
             }
+
+            /// <summary>
+            /// Get the binary datafield from a data record hex line
+            /// </summary>
+            /// <param name="hexLine"></param>
+            /// <returns></returns>
+            /// <exception cref="HexLineException">Thrown when the an error is encountered with parsing the hex line.</exception>
+            public static byte[] GetDataHexLineData(string hexLine)
+            {
+                byte[] data;
+                try
+                {
+                    hexLine = hexLine.Trim();
+                    if (GetHexLineType(hexLine) != HexRecordType.DataRecord)
+                        throw new HexLineException("Invalid record type. Expected a data record.", hexLine);
+
+                    string strdata = hexLine.Substring((int)FieldIndices.Data, DetermineHexLineDataLength(hexLine));
+                    data = new byte[strdata.Length / 2];
+                    for (int i = 0; i < strdata.Length / 2; i++)
+                        data[i] = Convert.ToByte(strdata.Substring(i * 2, 2), 16);
+                }
+                catch (HexLineException ex)
+                {
+                    throw ex;
+                }
+                catch (Exception ex)
+                {
+                    throw new HexLineException("Unable to parse the hex line.", hexLine, ex);
+                }
+                return data;
+            }
         }
+
+        public interface IFlashDevice
+        {
+            /// <summary>
+            /// The number of sectors that the device has
+            /// </summary>
+            int NumberOfSectors
+            {
+                get;
+            }            
+
+            /// <summary>
+            /// Returns the size (in bytes) of a flash sector
+            /// </summary>
+            /// <param name="sector">The zero-based sector of interest</param>
+            /// <returns>The size of the sector</returns>
+            /// <exception cref="System.ArgumentException">Thrown when an invalid sector is specified.</exception>
+            uint SectorSize(uint sector);
+
+            /// <summary>
+            /// Returns start address of a flash sector
+            /// </summary>
+            /// <param name="sector">The zero-based sector of interest</param>
+            /// <returns></returns>
+            /// <exception cref="System.ArgumentException">Thrown when an invalid sector is specified.</exception>
+            uint SectorAddress(uint sector);
+
+            /// <summary>
+            /// Returns which sector an address resides in
+            /// </summary>
+            /// <param name="address">The address of interest</param>
+            /// <returns></returns>
+            /// <exception cref="System.ArgumentException">Thrown when the address does not reside in any sector.</exception>
+            uint InSector(uint address);
+
+            /// <summary>
+            /// Returns the binary data for a sector
+            /// </summary>
+            /// <param name="sector"></param>
+            /// <returns></returns>
+            byte[] GetSectorData(uint sector);
+
+            /// <summary>
+            /// Loads a hex file into the flash object
+            /// </summary>
+            /// <param name="fileName">the name of the hex file to load</param>
+            void LoadHexFile(string fileName);
+
+            /// <summary>
+            /// Loads a hex file into the flash object
+            /// </summary>
+            /// <param name="hexFileLines">the lines of the hex file</param>
+            void LoadHexFile(IEnumerable<string> hexFileLines);
+        }
+
+        /// <summary>
+        /// This abstract class implements common functionality for flash devices
+        /// </summary>
+        public abstract class StandardFlash : IFlashDevice 
+        {
+            #region properties
+            protected uint[] SSize; /* = {   0x1000, 0x1000, 0x1000, 0x1000, 0x1000, 0x1000, 0x1000, 0x1000, 0x8000,
+                                                            0x8000,  0x8000,  0x8000,  0x8000,  0x8000,  0x8000,  0x8000, 0x8000, 
+                                                            0x8000,  0x8000,  0x8000,  0x8000,  0x8000,  0x1000,  0x1000, 0x1000, 
+                                                            0x1000, 0x1000, 0x1000 };*/
+            protected uint[] SAddress; /* = { 0x0, 0x1000, 0x2000, 0x3000, 0x4000, 0x5000, 0x6000, 0x7000, 0x8000, 
+                                                            0x10000, 0x18000, 0x20000, 0x28000, 0x30000, 0x38000, 0x40000, 0x48000, 
+                                                            0x50000, 0x58000, 0x60000, 0x68000, 0x70000, 0x78000, 0x79000, 0x7A000,
+                                                            0x7B000, 0x7C000, 0x7D000};*/
+            /// <summary>
+            /// The number of sectors that the device has
+            /// </summary>
+            public int NumberOfSectors
+            {
+                get { return SSize.Length; }
+            }
+
+            protected List<byte[]> BinarySectorData;
+
+            #endregion
+
+            /// <summary>
+            /// Returns the size (in bytes) of a flash sector
+            /// </summary>
+            /// <param name="sector">The zero-based sector of interest</param>
+            /// <returns>The size of the sector</returns>
+            /// <exception cref="System.ArgumentException">Thrown when an invalid sector is specified.</exception>
+            public uint SectorSize(uint sector)
+            {
+                if (sector >= NumberOfSectors)
+                    throw new ArgumentException("Information was requested for an invalid sector.", "sector");
+
+                return SSize[sector];
+            }
+
+            /// <summary>
+            /// Returns start address of a flash sector
+            /// </summary>
+            /// <param name="sector">The zero-based sector of interest</param>
+            /// <returns></returns>
+            /// <exception cref="System.ArgumentException">Thrown when an invalid sector is specified.</exception>
+            public uint SectorAddress(uint sector)
+            {
+                if (sector >= NumberOfSectors)
+                    throw new ArgumentException("Information was requested for an invalid sector.", "sector");
+                return SAddress[sector];
+            }
+
+            /// <summary>
+            /// Returns which sector an address resides in
+            /// </summary>
+            /// <param name="address">The address of interest</param>
+            /// <returns></returns>
+            /// <exception cref="System.ArgumentException">Thrown when the address does not reside in any sector.</exception>
+            public uint InSector(uint address)
+            {
+                uint sector = 0;
+                if (address >= (SAddress[SAddress.Length-1] + SSize[SSize.Length-1]))
+                    throw new ArgumentException("The specified address does not reside in any sector.", "address");
+                for (uint i = 0; i < SAddress.Length; i++)
+                {
+                    if (address < (SAddress[i] + SSize[i]))
+                    {
+                        sector = i;
+                        break;
+                    }
+                }
+                return sector;
+            }
+
+            /// <summary>
+            /// Returns the binary data for a sector
+            /// </summary>
+            /// <param name="sector"></param>
+            /// <returns></returns>
+            public byte[] GetSectorData(UInt32 sector)
+            {
+                if (sector >= NumberOfSectors)
+                    throw new ArgumentException("Information was requested for an invalid sector.", "sector");
+                return BinarySectorData[(int)sector];
+            }
+
+            /// <summary>
+            /// Load hex file into the flash
+            /// </summary>
+            /// <param name="hexFileLines">The hex file name to load</param>
+            public void LoadHexFile(string filename)
+            {
+                //open file and read it in
+                LoadHexFile(File.ReadAllLines(filename));
+            }
+
+            /// <summary>
+            /// Load hex file into the flash
+            /// </summary>
+            /// <param name="hexFileLines">The lines of the hex file</param>
+            public virtual void LoadHexFile(IEnumerable<string> hexFileLines)
+            {
+                uint upperAddr = 0, addr = 0, offset;
+                byte[] data;
+                uint sector = 0;
+                foreach (string line in hexFileLines)
+                {
+                    switch (HexFile.GetHexLineType(line))
+                    {
+                        case HexFile.HexRecordType.DataRecord:
+                            addr = upperAddr + HexFile.GetHexLineAddress(line);
+                            data = HexFile.GetDataHexLineData(line);
+                            sector = InSector(addr);
+                            offset = addr - SectorAddress(sector);
+                            if (sector != InSector(addr + (uint)data.Length-1))
+                                throw new HexLineException("The hex line contains data which spans two sectors. This is not allowed.", line);
+                            data.CopyTo(BinarySectorData[(int)sector], offset);
+                            break;
+
+                        case HexFile.HexRecordType.ExtendedLinearAddressRecord:
+                            upperAddr = HexFile.GetHexLineAddress(line);
+                            break;
+
+                        default:
+                            //don't implement any other record types for now
+                            break;
+                    }
+                }                    
+            }
+            #region constructors
+            
+
+            #endregion
+
+            #region Helper functions
+            
+            #endregion
+        }
+
+
+
+        /// <summary>
+        /// This object represents the memory of a LPC2000 device
+        /// </summary>
+        public class InternalFlash_LPC2000 : StandardFlash
+        {
+            #region properties
+            
+            #endregion
+
+            #region constructors
+            public InternalFlash_LPC2000()
+            {
+                BasicConstruction();
+            }
+            
+
+            #endregion
+
+            #region Helper functions
+            private void BasicConstruction()
+            {
+                SSize = new uint[] {    0x1000, 0x1000, 0x1000, 0x1000, 0x1000, 0x1000, 0x1000, 0x1000, 0x8000,
+                                        0x8000,  0x8000,  0x8000,  0x8000,  0x8000,  0x8000,  0x8000, 0x8000, 
+                                        0x8000,  0x8000,  0x8000,  0x8000,  0x8000,  0x1000,  0x1000, 0x1000, 
+                                        0x1000, 0x1000, 0x1000 };
+                SAddress = new uint[] { 0x0, 0x1000, 0x2000, 0x3000, 0x4000, 0x5000, 0x6000, 0x7000, 0x8000, 
+                                        0x10000, 0x18000, 0x20000, 0x28000, 0x30000, 0x38000, 0x40000, 0x48000, 
+                                        0x50000, 0x58000, 0x60000, 0x68000, 0x70000, 0x78000, 0x79000, 0x7A000,
+                                        0x7B000, 0x7C000, 0x7D000};
+
+                //create an empty byte array for each sector
+                BinarySectorData = new List<byte[]>(NumberOfSectors);
+                for (int i = 0; i<NumberOfSectors; i++)
+                    BinarySectorData.Add(new byte[SectorSize((uint) i)]);
+
+            }
+            #endregion
+        }
+
     }
 }
