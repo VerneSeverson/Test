@@ -679,19 +679,28 @@ namespace WinSIP2E
 
         private void btnSendScript_Click(object sender, EventArgs e)
         {
-            LoadAndSendScriptFile();
+            try
+            {
+                LoadAndSendScriptFile();
+            }
+            catch (OperationCanceledException)
+            { }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Caught an unexpected exception: " + ex, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         /// <summary>
         /// Call this function to send a script out of the manual window
         /// </summary>
         public void LoadAndSendScriptFile()
-        {            
+        {
             SendScriptFile sendScript = new SendScriptFile(connection, Program.WinSIP_TS);
             sendScript.LogID = connection.CommContext.ConnectionID;
             OperationStatusDialog frm = new OperationStatusDialog();
             frm.operation = sendScript;
-            frm.ShowDialog();
+            frm.ShowDialog();         
         }
 
     }
