@@ -510,6 +510,20 @@ namespace ForwardLibrary
 
             #endregion
 
+            /// <summary>
+            /// Call this function to add the ISR checksum at address 0x14 (ARM needs this)
+            /// </summary>
+            public void AddISR_Checksum()
+            {
+                uint checksum = 0;
+                for (int i = 0; i < 8; i++)
+                    if (i*4 != 0x14)
+                        checksum += Convert.ToUInt32((BinarySectorData[0])[i*4]);
+
+                checksum = (~checksum) + 1;
+                byte[] dat = BitConverter.GetBytes(checksum);
+                dat.CopyTo((BinarySectorData[0]), 0x14);
+            }
             #region Helper functions
             private void BasicConstruction()
             {
