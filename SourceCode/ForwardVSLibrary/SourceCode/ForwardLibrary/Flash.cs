@@ -304,7 +304,15 @@ namespace ForwardLibrary
             int NumberOfSectors
             {
                 get;
-            }            
+            }
+
+            /// <summary>
+            /// Indicates whether or not a sector has data
+            /// </summary>
+            /// <param name="sector">The sector of interest</param>
+            /// <returns>True if the sector is empty</returns>
+            /// <exception cref="System.ArgumentException">Thrown when an invalid sector is specified.</exception>
+            bool SectorEmpty(uint sector);
 
             /// <summary>
             /// Returns the size (in bytes) of a flash sector
@@ -356,6 +364,7 @@ namespace ForwardLibrary
         public abstract class StandardFlash : IFlashDevice 
         {
             #region properties
+            protected bool[] SWrittenTo; 
             protected uint[] SSize; /* = {   0x1000, 0x1000, 0x1000, 0x1000, 0x1000, 0x1000, 0x1000, 0x1000, 0x8000,
                                                             0x8000,  0x8000,  0x8000,  0x8000,  0x8000,  0x8000,  0x8000, 0x8000, 
                                                             0x8000,  0x8000,  0x8000,  0x8000,  0x8000,  0x1000,  0x1000, 0x1000, 
@@ -375,6 +384,19 @@ namespace ForwardLibrary
             protected List<byte[]> BinarySectorData;
 
             #endregion
+
+            /// <summary>
+            /// Indicates whether or not a sector has data
+            /// </summary>
+            /// <param name="sector">The sector of interest</param>
+            /// <returns>True if the sector is empty</returns>
+            /// <exception cref="System.ArgumentException">Thrown when an invalid sector is specified.</exception>
+            bool SectorEmpty(uint sector)
+            {
+                if (sector >= NumberOfSectors)
+                    throw new ArgumentException("Information was requested for an invalid sector.", "sector");
+                return !SWrittenTo[sector];
+            }
 
             /// <summary>
             /// Returns the size (in bytes) of a flash sector
@@ -468,6 +490,7 @@ namespace ForwardLibrary
                             if (sector != InSector(addr + (uint)data.Length-1))
                                 throw new HexLineException("The hex line contains data which spans two sectors. This is not allowed.", line);
                             data.CopyTo(BinarySectorData[(int)sector], offset);
+                            SWrittenTo[(int)sector] = true;
                             break;
 
                         case HexFile.HexRecordType.ExtendedLinearAddressRecord:
@@ -487,6 +510,60 @@ namespace ForwardLibrary
 
             #region Helper functions
             
+            /// <summary>
+            /// Read the 32 bit int at the specified address.
+            /// </summary>
+            /// <param name="address">the address to read. Note that this must be divisible by 4 (word aligned)</param>
+            /// <returns></returns>
+            protected uint GetDataAtAddress(uint address)
+            {
+                //0. make sure that address is word aligned:
+                if (address % 4 != 0)
+                    throw new ArgumentException("The address is not word aligned.", "startAddr");
+
+                //1. determine sector of start address
+                uint sector = InSector(address);
+                if (!SWrittenTo[sector])
+                    throw new InvalidOperationException("The sector of the address has not loaded with data.");
+
+                //2. determine the offset of the address within the sector
+                uint offset = address - SectorAddress(sector);
+
+                //3. convert the bytes to a uint
+                uint result = BitConverter.ToUInt32(BinarySectorData[(int) sector], (int) offset);
+
+                return result;
+            }
+
+            /// <summary>
+            /// Write a 32 bit uint at the specified address.
+            /// </summary>
+            /// <param name="address">the address to write to. Note that this must be divisible by 4 (word aligned)</param>
+            /// <param name="data">the data to write</param>
+            /// <returns></returns>
+            protected void WriteDataAtAddress(uint address, uint data)
+            {
+                //0. make sure that address is word aligned:
+                if (address % 4 != 0)
+                    throw new ArgumentException("The address is not word aligned.", "startAddr");
+
+                //1. determine sector of start address
+                uint sector = InSector(address);
+                /*if (!SWrittenTo[sector])
+                    throw new InvalidOperationException("The sector of the address has not loaded with data.");*/
+
+                //2. determine the offset of the address within the sector
+                uint offset = address - SectorAddress(sector);
+
+                //3. get the bytes of the int
+                byte [] databytes = BitConverter.GetBytes(data);
+
+                //4. copy it in
+                databytes.CopyTo(BinarySectorData[(int) sector], offset);                
+
+                //5. flag the sector as having been written to
+                SWrittenTo[(int) sector] = true;
+            }
             #endregion
         }
 
@@ -498,7 +575,13 @@ namespace ForwardLibrary
         public class InternalFlash_LPC2000 : StandardFlash
         {
             #region properties
-            
+            public uint Checksum1Start_Address = 0x20;
+            public uint Checksum1End_Address = 0x24;
+            public uint Checksum1_Address = 0x28;
+
+            public uint Checksum2Start_Address = 0x2C;
+            public uint Checksum2End_Address = 0x30;
+            public uint Checksum2_Address = 0x34;
             #endregion
 
             #region constructors
@@ -511,9 +594,9 @@ namespace ForwardLibrary
             #endregion
 
             /// <summary>
-            /// Call this function to add the ISR checksum at address 0x14 (ARM needs this)
+            /// Call this function to add the ISR checksum at address 0x14 (LPC2000  needs this)
             /// </summary>
-            public void AddISR_Checksum()
+            public void InsertISR_Checksum()
             {
                 uint checksum = 0;
                 for (int i = 0; i < 8; i++)
@@ -524,6 +607,64 @@ namespace ForwardLibrary
                 byte[] dat = BitConverter.GetBytes(checksum);
                 dat.CopyTo((BinarySectorData[0]), 0x14);
             }
+
+            /// <summary>
+            /// call this to add the checksums at the offsets specified
+            /// </summary>
+            public void InsertChecksums()
+            {
+                uint sector, firstSector;    
+                uint valCheck1Start, valCheck1End, valCheck1;
+                uint valCheck2Start, valCheck2End, valCheck2;  
+                //1. find the first sector occupied
+                    for (sector= 0; sector < NumberOfSectors; sector++)
+                    {
+                        if (SWrittenTo[sector])
+                            break;
+                    }
+                    if (sector >= NumberOfSectors)
+                        throw new InvalidOperationException("No sectors to checksum.");
+
+                //2. calculate the first checksum                                    
+                    //this is the first sector, so we want to start checksumming after Checksum2_Address
+                    firstSector = sector;
+                    valCheck1Start = SectorAddress(firstSector) + Checksum2End_Address + 4;
+                    PrepareChecksum(valCheck1Start, out valCheck1End, out valCheck1);
+
+                //3. find the next sector occupied
+                    if (valCheck1End + 4 < (SectorAddress((uint)NumberOfSectors - 1) + SectorSize((uint)NumberOfSectors - 1)))
+                    {
+                        for (sector = InSector(valCheck1End+4); sector < NumberOfSectors; sector++)
+                        {
+                            if (SWrittenTo[sector])
+                                break;
+                        }
+                    }
+
+                //4. calculate the second checksum
+                    if (sector >= NumberOfSectors)
+                    {
+                        //no more data to checksum, so let's just checksum the first checksum
+                        valCheck2Start = SectorAddress(firstSector) + Checksum1_Address;
+                        valCheck2End = SectorAddress(firstSector) + Checksum1_Address;
+                        valCheck2 = (~valCheck1) + 1;
+                    }
+                    else
+                    {
+                        //there is more data to checksum
+                        valCheck2Start = SectorAddress(sector);
+                        PrepareChecksum(valCheck2Start, out valCheck2End, out valCheck2);
+                    }
+
+                //5. Okay -- write our checksums out
+                    WriteDataAtAddress(SectorAddress(firstSector) + Checksum1Start_Address, valCheck1Start);
+                    WriteDataAtAddress(SectorAddress(firstSector) + Checksum1End_Address, valCheck1End);
+                    WriteDataAtAddress(SectorAddress(firstSector) + Checksum1_Address, valCheck1);
+                    WriteDataAtAddress(SectorAddress(firstSector) + Checksum2Start_Address, valCheck2Start);
+                    WriteDataAtAddress(SectorAddress(firstSector) + Checksum2End_Address, valCheck2End);
+                    WriteDataAtAddress(SectorAddress(firstSector) + Checksum2_Address, valCheck2);
+            }
+
             #region Helper functions
             private void BasicConstruction()
             {
@@ -535,13 +676,52 @@ namespace ForwardLibrary
                                         0x10000, 0x18000, 0x20000, 0x28000, 0x30000, 0x38000, 0x40000, 0x48000, 
                                         0x50000, 0x58000, 0x60000, 0x68000, 0x70000, 0x78000, 0x79000, 0x7A000,
                                         0x7B000, 0x7C000, 0x7D000};
-
+                SWrittenTo = new bool[SAddress.Length]; //initializes every item to false
+                 
                 //create an empty byte array for each sector
                 BinarySectorData = new List<byte[]>(NumberOfSectors);
                 for (int i = 0; i<NumberOfSectors; i++)
                     BinarySectorData.Add(new byte[SectorSize((uint) i)]);
 
             }
+
+            /// <summary>
+            /// Calculate the checksum for a continuous chunk of flash starting with address startAddr
+            /// </summary>
+            /// <param name="startAddr">The address to start calculating at. This must be divisible by 4 (word aligned)</param>
+            /// <param name="endAddr">The last address that was included in the checksum </param>
+            /// <param name="checksum">the checksum value</param>
+            private void PrepareChecksum(uint startAddr, out uint endAddr, out uint checksum)
+            {
+                //0. make sure that startAddr is word aligned:
+                if (startAddr % 4 != 0)
+                    throw new ArgumentException("The start address is not word aligned.", "startAddr");
+
+                //1. determine sector of start address
+                uint sector = InSector(startAddr);
+                if (!SWrittenTo[sector])
+                    throw new InvalidOperationException("The sector of the start address has not loaded with data.");
+
+                //2. calculate the checksum
+                checksum = 0;
+                uint address = startAddr;
+                uint EndOfFlash = SectorAddress((uint) NumberOfSectors-1) + SectorSize((uint) NumberOfSectors-1) - 1;
+                //keep going until we either get to the end of the flash or to an empty sector.
+                while (SWrittenTo[sector] && address < EndOfFlash)
+                {
+                    checksum += GetDataAtAddress(address);
+                    address += 4;
+                    if (address < EndOfFlash)
+                        sector = InSector(address);                    
+                }
+                endAddr = address - 4;
+
+                //3. now do 2's complement of it
+                checksum = (~checksum) + 1;
+
+            }
+
+            
             #endregion
         }
 
