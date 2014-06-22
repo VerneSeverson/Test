@@ -1,8 +1,13 @@
-﻿using System;
+﻿using ForwardLibrary.Communications;
+using ForwardLibrary.Communications.CommandHandlers;
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace ForwardLibrary
@@ -391,7 +396,7 @@ namespace ForwardLibrary
             /// <param name="sector">The sector of interest</param>
             /// <returns>True if the sector is empty</returns>
             /// <exception cref="System.ArgumentException">Thrown when an invalid sector is specified.</exception>
-            bool SectorEmpty(uint sector)
+            public bool SectorEmpty(uint sector)
             {
                 if (sector >= NumberOfSectors)
                     throw new ArgumentException("Information was requested for an invalid sector.", "sector");
@@ -568,162 +573,669 @@ namespace ForwardLibrary
         }
 
 
-
-        /// <summary>
-        /// This object represents the memory of a LPC2000 device
-        /// </summary>
-        public class InternalFlash_LPC2000 : StandardFlash
+        namespace LPC2400
         {
-            #region properties
-            public uint Checksum1Start_Address = 0x20;
-            public uint Checksum1End_Address = 0x24;
-            public uint Checksum1_Address = 0x28;
-
-            public uint Checksum2Start_Address = 0x2C;
-            public uint Checksum2End_Address = 0x30;
-            public uint Checksum2_Address = 0x34;
-            #endregion
-
-            #region constructors
-            public InternalFlash_LPC2000()
+            /// <summary>
+            /// This object represents the memory of a LPC2400 device
+            /// </summary>
+            public class InternalFlash_LPC2400 : StandardFlash
             {
-                BasicConstruction();
-            }
+                #region properties
+                public uint Checksum1Start_Address = 0x20;
+                public uint Checksum1End_Address = 0x24;
+                public uint Checksum1_Address = 0x28;
+
+                public uint Checksum2Start_Address = 0x2C;
+                public uint Checksum2End_Address = 0x30;
+                public uint Checksum2_Address = 0x34;
+                #endregion
+
+                #region constructors
+                public InternalFlash_LPC2400()
+                {
+                    BasicConstruction();
+                }
             
 
-            #endregion
+                #endregion
 
-            /// <summary>
-            /// Call this function to add the ISR checksum at address 0x14 (LPC2000  needs this)
-            /// </summary>
-            public void InsertISR_Checksum()
-            {
-                uint checksum = 0;
-                for (int i = 0; i < 8; i++)
-                    if (i*4 != 0x14)
-                        checksum += Convert.ToUInt32((BinarySectorData[0])[i*4]);
-
-                checksum = (~checksum) + 1;
-                byte[] dat = BitConverter.GetBytes(checksum);
-                dat.CopyTo((BinarySectorData[0]), 0x14);
-            }
-
-            /// <summary>
-            /// call this to add the checksums at the offsets specified
-            /// </summary>
-            public void InsertChecksums()
-            {
-                uint sector, firstSector;    
-                uint valCheck1Start, valCheck1End, valCheck1;
-                uint valCheck2Start, valCheck2End, valCheck2;  
-                //1. find the first sector occupied
-                    for (sector= 0; sector < NumberOfSectors; sector++)
+                /// <summary>
+                /// Call this function to add the ISR checksum at offset address 0x14 (LPC2000 needs this)
+                /// </summary>
+                public void InsertISR_Checksum()
+                {
+                    uint sector; 
+                    //1. find the first sector occupied
+                    for (sector = 0; sector < NumberOfSectors; sector++)
                     {
                         if (SWrittenTo[sector])
                             break;
                     }
-                    if (sector >= NumberOfSectors)
-                        throw new InvalidOperationException("No sectors to checksum.");
 
-                //2. calculate the first checksum                                    
-                    //this is the first sector, so we want to start checksumming after Checksum2_Address
-                    firstSector = sector;
-                    valCheck1Start = SectorAddress(firstSector) + Checksum2End_Address + 4;
-                    PrepareChecksum(valCheck1Start, out valCheck1End, out valCheck1);
+                    uint checksum = 0;
+                    for (uint i = 0; i < 8; i++)
+                        if (i * 4 != 0x14)
+                            checksum += GetDataAtAddress((uint) SectorAddress(sector) + i*4);
 
-                //3. find the next sector occupied
-                    if (valCheck1End + 4 < (SectorAddress((uint)NumberOfSectors - 1) + SectorSize((uint)NumberOfSectors - 1)))
-                    {
-                        for (sector = InSector(valCheck1End+4); sector < NumberOfSectors; sector++)
+                    checksum = (~checksum) + 1;                
+                    WriteDataAtAddress(SectorAddress(sector) + 0x14, checksum);
+                }
+
+                /// <summary>
+                /// call this to add the checksums at the offsets specified
+                /// </summary>
+                public void InsertChecksums()
+                {
+                    uint sector, firstSector;    
+                    uint valCheck1Start, valCheck1End, valCheck1;
+                    uint valCheck2Start, valCheck2End, valCheck2;  
+                    //1. find the first sector occupied
+                        for (sector= 0; sector < NumberOfSectors; sector++)
                         {
                             if (SWrittenTo[sector])
                                 break;
                         }
-                    }
+                        if (sector >= NumberOfSectors)
+                            throw new InvalidOperationException("No sectors to checksum.");
 
-                //4. calculate the second checksum
-                    if (sector >= NumberOfSectors)
-                    {
-                        //no more data to checksum, so let's just checksum the first checksum
-                        valCheck2Start = SectorAddress(firstSector) + Checksum1_Address;
-                        valCheck2End = SectorAddress(firstSector) + Checksum1_Address;
-                        valCheck2 = (~valCheck1) + 1;
-                    }
-                    else
-                    {
-                        //there is more data to checksum
-                        valCheck2Start = SectorAddress(sector);
-                        PrepareChecksum(valCheck2Start, out valCheck2End, out valCheck2);
-                    }
+                    //2. calculate the first checksum                                    
+                        //this is the first sector, so we want to start checksumming after Checksum2_Address
+                        firstSector = sector;
+                        valCheck1Start = SectorAddress(firstSector) + Checksum2End_Address + 4;
+                        PrepareChecksum(valCheck1Start, out valCheck1End, out valCheck1);
 
-                //5. Okay -- write our checksums out
-                    WriteDataAtAddress(SectorAddress(firstSector) + Checksum1Start_Address, valCheck1Start);
-                    WriteDataAtAddress(SectorAddress(firstSector) + Checksum1End_Address, valCheck1End);
-                    WriteDataAtAddress(SectorAddress(firstSector) + Checksum1_Address, valCheck1);
-                    WriteDataAtAddress(SectorAddress(firstSector) + Checksum2Start_Address, valCheck2Start);
-                    WriteDataAtAddress(SectorAddress(firstSector) + Checksum2End_Address, valCheck2End);
-                    WriteDataAtAddress(SectorAddress(firstSector) + Checksum2_Address, valCheck2);
+                    //3. find the next sector occupied
+                        if (valCheck1End + 4 < (SectorAddress((uint)NumberOfSectors - 1) + SectorSize((uint)NumberOfSectors - 1)))
+                        {
+                            for (sector = InSector(valCheck1End+4); sector < NumberOfSectors; sector++)
+                            {
+                                if (SWrittenTo[sector])
+                                    break;
+                            }
+                        }
+
+                    //4. calculate the second checksum
+                        if (sector >= NumberOfSectors)
+                        {
+                            //no more data to checksum, so let's just checksum the first checksum
+                            valCheck2Start = SectorAddress(firstSector) + Checksum1_Address;
+                            valCheck2End = SectorAddress(firstSector) + Checksum1_Address;
+                            valCheck2 = (~valCheck1) + 1;
+                        }
+                        else
+                        {
+                            //there is more data to checksum
+                            valCheck2Start = SectorAddress(sector);
+                            PrepareChecksum(valCheck2Start, out valCheck2End, out valCheck2);
+                        }
+
+                    //5. Okay -- write our checksums out
+                        WriteDataAtAddress(SectorAddress(firstSector) + Checksum1Start_Address, valCheck1Start);
+                        WriteDataAtAddress(SectorAddress(firstSector) + Checksum1End_Address, valCheck1End);
+                        WriteDataAtAddress(SectorAddress(firstSector) + Checksum1_Address, valCheck1);
+                        WriteDataAtAddress(SectorAddress(firstSector) + Checksum2Start_Address, valCheck2Start);
+                        WriteDataAtAddress(SectorAddress(firstSector) + Checksum2End_Address, valCheck2End);
+                        WriteDataAtAddress(SectorAddress(firstSector) + Checksum2_Address, valCheck2);
+                }
+
+                #region Helper functions
+                private void BasicConstruction()
+                {
+                    SSize = new uint[] {    0x1000, 0x1000, 0x1000, 0x1000, 0x1000, 0x1000, 0x1000, 0x1000, 0x8000,
+                                            0x8000,  0x8000,  0x8000,  0x8000,  0x8000,  0x8000,  0x8000, 0x8000, 
+                                            0x8000,  0x8000,  0x8000,  0x8000,  0x8000,  0x1000,  0x1000, 0x1000, 
+                                            0x1000, 0x1000, 0x1000 };
+                    SAddress = new uint[] { 0x0, 0x1000, 0x2000, 0x3000, 0x4000, 0x5000, 0x6000, 0x7000, 0x8000, 
+                                            0x10000, 0x18000, 0x20000, 0x28000, 0x30000, 0x38000, 0x40000, 0x48000, 
+                                            0x50000, 0x58000, 0x60000, 0x68000, 0x70000, 0x78000, 0x79000, 0x7A000,
+                                            0x7B000, 0x7C000, 0x7D000};
+                    SWrittenTo = new bool[SAddress.Length]; //initializes every item to false
+                 
+                    //create an empty byte array for each sector
+                    BinarySectorData = new List<byte[]>(NumberOfSectors);
+                    for (int i = 0; i<NumberOfSectors; i++)
+                        BinarySectorData.Add(new byte[SectorSize((uint) i)]);
+
+                }
+
+                /// <summary>
+                /// Calculate the checksum for a continuous chunk of flash starting with address startAddr
+                /// </summary>
+                /// <param name="startAddr">The address to start calculating at. This must be divisible by 4 (word aligned)</param>
+                /// <param name="endAddr">The last address that was included in the checksum </param>
+                /// <param name="checksum">the checksum value</param>
+                private void PrepareChecksum(uint startAddr, out uint endAddr, out uint checksum)
+                {
+                    //0. make sure that startAddr is word aligned:
+                    if (startAddr % 4 != 0)
+                        throw new ArgumentException("The start address is not word aligned.", "startAddr");
+
+                    //1. determine sector of start address
+                    uint sector = InSector(startAddr);
+                    if (!SWrittenTo[sector])
+                        throw new InvalidOperationException("The sector of the start address has not loaded with data.");
+
+                    //2. calculate the checksum
+                    checksum = 0;
+                    uint address = startAddr;
+                    uint EndOfFlash = SectorAddress((uint) NumberOfSectors-1) + SectorSize((uint) NumberOfSectors-1) - 1;
+                    //keep going until we either get to the end of the flash or to an empty sector.
+                    while (SWrittenTo[sector] && address < EndOfFlash)
+                    {
+                        checksum += GetDataAtAddress(address);
+                        address += 4;
+                        if (address < EndOfFlash)
+                            sector = InSector(address);                    
+                    }
+                    endAddr = address - 4;
+
+                    //3. now do 2's complement of it
+                    checksum = (~checksum) + 1;
+
+                }
+
+            
+                #endregion
             }
 
-            #region Helper functions
-            private void BasicConstruction()
+
+            /// <summary>
+            /// This handler implments the ISP protocol for LPC-based microcontrollers
+            /// per datasheet of LPC2468
+            /// </summary>
+            public class LPC_ISP_Handler : IProtocolHandler
             {
-                SSize = new uint[] {    0x1000, 0x1000, 0x1000, 0x1000, 0x1000, 0x1000, 0x1000, 0x1000, 0x8000,
-                                        0x8000,  0x8000,  0x8000,  0x8000,  0x8000,  0x8000,  0x8000, 0x8000, 
-                                        0x8000,  0x8000,  0x8000,  0x8000,  0x8000,  0x1000,  0x1000, 0x1000, 
-                                        0x1000, 0x1000, 0x1000 };
-                SAddress = new uint[] { 0x0, 0x1000, 0x2000, 0x3000, 0x4000, 0x5000, 0x6000, 0x7000, 0x8000, 
-                                        0x10000, 0x18000, 0x20000, 0x28000, 0x30000, 0x38000, 0x40000, 0x48000, 
-                                        0x50000, 0x58000, 0x60000, 0x68000, 0x70000, 0x78000, 0x79000, 0x7A000,
-                                        0x7B000, 0x7C000, 0x7D000};
-                SWrittenTo = new bool[SAddress.Length]; //initializes every item to false
-                 
-                //create an empty byte array for each sector
-                BinarySectorData = new List<byte[]>(NumberOfSectors);
-                for (int i = 0; i<NumberOfSectors; i++)
-                    BinarySectorData.Add(new byte[SectorSize((uint) i)]);
+                #region properties
+
+                DateTime _LastSent;
+
+                /// <summary>
+                /// The last time the user used the protocol handler to successfully send data.
+                /// 
+                /// Note that periodic ping messages do not cause this to be updated.
+                /// </summary>
+                public DateTime LastSent
+                {
+                    get { return _LastSent; }
+                }
+
+                public ClientContext CommContext { get; set; }
+
+                private static Random randObj = new Random(20);
+                private LinkedList<EventNotify> EventCallbacks = new LinkedList<EventNotify>();
+                private Object EventCallbacksSync = new Object();
+                private bool bDisconnectEventHandled = false;
+                StringBuilder DisconnectDatLock = new StringBuilder(randObj.Next().ToString());
+                private AutoResetEvent NewMsgEvt = new AutoResetEvent(false);
+                StringBuilder ReceiveDatLock = new StringBuilder(randObj.Next().ToString());
+                StringBuilder ReceiveAPI_Lock = new StringBuilder(randObj.Next().ToString());
+                MemoryStream ReceivedData = new MemoryStream();
+                private ConcurrentQueue<ReceivedMsgLog> RxMsgs = new ConcurrentQueue<ReceivedMsgLog>();
+
+                /// <summary>
+                /// Used for storing STX ETX messages that have been received
+                /// </summary>
+                class ReceivedMsgLog
+                {
+                    public string msg;
+                    public DateTime time;
+
+                    public ReceivedMsgLog(string msg)
+                    {
+                        this.msg = msg;
+                        time = DateTime.Now;
+                    }
+
+                    public ReceivedMsgLog(string msg, DateTime time)
+                    {
+                        this.msg = msg;
+                        this.time = time;
+                    }
+                }
+
+                #endregion
+
+                #region Protocol communication events
+                /// <summary>
+                /// Registers a callback to receive protocol communication events:
+                /// ClientReceivedDataEvent, ClientWroteDataEvent,
+                /// and ClientDisconnectedEvent. These events are generated
+                /// asynchronously and contain protocol-level information. For
+                /// example, for STX/ETX handlers, STX, ETX, and ACK will not be
+                /// included in the data when these events are created; futhermore
+                /// a ClientWroteDataEvent will only be created after the protocol
+                /// knows that the client has received the data (ACK received).
+                /// </summary>
+                /// <param name="EventCallback">The delegate to call</param>
+                public void AddCommEventHandler(EventNotify EventCallback)
+                {
+                    lock (EventCallbacksSync)
+                    {
+                        EventCallbacks.AddLast(EventCallback);
+                    }
+                }
+
+                /// <summary>
+                /// Unregisters a callback delegate from receiving protocol 
+                /// communication events.
+                /// </summary>
+                /// <param name="EventCallback"></param>
+                public void RemoveCommEventHandler(EventNotify EventCallback)
+                {
+                    lock (EventCallbacksSync)
+                    {
+                        EventCallbacks.Remove(EventCallback);
+                    }
+                }
+
+                #region private helper functions
+                /// <summary>
+                /// Called to publish the events in an asynchronous manner
+                /// so that we don't slow anything down in the main operation.
+                /// </summary>
+                /// <param name="theEvent"></param>
+                private void PublishEvent(ClientEvent theEvent)
+                {
+                    lock (EventCallbacksSync)
+                    {
+                        foreach (EventNotify callback in EventCallbacks)
+                        {
+                            try
+                            {
+                                callback.BeginInvoke(theEvent, delegate(IAsyncResult arr) { callback.EndInvoke(arr); }, null);
+                            }
+                            catch (Exception ex)
+                            {
+                                CommContext.LogMsg(TraceEventType.Warning, "Protocol callback failed: " + ex.ToString());
+                            }
+                        }
+                    }
+                }
+                #endregion
+                #endregion
+
+                /// <summary>
+                /// Force a clean up of the resources (not safe to use after this is called)
+                /// </summary>
+                public void Dispose()
+                {
+                    if (CommContext.bConnected)
+                        try { CommContext.Close(); }
+                        catch { }
+                }
+
+                /// <summary>
+                /// This function enables/disables periodically sending STX ETX messages 
+                /// to the remote device to ensure that the connection stays alive and that
+                /// the peer is present.
+                /// </summary>
+                /// <param name="enable">Set to true to periodically send STX ETX messages to the peer</param>
+                /// <param name="optionalMaxIdleTime">Maximum connection idle time before an STX ETX should be sent</param>
+                public void PeriodicPing(bool enable, TimeSpan MaxIdleTime)
+                {
+                    throw new NotImplementedException();
+                }
+
+
+                #region receive functions
+                /// <summary>
+                /// Get received data in a FIFO manner.
+                /// This function blocks until either a command is available or a timeout occurs.
+                /// An exception is thrown if the connection goes down or any other error prevents successful completion.
+                /// NOTE: this function is synchronized, so it is thread safe, however it will block until all previous
+                /// function calls complete.
+                /// </summary>
+                /// <param name="theData">The received data</param>
+                /// <param name="timeRcvd">The time that this command was received</param>
+                /// <param name="optionalTimeout">Amount of time (in ms) before function gives up and returns</param>
+                /// <returns>True if another command is present, otherwise false</returns>
+                public bool ReceiveData(out string theData, out DateTime timeRcvd, int optionalTimeout = 30000)
+                {
+                    bool bRetVal = false;
+                    theData = null;
+                    timeRcvd = DateTime.Now;
+
+                    lock (ReceiveAPI_Lock)
+                    {
+                        bool bSignaled = false;
+                        if (RxMsgs.IsEmpty)
+                        {
+                            //should be impossible for RxMsgs to be empty and NewMsgEvent to be set... NewMsgEvent.Reset();
+                            if (CommContext.bConnected == false)
+                                throw new System.InvalidOperationException("Unable to read data, the connection is down.");
+
+                            bSignaled = NewMsgEvt.WaitOne(optionalTimeout);
+                        }
+                        if (RxMsgs.IsEmpty)
+                        {
+                            bRetVal = false;
+
+                            if (CommContext.bConnected == false)
+                                throw new System.InvalidOperationException("Unable to read data, the connection is down.");
+
+                            if (bSignaled == true)
+                                throw new System.InvalidOperationException("Unable to read data due to unknown error.");
+
+                        }
+                        else
+                        {
+                            ReceivedMsgLog msg;
+                            bool result = RxMsgs.TryDequeue(out msg);
+                            if (result == true)
+                            {
+                                theData = msg.msg;
+                                timeRcvd = msg.time;
+                                try { NewMsgEvt.Reset(); }
+                                catch { }
+                            }
+                            else
+                                throw new System.InvalidOperationException("Unable to dequeue message, try calling again.");
+
+                            bRetVal = !RxMsgs.IsEmpty;
+                        }
+                    }
+
+                    return bRetVal;
+                }
+
+                /// <summary>
+                /// Get latest STX ETX command in a FIFO manner.
+                /// This function blocks until either a command is available or a timeout occurs.
+                /// An exception is thrown if the connection goes down or any other error prevents successful completion.
+                /// NOTE: this function is synchronized, so it is thread safe, however it will block until all previous
+                /// function calls complete.
+                /// </summary>
+                /// <param name="theData">The received data</param>
+                /// <param name="optionalTimeout">Amount of time (in ms) before function gives up and returns</param>
+                /// <returns>True if another command is present, otherwise false</returns>
+                public bool ReceiveData(out string theData, int optionalTimeout = 30000)
+                {
+                    DateTime timeRcvd;
+                    return ReceiveData(out theData, out timeRcvd, optionalTimeout);
+                }
+                #endregion
+
+                #region send functions
+                /// <summary>
+                /// Send command (protocol-dependent characters are added here). 
+                /// Blocks until protocol determines the message was received or connection fails.
+                /// </summary>
+                /// <param name="data">the data to send (can be null)</param>
+                /// <param name="optionalRetries">Number of retries if protocol supports it</param>
+                /// <param name="optionalRetryTime">Amount of time (in ms) between retries</param>
+                /// <returns>True if the data was sent, otherwise false</returns>
+                public bool SendCommand(byte[] data, int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES, int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS)
+                {
+                    bool bFoundAck = false;
+                    //bool bGotNB_Safe = false;
+                    try
+                    {
+                        _LastSent = DateTime.Now;
+                        byte[] data_with_crlf = new byte[data.Length];
+                        data.CopyTo(data_with_crlf, 0);
+                        data_with_crlf[data.Length] = 0x0D;
+                        data_with_crlf[data.Length + 1] = 0x0A;
+                        string dat = System.Text.Encoding.Default.GetString(data);
+                        CommContext.LogMsg(TraceEventType.Verbose, "ISP SENT: " + dat + "<CR><LF>");
+                        CommContext.Write(data_with_crlf);
+                    }
+                    catch (Exception ex)
+                    {
+                        CommContext.LogMsg(TraceEventType.Error, "Caught an unexpected exception when sending the command: <STX>" + System.Text.Encoding.Default.GetString(data.ToArray()) + "<ETX>. optionalRetries: " + optionalRetries.ToString() + ". Exception: " + ex.ToString());
+                    }
+                    finally
+                    {
+                        /*if (bGotNB_Safe)
+                            SendingContext.NB_Safe.Set();*/
+                    }
+                    return bFoundAck;
+                }
+
+                /// <summary>
+                /// Send command (protocol-dependent characters are added here). 
+                /// Blocks until protocol determines the message was received or connection fails.
+                /// </summary>
+                /// <param name="data">the data to send (can be null)</param>
+                /// <param name="optionalRetries">Number of retries if protocol supports it</param>
+                /// <param name="optionalRetryTime">Amount of time (in ms) between retries</param>
+                /// <returns>True if an ACK was recieved, otherwise false</returns>
+                public bool SendCommand(string data, int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES, int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS)
+                {
+                    return SendCommand(System.Text.Encoding.ASCII.GetBytes(data), optionalRetries, optionalRetryTime);
+                }
+
+                /// <summary>
+                /// Asynchronous function call for SendCommand()
+                /// 
+                /// If there is nothing going on with SendCommand(), this function
+                /// will first get the data on its way to the comm interface 
+                /// before yielding to a worker thread.
+                /// </summary>
+                /// <param name="data"></param>
+                /// <param name="optionalRetries"></param>
+                /// <param name="optionalRetryTime"></param>
+                /// <param name="callback"></param>
+                /// <param name="state"></param>
+                /// <returns></returns>
+                public IAsyncResult BeginSendCommand(byte[] data,
+                                                    int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES,
+                                                    int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS,
+                                                    AsyncCallback callback = null,
+                                                    Object state = null)
+                {
+                    throw new NotImplementedException();
+                }
+
+
+                /// <summary>
+                /// Asynchronous function call for SendCommand()
+                /// 
+                /// If there is nothing going on with SendCommand(), this function
+                /// will first get the data on its way to the comm interface 
+                /// before yielding to a worker thread.
+                /// </summary>
+                /// <param name="data"></param>
+                /// <param name="optionalRetries"></param>
+                /// <param name="optionalRetryTime"></param>
+                /// <param name="callback"></param>
+                /// <param name="state"></param>            
+                /// <returns></returns>
+                public IAsyncResult BeginSendCommand(string data,
+                                                    int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES,
+                                                    int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS,
+                                                    AsyncCallback callback = null,
+                                                    Object state = null)
+                {
+                    throw new NotImplementedException();
+                }
+
+                /// <summary>
+                /// Call to end asynchronous sending
+                /// </summary>
+                /// <param name="ar"></param>
+                /// <returns></returns>
+                public bool EndSendCommand(IAsyncResult ar)
+                {
+                    throw new NotImplementedException();
+                }
+
+
+                //
+                /// <summary>
+                /// Non-blocking send command where the user doesn't care if the message is successfully sent
+                /// 
+                /// If this function is called before a previous command has finished sending,
+                /// the new command will be queued up to sent after the previous command finishes.
+                /// 
+                /// </summary>
+                /// <param name="data"></param>
+                /// <param name="optionalRetries"></param>
+                /// <param name="optionalRetryTime"></param>
+                public void SendCommandNB(byte[] data, int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES,
+                                    int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS)
+                {
+                    throw new NotImplementedException();
+                }
+
+                //
+                /// <summary>
+                /// Non-blocking send command where the user doesn't care if the message is successfully sent
+                /// 
+                /// If this function is called before a previous command has finished sending,
+                /// the new command will be queued up to sent after the previous command finishes.
+                /// 
+                /// </summary>
+                /// <param name="data"></param>
+                /// <param name="optionalRetries"></param>
+                /// <param name="optionalRetryTime"></param>
+                public void SendCommandNB(string data, int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES,
+                                                int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS)
+                {
+                    throw new NotImplementedException();
+                }
+                #endregion
+
+                #region Event handling
+                /// <summary>
+                /// Used to handle communication events
+                /// This function is thread safe and blocks if a previous event of the same type has not finished
+                /// </summary>
+                /// <param name="ev"></param>
+                protected void OnClientEvent(ClientEvent ev)
+                {
+                    #region The client has disconnected
+                    if (ev is ClientDisconnectedEvent)
+                        DisconnectEvent(ev as ClientDisconnectedEvent);
+                    #endregion
+                    #region New data has been received from the client
+                    else if (ev is ClientReceivedDataEvent)
+                        ReceivedDataEvent(ev as ClientReceivedDataEvent);
+
+                    #endregion
+                    #region Write completed
+                    /*else if (ev.Event is ClientWroteDataEvent)
+                {             
+                }*/
+
+                    #endregion
+                }
+
+                protected virtual void DisconnectEvent(ClientDisconnectedEvent theEvent)
+                {
+                    if (bDisconnectEventHandled == false)
+                    {
+                        bDisconnectEventHandled = true;
+
+                        //notify event subscribers
+                        PublishEvent(theEvent);
+                        lock (DisconnectDatLock)
+                        {
+                            try
+                            {
+                                NewMsgEvt.Set();    //set this so that any blocking call to ReceiveData is released
+                            }
+                            catch { }
+                            /*try { SendingContext.Dispose(); }
+                            catch { }*/
+                        }
+                    }
+                }
+
+                byte LastRxByte;
+                protected virtual void ReceivedDataEvent(ClientReceivedDataEvent Revent)
+                {
+                    bool bEnd = false;
+                    lock (ReceiveDatLock)
+                    {
+                        foreach (byte theByte in Revent.RcvDat)
+                        {
+                            if (bEnd)
+                                break;
+                            if ((theByte == 0x0A) && (LastRxByte == 0x0D))    //if we got a CRLF, we have a response packet
+                            {
+                                CommContext.LogMsg(TraceEventType.Verbose, "ISP RCVD: <STX>" + System.Text.Encoding.Default.GetString(ReceivedData.ToArray()) + "<ETX>");
+
+                                //process the parsed command
+                                ProcessResponse(ReceivedData);
+
+                                ReceivedData = new MemoryStream();
+                                LastRxByte = 0;
+                            }
+                            else
+                            {
+                                ReceivedData.WriteByte(theByte);
+                                LastRxByte = theByte;
+                            }
+                        }
+                    }
+                }
+
+                /// <summary>
+                /// Process the response received. Store in the receive log for future 
+                /// retrieval.
+                /// </summary>
+                /// <param name="theCommand">The command received (STX ETX removed)</param>
+                /// <returns></returns>
+                protected bool ProcessResponse(MemoryStream theResponse)
+                {
+                    String rsp = System.Text.Encoding.Default.GetString(theResponse.ToArray());
+                    //moved up one level to get this message before ACK: CommContext.LogMsg(TraceEventType.Verbose, "STXETX RCVD: <STX>" + cmd + "<ETX>") ;                                        
+                    RxMsgs.Enqueue(new ReceivedMsgLog(rsp));
+                    NewMsgEvt.Set();
+
+                    PublishEvent(new ClientWroteDataEvent(theResponse.ToArray(), CommContext));
+                    return true;
+                }
+                #endregion
 
             }
 
             /// <summary>
-            /// Calculate the checksum for a continuous chunk of flash starting with address startAddr
+            /// This handler implements the ISP commands for LPC-based microcontrollers
+            /// per datasheet of LPC2468
             /// </summary>
-            /// <param name="startAddr">The address to start calculating at. This must be divisible by 4 (word aligned)</param>
-            /// <param name="endAddr">The last address that was included in the checksum </param>
-            /// <param name="checksum">the checksum value</param>
-            private void PrepareChecksum(uint startAddr, out uint endAddr, out uint checksum)
+            public class LPC_ISP_CommandHandler : ICommandHandler
             {
-                //0. make sure that startAddr is word aligned:
-                if (startAddr % 4 != 0)
-                    throw new ArgumentException("The start address is not word aligned.", "startAddr");
-
-                //1. determine sector of start address
-                uint sector = InSector(startAddr);
-                if (!SWrittenTo[sector])
-                    throw new InvalidOperationException("The sector of the start address has not loaded with data.");
-
-                //2. calculate the checksum
-                checksum = 0;
-                uint address = startAddr;
-                uint EndOfFlash = SectorAddress((uint) NumberOfSectors-1) + SectorSize((uint) NumberOfSectors-1) - 1;
-                //keep going until we either get to the end of the flash or to an empty sector.
-                while (SWrittenTo[sector] && address < EndOfFlash)
+                public int LogID
                 {
-                    checksum += GetDataAtAddress(address);
-                    address += 4;
-                    if (address < EndOfFlash)
-                        sector = InSector(address);                    
+                    get;
+                    set;
                 }
-                endAddr = address - 4;
 
-                //3. now do 2's complement of it
-                checksum = (~checksum) + 1;
+                public TraceSource ts
+                {
+                    get;
+                    set;
+                }
 
+                private IProtocolHandler _ProtocolHandler;
+                public IProtocolHandler ProtocolHandler
+                {
+                    get { return _ProtocolHandler; }
+                }
+
+                /// <summary>
+                /// Send a command
+                /// </summary>
+                /// <param name="command">The command to send</param>
+                /// <param name="NumResponses">The number of replies required (as defined by protocol handler)</param>
+                /// <param name="optionalCloseConn">Set to true if the connection should be closed when this function is done. Default: false</param>
+                /// <param name="optionalRetries">Number of retries to get the command sent. Default: 3 (if supported by protocol handler)</param>
+                /// <param name="optionalTimeout">Timeout (in seconds) when waiting for an STXETX response. Default: 10 seconds (if supported by protocol handler)</param>
+                /// <returns></returns>
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                public List<string> SendCommand(string command, int NumResponses = 0,
+                                        bool optionalCloseConn = false, int optionalRetries = 3,
+                                        int optionalTimeout = 10)
+                {
+                    List<string> resps = new List<string>();
+                    string resp;
+                 //   ProtocolHandler.ReceiveData(
+                    return resps;
+                }
             }
-
-            
-            #endregion
         }
-
     }
 }
