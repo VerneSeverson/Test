@@ -169,6 +169,43 @@ namespace ForwardLibrary
             }
             #endregion
 
+
+            public interface ICommandHandler
+            {
+                int LogID
+                {
+                    get;
+                    set;
+                }
+
+                TraceSource ts
+                {
+                    get;
+                    set;
+                }
+
+                IProtocolHandler ProtocolHandler
+                {
+                    get;
+                }
+
+                /// <summary>
+                /// Send a command
+                /// </summary>
+                /// <param name="command">The command to send</param>
+                /// <param name="NumResponses">The number of replies required (as defined by protocol handler)</param>
+                /// <param name="optionalCloseConn">Set to true if the connection should be closed when this function is done. Default: false</param>
+                /// <param name="optionalRetries">Number of retries to get the command sent. Default: 3 (if supported by protocol handler)</param>
+                /// <param name="optionalTimeout">Timeout (in seconds) when waiting for an STXETX response. Default: 10 seconds (if supported by protocol handler)</param>
+                /// <returns></returns>
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                List<string> SendCommand(string command, int NumResponses = 0,
+                                        bool optionalCloseConn = false, int optionalRetries = 3,
+                                        int optionalTimeout = 10);
+            }
+
             /// <summary>
             /// General command handler class. Children classes inherit this class for specific devices.
             /// 
@@ -220,7 +257,7 @@ namespace ForwardLibrary
             ///     }
             /// }
             /// </summary>
-            public class CommandHandler
+            public class CommandHandler : ICommandHandler
             {
                 public enum LogIDs
                 {
@@ -230,13 +267,22 @@ namespace ForwardLibrary
                     UNAC = 503
                 }
 
+                private int _LogID = (int)LogIDs.GenericCommandHandler;
                 /// <summary>
                 /// This controls the LogID for the command handler, but not the underlying communication interface
                 /// </summary>
-                public int LogID = (int) LogIDs.GenericCommandHandler;
+                public int LogID
+                {
+                    get { return _LogID; }
+                    set { _LogID = value; }
+                }
 
-                
-                public TraceSource ts;
+
+                public TraceSource ts
+                {
+                    get;
+                    set;
+                }
 
                 protected IProtocolHandler _ProtocolHandler = null;
 
