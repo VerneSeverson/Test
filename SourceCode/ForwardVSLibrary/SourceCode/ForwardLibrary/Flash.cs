@@ -1196,6 +1196,30 @@ namespace ForwardLibrary
             /// </summary>
             public class LPC_ISP_CommandHandler : ICommandHandler
             {
+                public enum ReturnCodes : int
+                {
+                    CMD_SUCCESS = 0,
+                    INVALID_COMMAND = 1,
+                    SRC_ADDR_ERROR = 2,
+                    DST_ADDR_ERROR = 3,
+                    SRC_ADDR_NOT_MAPPED = 4,
+                    DST_ADDR_NOT_MAPPED = 5,
+                    COUNT_ERROR = 6,
+                    INVALID_SECTOR = 7,
+                    SECTOR_NOT_BLANK = 8,
+                    SECTOR_NOT_PREPARED_FOR_WRITE_OPERATION = 9,
+                    COMPARE_ERROR = 10,
+                    BUSY = 11,
+                    PARAM_ERROR = 12,
+                    ADDR_ERROR = 13,
+                    ADDR_NOT_MAPPED = 14,
+                    CMD_LOCKED = 15,
+                    INVALID_CODE = 16,
+                    INVALID_BAUD_RATE = 17,
+                    INVALID_STOP_BIT = 18,
+                    CODE_READ_PROTECTION_ENABLED = 19
+                }
+
                 public int LogID
                 {
                     get;
@@ -1208,10 +1232,27 @@ namespace ForwardLibrary
                     set;
                 }
 
+                /// <summary>
+                /// The default timeout for a response in seconds
+                /// </summary>
+                public int DefaultTimeout = 20;                
+
                 private IProtocolHandler _ProtocolHandler;
                 public IProtocolHandler ProtocolHandler
                 {
                     get { return _ProtocolHandler; }
+                }
+
+                public void Dispose()
+                {
+                    try
+                    {
+                        _ProtocolHandler.Dispose();
+                        _ProtocolHandler = null;
+                    }
+                    catch
+                    {
+                    }
                 }
 
                 /// <summary>
@@ -1221,20 +1262,385 @@ namespace ForwardLibrary
                 /// <param name="NumResponses">The number of replies required (as defined by protocol handler)</param>
                 /// <param name="optionalCloseConn">Set to true if the connection should be closed when this function is done. Default: false</param>
                 /// <param name="optionalRetries">Number of retries to get the command sent. Default: 3 (if supported by protocol handler)</param>
-                /// <param name="optionalTimeout">Timeout (in seconds) when waiting for an STXETX response. Default: 10 seconds (if supported by protocol handler)</param>
+                /// <param name="optionalTimeout">Timeout (in seconds) when waiting for a response. Default: 10 seconds (if supported by protocol handler)</param>
                 /// <returns></returns>
-                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
-                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
-                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the device</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>
                 public List<string> SendCommand(string command, int NumResponses = 0,
                                         bool optionalCloseConn = false, int optionalRetries = 3,
                                         int optionalTimeout = 10)
                 {
-                    List<string> resps = new List<string>();
-                    string resp;
-                 //   ProtocolHandler.ReceiveData(
-                    return resps;
+
+                    List<string> Responses = new List<string>();
+
+                    try
+                    {
+                        while (optionalRetries-- > 0)
+                        {
+                            if (_ProtocolHandler.CommContext.bConnected == false)
+                                throw new UnresponsiveConnectionException("Connection has disconnected.", command);
+
+                            //first clear out all data:
+                            string dummy;
+                            while (ProtocolHandler.ReceiveData(out dummy, 0)) ;
+
+                            if (_ProtocolHandler.SendCommand(command))
+                            {
+                                string reply = null;
+                                bool result = true;
+                                int giveUp = NumResponses + 3;
+                                while (result && Responses.Count < NumResponses && giveUp-- > 0)
+                                {
+                                    result = _ProtocolHandler.ReceiveData(out reply, optionalTimeout * 1000);
+                                    if (reply != null)
+                                    {
+                                        //Check for and throw out the echo
+                                        if (reply.Trim() == command.Trim()) //if we got the echo clear out the received data
+                                            Responses = new List<string>();
+                                        else
+                                        {
+                                            Responses.Add(reply);
+                                        //Check to make sure that we received a valid status code
+                                            if (Responses.Count == 1)   //this is the status code
+                                            {
+                                                int status_code = int.Parse(reply);
+                                                if (status_code > (int)ReturnCodes.CODE_READ_PROTECTION_ENABLED)
+                                                    throw new ResponseException("Unexpected status code found: " + status_code, command, reply);
+                                                ReturnCodes rc = (ReturnCodes) status_code;
+                                                if (rc > ReturnCodes.CMD_SUCCESS)
+                                                    throw new ResponseErrorCodeException("Error status code found: " + rc.ToString(), command, reply); 
+                                            }
+                                        }
+                                    }
+                                }
+                                //see if we found all the responses we were looking for
+                                if (Responses.Count < NumResponses)
+                                {
+                                    throw new ResponseException(
+                                        "Did not receive the desired number of responses: found "
+                                        + Responses.Count.ToString() + " of " + NumResponses.ToString(),
+                                        command, Responses);
+
+                                }
+                                break;
+                            }                                                                                                                                                 
+                            else if (optionalRetries < 1)
+                            {
+                                throw new UnresponsiveConnectionException(
+                                    "Failed to send the data: connection is unresponsive.", command);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when trying to send or receive a command.", command, Responses, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+
+                    finally
+                    {
+                        if (optionalCloseConn == true)
+                            try { Dispose(); }
+                            catch { }
+
+                    }
+
+                    return Responses;
+
                 }
+
+                /// <summary>
+                /// Sends a command and returns the status code and fields
+                /// </summary>
+                /// <param name="command">the command to send</param>
+                /// <param name="NumResponses">the expected number of responses</param>
+                /// <param name="Timeout">How long (in seconds) to wait for the expected number of responses</param>
+                /// <param name="responses">The responses received. The first response is always the status code</param>
+                /// <returns>the status code</returns>
+                public ReturnCodes SendCommand(string command, int NumResponses, int Timeout, out List<string> responses)
+                {
+                    try
+                    {
+                        responses = SendCommand(command, NumResponses, false, 0, Timeout);
+                        try
+                        {
+                            return (ReturnCodes)int.Parse(responses[0].Trim());
+                        }
+                        catch (Exception ex)
+                        {
+                            throw new ResponseException("Unable to parse the status code.", command, responses, ex);
+                        }
+                    }
+                    catch (ResponseErrorCodeException ex)
+                    {
+                        //there will only be one field and it will be the status code
+                        try
+                        {
+                            responses = ex.ResponsesReceived;
+                            return (ReturnCodes)int.Parse(ex.ResponsesReceived[0].Trim());
+                        }
+                        catch (Exception ex1)
+                        {
+                            throw new ResponseException("Unable to parse the status code.", command, ex.ResponsesReceived, ex1);
+                        }
+                    }
+                }
+
+                /// <summary>
+                /// UUEncode and send the data. Follow the data with a checksum.
+                /// If the device replies with OK, then the function succeedes. 
+                /// If the device replies with RESEND, the function resends the data 
+                /// NumRetries times. If the device still replies with RESEND then
+                /// ResponseErrorCodeException is thrown.
+                /// </summary>
+                /// <param name="data">The data to send</param>
+                /// <param name="NumRetries">The number of times to retry</param>
+                /// <param name="Timeout">The timeout to wait for OK/RESEND</param>
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the device</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>
+                protected void UUEncodeSendData(byte[] data, int NumRetries, int Timeout)
+                {
+                    string command = "";
+                    string response = "";
+                    try
+                    {
+                        //1. calculate checksum
+                        uint checksum = 0;
+                        foreach (byte by in data)
+                            checksum += by;
+                        while (NumRetries > 0)
+                        {
+                            //2. break the data up into 45 byte segments, UU encode, and send
+                            int i = 0;
+                            while (i < data.Length)
+                            {
+                                if (_ProtocolHandler.CommContext.bConnected == false)
+                                    throw new UnresponsiveConnectionException("Connection has disconnected.", "");
+
+                                //a. copy a line
+                                int Length = 45;
+                                if (Length > (data.Length - i))
+                                    Length = data.Length - i;
+                                byte[] dataToSend = new byte[Length];
+                                Array.Copy(data, i, dataToSend, 0, Length);
+                                i += Length;
+
+                                //b. uu encode the line
+                                command = Convert.ToBase64String(dataToSend);
+
+                                //c. send the uu encoded line
+                                ProtocolHandler.SendCommand(command);
+                            }
+
+                            //3. send the checksum
+                            if (_ProtocolHandler.CommContext.bConnected == false)
+                                throw new UnresponsiveConnectionException("Connection has disconnected.", "");
+
+                            //a. clear out any data first
+                            while (ProtocolHandler.ReceiveData(out response, 0)) ;
+
+                            command = checksum.ToString();
+                            ProtocolHandler.SendCommand(command);
+
+                            //b. now wait for OK or RESEND
+                            ProtocolHandler.ReceiveData(out response, Timeout);
+                            if (response == "OK")
+                            {
+                                //success!
+                                break;
+                            }
+                            else if (response == "RESEND")
+                            {
+                                //failure... send the bytes again
+                                NumRetries--;
+                            }
+                            else
+                            {
+                                //unexpected response
+                                throw new ResponseException("Unexpected response to data checksum.", checksum.ToString(), response);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!IsStandardException(ex))
+                            ex = new ResponseException("Error occurred when trying to send data.", command, response, ex);
+
+                        LogMsg(TraceEventType.Warning, ex.ToString());
+                        throw ex;
+                    }
+                }
+            
+
+                /// <summary>
+                /// This command is used to unlock Flash Write, Erase, and Go commands
+                /// </summary>
+                /// <param name="unlockCode"></param>
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the device</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>                
+                public void Unlock(uint unlockCode)
+                {
+                    string command = "U " + unlockCode;
+                    List<string> resps;
+                    ReturnCodes retCode = SendCommand(command, 1, DefaultTimeout, out resps);
+                    if (retCode != ReturnCodes.CMD_SUCCESS)
+                        throw new ResponseErrorCodeException("Received an error code when trying to unlock the write, erase, and go commands: " + retCode, command, resps);
+                }
+
+                /// <summary>
+                /// This command is used to change the baud rate. The new baud rate is effective
+                /// after the command handler sends the CMD_SUCCESS return code.
+                /// </summary>
+                /// <param name="BaudRate">The baudrate of the serial port</param>
+                /// <param name="StopBit">The number of stop bits (only 1 or 2 are acceptable)</param>
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the device</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>                
+                /// <exception cref="System.ArgumentException">Thrown when a StopBit other than 1 or 2 is specified</exception>
+                public void SetBaudRate(int BaudRate, System.IO.Ports.StopBits StopBit)
+                {
+                    string command = "B " + BaudRate;
+                    if (StopBit == System.IO.Ports.StopBits.One)
+                        command = command + " 1";
+                    else if (StopBit == System.IO.Ports.StopBits.Two)
+                        command = command + " 2";
+                    else 
+                        throw new ArgumentException("Invalid number of stop bits. Only 1 and 2 are acceptable.", "StopBit");
+
+                    List<string> resps;
+                    ReturnCodes retCode = SendCommand(command, 1, DefaultTimeout, out resps);
+                    if (retCode != ReturnCodes.CMD_SUCCESS)
+                        throw new ResponseErrorCodeException("Received an error code when trying to set the baud rate: " + retCode, command, resps);
+                }
+
+                /// <summary>
+                /// The default setting for echo command is ON. When ON the ISP command handler
+                /// sends the received serial data back to the host.
+                /// </summary>
+                /// <param name="EchoOn">Whether or not echo should be on</param>
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the device</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>                
+                public void Echo(bool EchoOn)
+                {
+                    string command = "A ";
+                    if (EchoOn)
+                        command = command + " 1";
+                    else
+                        command = command + " 0";                    
+
+                    List<string> resps;
+                    ReturnCodes retCode = SendCommand(command, 1, DefaultTimeout, out resps);
+                    if (retCode != ReturnCodes.CMD_SUCCESS)
+                        throw new ResponseErrorCodeException("Received an error code when trying to set the baud rate: " + retCode, command, resps);
+                }
+
+                /// <summary>
+                /// This command is used to download data to RAM. Data will be UU-encoded
+                /// before sending by the function. This command is blocked when code read 
+                /// protection is enabled.
+                /// </summary>
+                /// <param name="address">RAM address where data bytes are to be written. This address should be a word boundary.</param>
+                /// <param name="data">The binary data to send. The data can have a maximum length of 900 bytes and must be an integer number of words (data length must be divisible by 4).</param>
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the device</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>                
+                /// <exception cref="System.ArgumentException">Thrown when address is invalid or the data is an invalid length</exception>
+                public void WriteToRAM(uint address, byte[] data)
+                {
+                    WriteRamCMD(address, data.Length);
+
+                    //break data up into 45 byte segments and send:
+                    UUEncodeSendData(data, 3, DefaultTimeout);
+                }                
+
+                public void ReadMemory(uint address, uint length, out byte[] data)
+                {
+                    throw new NotImplementedException();
+                }
+
+                public void PrepareSectors(uint startSector, uint endSector)
+                {
+                    throw new NotImplementedException();
+                }
+
+                public void CopyRAMtoFlash(uint flashAddress, uint ramAddress)
+                {
+                    throw new NotImplementedException();
+                }
+
+                public void Go(uint address, uint mode)
+                {
+                    throw new NotImplementedException();
+                }
+
+                public void EraseSectors(uint startSector, uint endSector)
+                {
+                    throw new NotImplementedException();
+                }
+
+                public void BlankCheckSectors(uint startSector, uint endSector, out int status)
+                {
+                    throw new NotImplementedException();
+                }
+
+                public void ReadPartID(out string partID)
+                {
+                    throw new NotImplementedException();
+                }
+
+                public void ReadBootCodeVersion(out string version)
+                {
+                    throw new NotImplementedException();
+                }
+
+                public void Compare(uint address1, uint address2, uint length, out int result)
+                {
+                    throw new NotImplementedException();
+                }
+
+
+                #region Helper functions
+
+                protected void WriteRamCMD(uint address, int length)
+                {
+                    string command = "W ";
+                    if (length > 900)
+                        throw new ArgumentException("The data length exceeds 900 bytes.", "data");
+                    if (length % 4 != 0)
+                        throw new ArgumentException("The data length is invalid.", "data");
+                    if (address % 4 != 0)
+                        throw new ArgumentException("The address is invalid.", "address");
+
+                    List<string> resps;
+                    ReturnCodes retCode = SendCommand(command, 1, DefaultTimeout, out resps);
+                    if (retCode != ReturnCodes.CMD_SUCCESS)
+                        throw new ResponseErrorCodeException("Received an error code when trying to set the baud rate: " + retCode, command, resps);
+                }
+
+
+                /// <summary>
+                /// returns true if the exception is one of the default exceptions expected
+                /// when sending message
+                /// </summary>
+                /// <param name="ex"></param>
+                /// <returns></returns>
+                protected static bool IsStandardException(Exception ex)
+                {
+                    return ((ex is ResponseException) || (ex is ResponseErrorCodeException) || (ex is UnresponsiveConnectionException));
+                }
+
+                protected void LogMsg(TraceEventType type, string msg)
+                {
+                    ts.TraceEvent(type, LogID, msg);
+                }
+                #endregion
             }
         }
     }

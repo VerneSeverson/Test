@@ -204,6 +204,9 @@ namespace ForwardLibrary
                 List<string> SendCommand(string command, int NumResponses = 0,
                                         bool optionalCloseConn = false, int optionalRetries = 3,
                                         int optionalTimeout = 10);
+
+
+                void Dispose();                
             }
 
             /// <summary>
