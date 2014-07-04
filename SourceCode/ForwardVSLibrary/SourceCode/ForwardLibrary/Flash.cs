@@ -1465,6 +1465,9 @@ namespace ForwardLibrary
                                 throw new ResponseException("Unexpected response to data checksum.", checksum.ToString(), response);
                             }
                         }
+                        if (NumRetries <= 0)                        
+                            throw new ResponseErrorCodeException("Unable to get an OK response to sending the data checksum.", command, response);
+                        
                     }
                     catch (Exception ex)
                     {
@@ -1560,9 +1563,19 @@ namespace ForwardLibrary
                     UUEncodeSendData(data, 3, DefaultTimeout);
                 }                
 
-                public void ReadMemory(uint address, uint length, out byte[] data)
+                /// <summary>
+                /// This command is used to read data from RAM or Flash memory. This command is
+                /// blocked when code read protection is enabled.
+                /// </summary>
+                /// <param name="address">Address from where data bytes are to be read. This address
+                /// should be a word boundary.</param>
+                /// <param name="length">Number of bytes to be read. Count should be a multiple of 4.</param>
+                /// <param name="data">The data that was read.</param>
+                public void ReadMemory(uint address, int length, out byte[] data)
                 {
-                    throw new NotImplementedException();
+                    ReadRamCMD(address, length);
+
+                    AccumulateAndDecodeUUData(out data);
                 }
 
                 public void PrepareSectors(uint startSector, uint endSector)
@@ -1608,6 +1621,23 @@ namespace ForwardLibrary
 
                 #region Helper functions
 
+                protected void ReadRamCMD(uint address, int length)
+                {
+                    string command = "R ";
+                    if (length > 900)
+                        throw new ArgumentException("The data length exceeds 900 bytes.", "data");
+                    if (length % 4 != 0)
+                        throw new ArgumentException("The data length is invalid.", "data");
+                    if (address % 4 != 0)
+                        throw new ArgumentException("The address is invalid.", "address");
+
+                    command = command + address + " " + length;
+                    List<string> resps;
+                    ReturnCodes retCode = SendCommand(command, 1, DefaultTimeout, out resps);
+                    if (retCode != ReturnCodes.CMD_SUCCESS)
+                        throw new ResponseErrorCodeException("Received an error code when trying to issue a read RAM command: " + retCode, command, resps);
+                }
+
                 protected void WriteRamCMD(uint address, int length)
                 {
                     string command = "W ";
@@ -1618,10 +1648,11 @@ namespace ForwardLibrary
                     if (address % 4 != 0)
                         throw new ArgumentException("The address is invalid.", "address");
 
+                    command = command + address + " " + length;
                     List<string> resps;
                     ReturnCodes retCode = SendCommand(command, 1, DefaultTimeout, out resps);
                     if (retCode != ReturnCodes.CMD_SUCCESS)
-                        throw new ResponseErrorCodeException("Received an error code when trying to set the baud rate: " + retCode, command, resps);
+                        throw new ResponseErrorCodeException("Received an error code when trying to issue a write RAM command: " + retCode, command, resps);
                 }
 
 
