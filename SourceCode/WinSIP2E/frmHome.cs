@@ -43,9 +43,9 @@ namespace WinSIP2E
             cboAuthHost.SelectedItem = "Host A";
             //
             cboSettleHost.Items.Add("Host A");
-            cboSettleHost.Items.Add("Host B");
-            cboSettleHost.Items.Add("Host B");
-            cboSettleHost.Items.Add("Host B");
+            //cboSettleHost.Items.Add("Host B");
+            //cboSettleHost.Items.Add("Host B");
+            //cboSettleHost.Items.Add("Host B");
             cboSettleHost.SelectedItem = "Host A";
             //
             cboMessageHost.Items.Add("Host A");
@@ -54,11 +54,17 @@ namespace WinSIP2E
             cboMessageHost.Items.Add("Host D");
             cboMessageHost.SelectedItem = "Host C";
             //
-            cboAlternateHost.Items.Add("Host A");
-            cboAlternateHost.Items.Add("Host B");
-            cboAlternateHost.Items.Add("Host C");
-            cboAlternateHost.Items.Add("Host D");
-            cboAlternateHost.SelectedItem = "Host C";
+            cboSplitSettle.Items.Add("Host A");
+            cboSplitSettle.Items.Add("Host B");
+            cboSplitSettle.Items.Add("Host C");
+            cboSplitSettle.Items.Add("Host D");
+            cboSplitSettle.SelectedItem = "Host D";
+            //
+            cboSplitAuthorization.Items.Add("Host A");
+            cboSplitAuthorization.Items.Add("Host B");
+            cboSplitAuthorization.Items.Add("Host C");
+            cboSplitAuthorization.Items.Add("Host D");
+            cboSplitAuthorization.SelectedItem = "Host D";
             //
             cboHostA.Items.Add("Not Used");
             cboHostA.Items.Add("Paymentech");
@@ -612,6 +618,16 @@ namespace WinSIP2E
                 try { frm.Close(); }
                 catch { }
             }
+        }
+
+        private void label24_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void textBox36_TextChanged(object sender, EventArgs e)
+        {
+
         }
 
         
