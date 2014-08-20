@@ -630,6 +630,36 @@ namespace WinSIP2E
 
         }
 
+        private void lblAutID2_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void textBox2_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label6_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void textBox38_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void textBox41_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void txtAuthIPProtocol_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
         
     }
 
