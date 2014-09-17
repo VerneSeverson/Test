@@ -29,8 +29,8 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle7 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle8 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle5 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle6 = new System.Windows.Forms.DataGridViewCellStyle();
             this.txtPassword = new System.Windows.Forms.TextBox();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
@@ -43,8 +43,6 @@
             this.gbNAC = new System.Windows.Forms.GroupBox();
             this.label5 = new System.Windows.Forms.Label();
             this.cboUnitIDType = new System.Windows.Forms.ComboBox();
-            this.lblgbNAC_Inst1 = new System.Windows.Forms.Label();
-            this.lblgbNAC_Inst2 = new System.Windows.Forms.Label();
             this.btnConnect = new System.Windows.Forms.Button();
             this.txtID = new System.Windows.Forms.TextBox();
             this.gbLogin = new System.Windows.Forms.GroupBox();
@@ -428,8 +426,6 @@
             this.tabUcrStatusInterfaceErrors = new System.Windows.Forms.TabPage();
             this.tabUcrStatusMaxUsage = new System.Windows.Forms.TabPage();
             this.groupBox21 = new System.Windows.Forms.GroupBox();
-            this.btnGetUcrList = new System.Windows.Forms.Button();
-            this.btnCancelLan = new System.Windows.Forms.Button();
             this.btnConnectLan = new System.Windows.Forms.Button();
             this.label49 = new System.Windows.Forms.Label();
             this.label48 = new System.Windows.Forms.Label();
@@ -498,6 +494,10 @@
             this.cmdDisconnect = new System.Windows.Forms.Button();
             this.cmdLogOut = new System.Windows.Forms.Button();
             this.tmrStatus = new System.Windows.Forms.Timer(this.components);
+            this.label7 = new System.Windows.Forms.Label();
+            this.label8 = new System.Windows.Forms.Label();
+            this.txtNacUsername = new System.Windows.Forms.TextBox();
+            this.txtNacPassword = new System.Windows.Forms.TextBox();
             this.tabControl_Main.SuspendLayout();
             this.tabMainConnect.SuspendLayout();
             this.groupBox3.SuspendLayout();
@@ -601,7 +601,7 @@
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(8, 47);
+            this.label2.Location = new System.Drawing.Point(6, 47);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(56, 13);
             this.label2.TabIndex = 3;
@@ -684,10 +684,12 @@
             // 
             // gbNAC
             // 
+            this.gbNAC.Controls.Add(this.txtNacPassword);
+            this.gbNAC.Controls.Add(this.txtNacUsername);
+            this.gbNAC.Controls.Add(this.label8);
+            this.gbNAC.Controls.Add(this.label7);
             this.gbNAC.Controls.Add(this.label5);
             this.gbNAC.Controls.Add(this.cboUnitIDType);
-            this.gbNAC.Controls.Add(this.lblgbNAC_Inst1);
-            this.gbNAC.Controls.Add(this.lblgbNAC_Inst2);
             this.gbNAC.Controls.Add(this.btnConnect);
             this.gbNAC.Controls.Add(this.txtID);
             this.gbNAC.Location = new System.Drawing.Point(12, 178);
@@ -716,30 +718,9 @@
             this.cboUnitIDType.Size = new System.Drawing.Size(96, 21);
             this.cboUnitIDType.TabIndex = 8;
             // 
-            // lblgbNAC_Inst1
-            // 
-            this.lblgbNAC_Inst1.AutoSize = true;
-            this.lblgbNAC_Inst1.BackColor = System.Drawing.SystemColors.Info;
-            this.lblgbNAC_Inst1.Location = new System.Drawing.Point(24, 128);
-            this.lblgbNAC_Inst1.Name = "lblgbNAC_Inst1";
-            this.lblgbNAC_Inst1.Size = new System.Drawing.Size(143, 26);
-            this.lblgbNAC_Inst1.TabIndex = 7;
-            this.lblgbNAC_Inst1.Text = "Disable Connect button \r\nwhen connected to a device";
-            // 
-            // lblgbNAC_Inst2
-            // 
-            this.lblgbNAC_Inst2.AutoSize = true;
-            this.lblgbNAC_Inst2.BackColor = System.Drawing.SystemColors.Info;
-            this.lblgbNAC_Inst2.Location = new System.Drawing.Point(16, 184);
-            this.lblgbNAC_Inst2.Name = "lblgbNAC_Inst2";
-            this.lblgbNAC_Inst2.Size = new System.Drawing.Size(226, 39);
-            this.lblgbNAC_Inst2.TabIndex = 6;
-            this.lblgbNAC_Inst2.Text = "Message box will pop up with status:\r\n  Please wait.\r\n  Unit last checked in -  9" +
-    "/13/2013 at 1:00 PM";
-            // 
             // btnConnect
             // 
-            this.btnConnect.Location = new System.Drawing.Point(184, 96);
+            this.btnConnect.Location = new System.Drawing.Point(186, 195);
             this.btnConnect.Name = "btnConnect";
             this.btnConnect.Size = new System.Drawing.Size(92, 22);
             this.btnConnect.TabIndex = 5;
@@ -4054,25 +4035,25 @@
             // dataGridView1
             // 
             this.dataGridView1.AllowUserToAddRows = false;
-            dataGridViewCellStyle7.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle7.BackColor = System.Drawing.SystemColors.Control;
-            dataGridViewCellStyle7.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle7.ForeColor = System.Drawing.SystemColors.WindowText;
-            dataGridViewCellStyle7.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle7.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle7.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
-            this.dataGridView1.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle7;
+            dataGridViewCellStyle5.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle5.BackColor = System.Drawing.SystemColors.Control;
+            dataGridViewCellStyle5.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            dataGridViewCellStyle5.ForeColor = System.Drawing.SystemColors.WindowText;
+            dataGridViewCellStyle5.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle5.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle5.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
+            this.dataGridView1.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle5;
             this.dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.dataGridView1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
             this.dataGridViewTextBoxColumn1});
-            dataGridViewCellStyle8.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle8.BackColor = System.Drawing.SystemColors.Window;
-            dataGridViewCellStyle8.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle8.ForeColor = System.Drawing.SystemColors.ControlText;
-            dataGridViewCellStyle8.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle8.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle8.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
-            this.dataGridView1.DefaultCellStyle = dataGridViewCellStyle8;
+            dataGridViewCellStyle6.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle6.BackColor = System.Drawing.SystemColors.Window;
+            dataGridViewCellStyle6.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            dataGridViewCellStyle6.ForeColor = System.Drawing.SystemColors.ControlText;
+            dataGridViewCellStyle6.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle6.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle6.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
+            this.dataGridView1.DefaultCellStyle = dataGridViewCellStyle6;
             this.dataGridView1.Location = new System.Drawing.Point(15, 42);
             this.dataGridView1.Name = "dataGridView1";
             this.dataGridView1.Size = new System.Drawing.Size(511, 233);
@@ -4498,8 +4479,6 @@
             // 
             // groupBox21
             // 
-            this.groupBox21.Controls.Add(this.btnGetUcrList);
-            this.groupBox21.Controls.Add(this.btnCancelLan);
             this.groupBox21.Controls.Add(this.btnConnectLan);
             this.groupBox21.Controls.Add(this.label49);
             this.groupBox21.Controls.Add(this.label48);
@@ -4510,32 +4489,14 @@
             this.groupBox21.Controls.Add(this.button6);
             this.groupBox21.Location = new System.Drawing.Point(8, 104);
             this.groupBox21.Name = "groupBox21";
-            this.groupBox21.Size = new System.Drawing.Size(296, 464);
+            this.groupBox21.Size = new System.Drawing.Size(296, 459);
             this.groupBox21.TabIndex = 1;
             this.groupBox21.TabStop = false;
             this.groupBox21.Text = "LAN Readers";
             // 
-            // btnGetUcrList
-            // 
-            this.btnGetUcrList.Location = new System.Drawing.Point(184, 16);
-            this.btnGetUcrList.Name = "btnGetUcrList";
-            this.btnGetUcrList.Size = new System.Drawing.Size(96, 24);
-            this.btnGetUcrList.TabIndex = 9;
-            this.btnGetUcrList.Text = "Get List";
-            this.btnGetUcrList.UseVisualStyleBackColor = true;
-            // 
-            // btnCancelLan
-            // 
-            this.btnCancelLan.Location = new System.Drawing.Point(104, 368);
-            this.btnCancelLan.Name = "btnCancelLan";
-            this.btnCancelLan.Size = new System.Drawing.Size(80, 24);
-            this.btnCancelLan.TabIndex = 8;
-            this.btnCancelLan.Text = "Cancel";
-            this.btnCancelLan.UseVisualStyleBackColor = true;
-            // 
             // btnConnectLan
             // 
-            this.btnConnectLan.Location = new System.Drawing.Point(200, 368);
+            this.btnConnectLan.Location = new System.Drawing.Point(102, 372);
             this.btnConnectLan.Name = "btnConnectLan";
             this.btnConnectLan.Size = new System.Drawing.Size(80, 24);
             this.btnConnectLan.TabIndex = 7;
@@ -4545,7 +4506,7 @@
             // label49
             // 
             this.label49.AutoSize = true;
-            this.label49.Location = new System.Drawing.Point(176, 48);
+            this.label49.Location = new System.Drawing.Point(176, 27);
             this.label49.Name = "label49";
             this.label49.Size = new System.Drawing.Size(81, 13);
             this.label49.TabIndex = 6;
@@ -4554,7 +4515,7 @@
             // label48
             // 
             this.label48.AutoSize = true;
-            this.label48.Location = new System.Drawing.Point(16, 48);
+            this.label48.Location = new System.Drawing.Point(16, 27);
             this.label48.Name = "label48";
             this.label48.Size = new System.Drawing.Size(48, 13);
             this.label48.TabIndex = 5;
@@ -4565,9 +4526,9 @@
             this.listView1.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
             this.columnHeader1,
             this.columnHeader2});
-            this.listView1.Location = new System.Drawing.Point(8, 64);
+            this.listView1.Location = new System.Drawing.Point(8, 43);
             this.listView1.Name = "listView1";
-            this.listView1.Size = new System.Drawing.Size(272, 296);
+            this.listView1.Size = new System.Drawing.Size(272, 323);
             this.listView1.TabIndex = 4;
             this.listView1.UseCompatibleStateImageBehavior = false;
             // 
@@ -4581,7 +4542,7 @@
             // 
             // button9
             // 
-            this.button9.Location = new System.Drawing.Point(208, 408);
+            this.button9.Location = new System.Drawing.Point(213, 415);
             this.button9.Name = "button9";
             this.button9.Size = new System.Drawing.Size(64, 24);
             this.button9.TabIndex = 3;
@@ -4590,7 +4551,7 @@
             // 
             // button8
             // 
-            this.button8.Location = new System.Drawing.Point(144, 408);
+            this.button8.Location = new System.Drawing.Point(149, 415);
             this.button8.Name = "button8";
             this.button8.Size = new System.Drawing.Size(56, 24);
             this.button8.TabIndex = 2;
@@ -4599,7 +4560,7 @@
             // 
             // button7
             // 
-            this.button7.Location = new System.Drawing.Point(80, 408);
+            this.button7.Location = new System.Drawing.Point(85, 415);
             this.button7.Name = "button7";
             this.button7.Size = new System.Drawing.Size(56, 24);
             this.button7.TabIndex = 1;
@@ -4608,7 +4569,7 @@
             // 
             // button6
             // 
-            this.button6.Location = new System.Drawing.Point(16, 408);
+            this.button6.Location = new System.Drawing.Point(21, 415);
             this.button6.Name = "button6";
             this.button6.Size = new System.Drawing.Size(56, 24);
             this.button6.TabIndex = 0;
@@ -5186,6 +5147,40 @@
             this.tmrStatus.Interval = 500;
             this.tmrStatus.Tick += new System.EventHandler(this.tmrStatus_Tick);
             // 
+            // label7
+            // 
+            this.label7.AutoSize = true;
+            this.label7.Location = new System.Drawing.Point(6, 137);
+            this.label7.Name = "label7";
+            this.label7.Size = new System.Drawing.Size(83, 13);
+            this.label7.TabIndex = 10;
+            this.label7.Text = "NAC Username:";
+            this.label7.Click += new System.EventHandler(this.label7_Click);
+            // 
+            // label8
+            // 
+            this.label8.AutoSize = true;
+            this.label8.Location = new System.Drawing.Point(6, 163);
+            this.label8.Name = "label8";
+            this.label8.Size = new System.Drawing.Size(81, 13);
+            this.label8.TabIndex = 11;
+            this.label8.Text = "NAC Password:";
+            // 
+            // txtNacUsername
+            // 
+            this.txtNacUsername.Location = new System.Drawing.Point(120, 134);
+            this.txtNacUsername.Name = "txtNacUsername";
+            this.txtNacUsername.Size = new System.Drawing.Size(160, 20);
+            this.txtNacUsername.TabIndex = 12;
+            // 
+            // txtNacPassword
+            // 
+            this.txtNacPassword.Location = new System.Drawing.Point(120, 160);
+            this.txtNacPassword.Name = "txtNacPassword";
+            this.txtNacPassword.Size = new System.Drawing.Size(157, 20);
+            this.txtNacPassword.TabIndex = 13;
+            this.txtNacPassword.TextChanged += new System.EventHandler(this.txtNacPassword_TextChanged);
+            // 
             // frmHome
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -5352,12 +5347,10 @@
         private System.Windows.Forms.GroupBox gbLogin;
         private System.Windows.Forms.Button cmdLogIn;
         private System.Windows.Forms.GroupBox gbNAC;
-        private System.Windows.Forms.Label lblgbNAC_Inst2;
         private System.Windows.Forms.Button btnConnect;
         private System.Windows.Forms.TextBox txtID;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.GroupBox groupBox3;
-        private System.Windows.Forms.Label lblgbNAC_Inst1;
         private System.Windows.Forms.Label lblgbLoginInst1;
         private System.Windows.Forms.Label lblgbLoginInst2;
         private System.Windows.Forms.Label label11;
@@ -5420,11 +5413,9 @@
         private System.Windows.Forms.Button btnConnectInternalUCR;
         private System.Windows.Forms.Label lblNAC_Shutdown;
         private System.Windows.Forms.Label lblNAC_or2;
-        private System.Windows.Forms.Button btnCancelLan;
         private System.Windows.Forms.Button btnConnectLan;
         private System.Windows.Forms.Label label49;
         private System.Windows.Forms.Label label48;
-        private System.Windows.Forms.Button btnGetUcrList;
         private System.Windows.Forms.TabPage tabNacIPHost;
         private System.Windows.Forms.TabControl tabTools_Files;
         private System.Windows.Forms.TabPage tabToolsFiles;
@@ -5807,6 +5798,10 @@
         private System.Windows.Forms.Label lblSplitID3;
         private System.Windows.Forms.Label lblSplitID2;
         private System.Windows.Forms.TextBox textBox109;
+        private System.Windows.Forms.TextBox txtNacPassword;
+        private System.Windows.Forms.TextBox txtNacUsername;
+        private System.Windows.Forms.Label label8;
+        private System.Windows.Forms.Label label7;
     }
 }
 
