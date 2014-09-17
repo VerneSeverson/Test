@@ -29,8 +29,8 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle5 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle6 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
             this.txtPassword = new System.Windows.Forms.TextBox();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
@@ -41,6 +41,10 @@
             this.groupBox3 = new System.Windows.Forms.GroupBox();
             this.label11 = new System.Windows.Forms.Label();
             this.gbNAC = new System.Windows.Forms.GroupBox();
+            this.txtNacPassword = new System.Windows.Forms.TextBox();
+            this.txtNacUsername = new System.Windows.Forms.TextBox();
+            this.label8 = new System.Windows.Forms.Label();
+            this.label7 = new System.Windows.Forms.Label();
             this.label5 = new System.Windows.Forms.Label();
             this.cboUnitIDType = new System.Windows.Forms.ComboBox();
             this.btnConnect = new System.Windows.Forms.Button();
@@ -494,10 +498,8 @@
             this.cmdDisconnect = new System.Windows.Forms.Button();
             this.cmdLogOut = new System.Windows.Forms.Button();
             this.tmrStatus = new System.Windows.Forms.Timer(this.components);
-            this.label7 = new System.Windows.Forms.Label();
-            this.label8 = new System.Windows.Forms.Label();
-            this.txtNacUsername = new System.Windows.Forms.TextBox();
-            this.txtNacPassword = new System.Windows.Forms.TextBox();
+            this.lblgbNAC_Inst1 = new System.Windows.Forms.Label();
+            this.lblgbNAC_Inst2 = new System.Windows.Forms.Label();
             this.tabControl_Main.SuspendLayout();
             this.tabMainConnect.SuspendLayout();
             this.groupBox3.SuspendLayout();
@@ -684,6 +686,8 @@
             // 
             // gbNAC
             // 
+            this.gbNAC.Controls.Add(this.lblgbNAC_Inst2);
+            this.gbNAC.Controls.Add(this.lblgbNAC_Inst1);
             this.gbNAC.Controls.Add(this.txtNacPassword);
             this.gbNAC.Controls.Add(this.txtNacUsername);
             this.gbNAC.Controls.Add(this.label8);
@@ -699,6 +703,40 @@
             this.gbNAC.TabStop = false;
             this.gbNAC.Text = "NAC Connect";
             this.gbNAC.Enter += new System.EventHandler(this.groupBox2_Enter);
+            // 
+            // txtNacPassword
+            // 
+            this.txtNacPassword.Location = new System.Drawing.Point(120, 160);
+            this.txtNacPassword.Name = "txtNacPassword";
+            this.txtNacPassword.Size = new System.Drawing.Size(157, 20);
+            this.txtNacPassword.TabIndex = 13;
+            this.txtNacPassword.TextChanged += new System.EventHandler(this.txtNacPassword_TextChanged);
+            // 
+            // txtNacUsername
+            // 
+            this.txtNacUsername.Location = new System.Drawing.Point(120, 134);
+            this.txtNacUsername.Name = "txtNacUsername";
+            this.txtNacUsername.Size = new System.Drawing.Size(160, 20);
+            this.txtNacUsername.TabIndex = 12;
+            // 
+            // label8
+            // 
+            this.label8.AutoSize = true;
+            this.label8.Location = new System.Drawing.Point(6, 163);
+            this.label8.Name = "label8";
+            this.label8.Size = new System.Drawing.Size(81, 13);
+            this.label8.TabIndex = 11;
+            this.label8.Text = "NAC Password:";
+            // 
+            // label7
+            // 
+            this.label7.AutoSize = true;
+            this.label7.Location = new System.Drawing.Point(6, 137);
+            this.label7.Name = "label7";
+            this.label7.Size = new System.Drawing.Size(83, 13);
+            this.label7.TabIndex = 10;
+            this.label7.Text = "NAC Username:";
+            this.label7.Click += new System.EventHandler(this.label7_Click);
             // 
             // label5
             // 
@@ -4035,25 +4073,25 @@
             // dataGridView1
             // 
             this.dataGridView1.AllowUserToAddRows = false;
-            dataGridViewCellStyle5.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle5.BackColor = System.Drawing.SystemColors.Control;
-            dataGridViewCellStyle5.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle5.ForeColor = System.Drawing.SystemColors.WindowText;
-            dataGridViewCellStyle5.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle5.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle5.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
-            this.dataGridView1.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle5;
+            dataGridViewCellStyle1.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle1.BackColor = System.Drawing.SystemColors.Control;
+            dataGridViewCellStyle1.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            dataGridViewCellStyle1.ForeColor = System.Drawing.SystemColors.WindowText;
+            dataGridViewCellStyle1.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle1.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle1.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
+            this.dataGridView1.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle1;
             this.dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.dataGridView1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
             this.dataGridViewTextBoxColumn1});
-            dataGridViewCellStyle6.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle6.BackColor = System.Drawing.SystemColors.Window;
-            dataGridViewCellStyle6.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle6.ForeColor = System.Drawing.SystemColors.ControlText;
-            dataGridViewCellStyle6.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle6.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle6.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
-            this.dataGridView1.DefaultCellStyle = dataGridViewCellStyle6;
+            dataGridViewCellStyle2.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle2.BackColor = System.Drawing.SystemColors.Window;
+            dataGridViewCellStyle2.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            dataGridViewCellStyle2.ForeColor = System.Drawing.SystemColors.ControlText;
+            dataGridViewCellStyle2.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle2.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle2.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
+            this.dataGridView1.DefaultCellStyle = dataGridViewCellStyle2;
             this.dataGridView1.Location = new System.Drawing.Point(15, 42);
             this.dataGridView1.Name = "dataGridView1";
             this.dataGridView1.Size = new System.Drawing.Size(511, 233);
@@ -5147,39 +5185,25 @@
             this.tmrStatus.Interval = 500;
             this.tmrStatus.Tick += new System.EventHandler(this.tmrStatus_Tick);
             // 
-            // label7
+            // lblgbNAC_Inst1
             // 
-            this.label7.AutoSize = true;
-            this.label7.Location = new System.Drawing.Point(6, 137);
-            this.label7.Name = "label7";
-            this.label7.Size = new System.Drawing.Size(83, 13);
-            this.label7.TabIndex = 10;
-            this.label7.Text = "NAC Username:";
-            this.label7.Click += new System.EventHandler(this.label7_Click);
+            this.lblgbNAC_Inst1.AutoSize = true;
+            this.lblgbNAC_Inst1.BackColor = System.Drawing.SystemColors.Info;
+            this.lblgbNAC_Inst1.Location = new System.Drawing.Point(13, 105);
+            this.lblgbNAC_Inst1.Name = "lblgbNAC_Inst1";
+            this.lblgbNAC_Inst1.Size = new System.Drawing.Size(95, 26);
+            this.lblgbNAC_Inst1.TabIndex = 14;
+            this.lblgbNAC_Inst1.Text = "Message box will\r\n show log in errors.";
             // 
-            // label8
+            // lblgbNAC_Inst2
             // 
-            this.label8.AutoSize = true;
-            this.label8.Location = new System.Drawing.Point(6, 163);
-            this.label8.Name = "label8";
-            this.label8.Size = new System.Drawing.Size(81, 13);
-            this.label8.TabIndex = 11;
-            this.label8.Text = "NAC Password:";
-            // 
-            // txtNacUsername
-            // 
-            this.txtNacUsername.Location = new System.Drawing.Point(120, 134);
-            this.txtNacUsername.Name = "txtNacUsername";
-            this.txtNacUsername.Size = new System.Drawing.Size(160, 20);
-            this.txtNacUsername.TabIndex = 12;
-            // 
-            // txtNacPassword
-            // 
-            this.txtNacPassword.Location = new System.Drawing.Point(120, 160);
-            this.txtNacPassword.Name = "txtNacPassword";
-            this.txtNacPassword.Size = new System.Drawing.Size(157, 20);
-            this.txtNacPassword.TabIndex = 13;
-            this.txtNacPassword.TextChanged += new System.EventHandler(this.txtNacPassword_TextChanged);
+            this.lblgbNAC_Inst2.AutoSize = true;
+            this.lblgbNAC_Inst2.BackColor = System.Drawing.SystemColors.Info;
+            this.lblgbNAC_Inst2.Location = new System.Drawing.Point(152, 105);
+            this.lblgbNAC_Inst2.Name = "lblgbNAC_Inst2";
+            this.lblgbNAC_Inst2.Size = new System.Drawing.Size(125, 26);
+            this.lblgbNAC_Inst2.TabIndex = 15;
+            this.lblgbNAC_Inst2.Text = "Message box will\r\n show connection status.";
             // 
             // frmHome
             // 
@@ -5802,6 +5826,8 @@
         private System.Windows.Forms.TextBox txtNacUsername;
         private System.Windows.Forms.Label label8;
         private System.Windows.Forms.Label label7;
+        private System.Windows.Forms.Label lblgbNAC_Inst2;
+        private System.Windows.Forms.Label lblgbNAC_Inst1;
     }
 }
 
