@@ -690,6 +690,11 @@ namespace WinSIP2E
 
         }
 
+        private void label55_Click(object sender, EventArgs e)
+        {
+
+        }
+
         
     }
 
