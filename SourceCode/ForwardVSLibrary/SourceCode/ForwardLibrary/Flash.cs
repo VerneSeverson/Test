@@ -91,7 +91,7 @@ namespace ForwardLibrary
 
             /// <summary>
             /// Determine the hex line's record type. The hex line's checksum is
-            /// validated and an exception is throwm if the checksum doesn't match.            
+            /// validated and an exception is thrown if the checksum doesn't match.            
             /// </summary>
             /// <param name="hexLine"></param>
             /// <returns></returns>
@@ -124,7 +124,7 @@ namespace ForwardLibrary
             /// </summary>
             /// <param name="hexLine"></param>
             /// <returns></returns>
-            /// <exception cref="HexLineException">Thrown when the an error is encountered with parsing the hex line.</exception>
+            /// <exception cref="HexLineException">Thrown when an error is encountered with parsing the hex line.</exception>
             public static int DetermineHexLineDataLength(string hexLine)
             {
                 hexLine = hexLine.Trim();   //get rid of white space
@@ -168,6 +168,11 @@ namespace ForwardLibrary
                 return DetermineHexLineDataLength(hexLine) + 11;
             }
 
+            /// <summary>
+            /// Verifies the checksum of this hex line.
+            /// </summary>
+            /// <param name="hexLine"></param>
+            /// <exception cref="HexLineException">Thrown when the checksum is invalid or an error is encountered with parsing the hex line.</exception>
             public static void VerifyHexLineChecksum(string hexLine)
             {
                 hexLine = hexLine.Trim();   //get rid of white space
@@ -209,7 +214,7 @@ namespace ForwardLibrary
             }
 
             /// <summary>
-            /// This returns the address that this indicated by the hex line.
+            /// This returns the address that is indicated by the hex line.
             /// In most cases, this is simply the address field (16 bits). However, 
             /// if:
             ///  -> the record type is Extended Linear Address, 
@@ -274,7 +279,7 @@ namespace ForwardLibrary
             /// </summary>
             /// <param name="hexLine"></param>
             /// <returns></returns>
-            /// <exception cref="HexLineException">Thrown when the an error is encountered with parsing the hex line.</exception>
+            /// <exception cref="HexLineException">Thrown when the an error is encountered with parsing the hex line or if the hex line is not a data record.</exception>
             public static byte[] GetDataHexLineData(string hexLine)
             {
                 byte[] data;
@@ -624,6 +629,7 @@ namespace ForwardLibrary
                 /// <summary>
                 /// call this to add the checksums at the offsets specified
                 /// </summary>
+                /// <exception cref="System.InvalidOperationException">Thrown when there is no valid data to checksum.</exception>
                 public void InsertChecksums()
                 {
                     uint sector, firstSector;    
@@ -680,7 +686,7 @@ namespace ForwardLibrary
 
                 #region Helper functions
                 private void BasicConstruction()
-                {
+                {                    
                     SSize = new uint[] {    0x1000, 0x1000, 0x1000, 0x1000, 0x1000, 0x1000, 0x1000, 0x1000, 0x8000,
                                             0x8000,  0x8000,  0x8000,  0x8000,  0x8000,  0x8000,  0x8000, 0x8000, 
                                             0x8000,  0x8000,  0x8000,  0x8000,  0x8000,  0x1000,  0x1000, 0x1000, 
@@ -704,6 +710,8 @@ namespace ForwardLibrary
                 /// <param name="startAddr">The address to start calculating at. This must be divisible by 4 (word aligned)</param>
                 /// <param name="endAddr">The last address that was included in the checksum </param>
                 /// <param name="checksum">the checksum value</param>
+                /// <exception cref="System.ArgumentException">Thrown when the start address is not valid (not word aligned or does not reside in a sector).</exception>
+                /// <exception cref="System.InvalidOperationException">Thrown when the start sector has no data.</exception>
                 private void PrepareChecksum(uint startAddr, out uint endAddr, out uint checksum)
                 {
                     //0. make sure that startAddr is word aligned:
@@ -1163,7 +1171,13 @@ namespace ForwardLibrary
                             }
                             else
                             {
-                                ReceivedData.WriteByte(theByte);
+                                //if the CR was no followed by a line feed, add it back to the received data
+                                if (LastRxByte == 0x0D)
+                                    ReceivedData.WriteByte(LastRxByte);
+
+                                //prevent CR from appearing in the received data (if followed by a LF)
+                                if (theByte != 0x0D)
+                                    ReceivedData.WriteByte(theByte);
                                 LastRxByte = theByte;
                             }
                         }
@@ -1392,14 +1406,14 @@ namespace ForwardLibrary
 
                 /// <summary>
                 /// UUEncode and send the data. Follow the data with a checksum.
-                /// If the device replies with OK, then the function succeedes. 
+                /// If the device replies with OK, then the function is successful. 
                 /// If the device replies with RESEND, the function resends the data 
                 /// NumRetries times. If the device still replies with RESEND then
                 /// ResponseErrorCodeException is thrown.
                 /// </summary>
                 /// <param name="data">The data to send</param>
                 /// <param name="NumRetries">The number of times to retry</param>
-                /// <param name="Timeout">The timeout to wait for OK/RESEND</param>
+                /// <param name="Timeout">The timeout to wait for OK/RESEND in seconds</param>
                 /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the device</exception>
                 /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
                 /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>
@@ -1448,7 +1462,7 @@ namespace ForwardLibrary
                             ProtocolHandler.SendCommand(command);
 
                             //b. now wait for OK or RESEND
-                            ProtocolHandler.ReceiveData(out response, Timeout);
+                            ProtocolHandler.ReceiveData(out response, Timeout * 1000);
                             if (response == "OK")
                             {
                                 //success!
@@ -1479,6 +1493,84 @@ namespace ForwardLibrary
                     }
                 }
             
+                /// <summary>
+                /// Accumulate and decode incoming UU data which is the result of a
+                /// read operation. The checksum is verified:
+                /// Reply with OK if the checksum matches(the function is successful)
+                /// OR if the numnber of retries has been exceeded in which case
+                /// ResponseErrorCodeException is thrown.
+                /// Reply with RESEND, if the data must be resent.                  
+                /// 
+                /// </summary>
+                /// <param name="length">The amount of data expected</param>
+                /// <param name="NumRetries">The number of times to retry getting the data correctly</param>
+                /// <param name="Timeout">The timeout to wait for the next packet of data in seconds</param>
+                /// <param name="data">The decoded, received data</param>
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the device</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>
+                protected void AccumulateAndDecodeUUData(int length, int NumRetries, int Timeout, out byte[] data)
+                {                    
+                    string incomingdata;                                        
+                    MemoryStream AllData = new MemoryStream();                    
+
+                    while (AllData.Length < length)
+                    {
+                        int retriesLeft = NumRetries;
+                        bool validData = false;
+                        while (!validData)
+                        {
+                            MemoryStream ReceivedDataPacket = new MemoryStream();
+                            int packetLines = 0;  //number of lines received for the current packet
+
+                            //1. accumulate the data
+                            while ((AllData.Length < length) && (packetLines < 20))
+                            {
+                                if (_ProtocolHandler.CommContext.bConnected == false)
+                                    throw new UnresponsiveConnectionException("Connection has disconnected.", "");
+
+                                //a. retrieve a line
+                                ProtocolHandler.ReceiveData(out incomingdata, Timeout * 1000);
+
+                                //b. UU decode the line
+                                byte[] rawdata;
+                                rawdata = Convert.FromBase64String(incomingdata.Trim());
+
+                                //c. add it to our received data length
+                                ReceivedDataPacket.Write(rawdata, 0, rawdata.Length);
+                                packetLines++;
+                            }
+
+                            //2. retrieve the checksum
+                            ProtocolHandler.ReceiveData(out incomingdata, Timeout * 1000);
+                            uint ChecksumRcvd = Convert.ToUInt32(incomingdata.Trim());
+
+                            //3. calculate the checksum and compare, save the data if valid
+                            uint checksum = 0;
+                            byte[] packetdata = ReceivedDataPacket.ToArray();
+                            foreach (byte by in packetdata)
+                                checksum += by;
+
+                            if (checksum == ChecksumRcvd)
+                            {
+                                ProtocolHandler.SendCommand("OK");
+                                AllData.Write(packetdata, 0, packetdata.Length);
+                                validData = true;
+                            }
+                            else
+                            {
+                                ProtocolHandler.SendCommand("RESEND");
+                                validData = false;
+                                retriesLeft--;
+                                if (retriesLeft <= 0)
+                                    throw new ResponseErrorCodeException("Unable to successfully match the data checksum.", incomingdata, checksum.ToString());
+                            }
+                        }
+                    }
+
+                    data = AllData.ToArray();
+                }
+
 
                 /// <summary>
                 /// This command is used to unlock Flash Write, Erase, and Go commands
@@ -1575,47 +1667,285 @@ namespace ForwardLibrary
                 {
                     ReadRamCMD(address, length);
 
-                    AccumulateAndDecodeUUData(out data);
+                    AccumulateAndDecodeUUData(length, 3, DefaultTimeout, out data);
                 }
 
+                /// <summary>
+                /// This command must be executed before executing CopyRAMtoFlash or
+                /// EraseSectors command. Successful execution of the CopyRAMtoFlash or
+                /// EraseSectors command causes relevant sectors to be protected again. The
+                /// boot block can not be prepared by this command. To prepare a single sector use
+                /// the same "Start" and "End" sector numbers.
+                /// </summary>
+                /// <param name="startSector">The start sector number</param>
+                /// <param name="StopBit">The end sector number</param>
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the device</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>                
+                /// <exception cref="System.ArgumentException">Thrown when the end sector number is not greater than or equal to the start sector number</exception>
                 public void PrepareSectors(uint startSector, uint endSector)
-                {
-                    throw new NotImplementedException();
+                {                    
+                    if (endSector < startSector)                         
+                        throw new ArgumentException("End sector must be greater than or equal to the start sector.", "endSector");
+                    
+                    string command = "P " + startSector.ToString() + " " + endSector.ToString();
+
+                    List<string> resps;
+                    ReturnCodes retCode = SendCommand(command, 1, DefaultTimeout, out resps);
+                    if (retCode != ReturnCodes.CMD_SUCCESS)
+                        throw new ResponseErrorCodeException("Received an error code when trying to prepare sectors: " + retCode, command, resps);
                 }
 
-                public void CopyRAMtoFlash(uint flashAddress, uint ramAddress)
+
+                /// <summary>
+                /// This command is used to program the Flash memory. The PrepareSectors command 
+                /// should precede this command. The affected sectors are automatically protected 
+                /// again once the copy command is successfully executed. The boot block cannot 
+                /// be written by this command. This command is blocked when code read protection 
+                /// is enabled.
+                /// </summary>
+                /// <param name="flashAddress">Destination Flash address where data bytes are to be
+                /// written. The destination address should be a 256 byte boundary.</param>
+                /// <param name="ramAddress">Source RAM address from where data bytes are to be read. 
+                /// Must be on a word boundary.</param>
+                /// <param name="numberOfBytes">Number of bytes to be written. Should be 256 | 512 |
+                /// 1024 | 4096.</param>
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the device</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>                
+                /// <exception cref="System.ArgumentException">Thrown one of the parameters breaks the described rules.</exception>
+                public void CopyRAMtoFlash(uint flashAddress, uint ramAddress, int numberOfBytes)
                 {
-                    throw new NotImplementedException();
+                    if (flashAddress % 256 != 0)
+                        throw new ArgumentException("The flash address must be on a 256 byte boundary.", "flashAddress");
+                    else if (ramAddress % 4 != 0)
+                        throw new ArgumentException("The RAM address must be on a word boundary.", "ramAddress");
+                    else if ( (numberOfBytes != 256) && (numberOfBytes != 512) && (numberOfBytes != 1024) && (numberOfBytes != 4096) )
+                        throw new ArgumentException("The number of bytes must be either 256, 512, 1024, or 4096.", "numberOfBytes");
+
+                    string command = "C " + flashAddress.ToString() + " " + ramAddress.ToString() + " " + numberOfBytes.ToString();
+
+                    List<string> resps;
+                    ReturnCodes retCode = SendCommand(command, 1, DefaultTimeout, out resps);
+                    if (retCode != ReturnCodes.CMD_SUCCESS)
+                        throw new ResponseErrorCodeException("Received an error code when trying to copy RAM to flash: " + retCode, command, resps);                    
                 }
 
-                public void Go(uint address, uint mode)
+                /// <summary>
+                /// This command is used to execute a program residing in RAM or Flash memory. It
+                /// may not be possible to return to the ISP command handler once this command is
+                /// successfully executed. This command is blocked when code read protection is
+                /// enabled.
+                /// </summary>
+                /// <param name="address">Flash or RAM address from which the code execution is to 
+                /// be started. This address should be on a word boundary.</param>
+                /// <param name="mode">T (Execute program in Thumb Mode) | A (Execute program in ARM mode).</param>                
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the device</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>                
+                /// <exception cref="System.ArgumentException">Thrown one of the parameters breaks the described rules.</exception>
+                public void Go(uint address, char mode)
                 {
-                    throw new NotImplementedException();
+                    if (address % 4 != 0)
+                        throw new ArgumentException("The address must be on a word boundary.", "address");
+                    else if ( (mode != 'T') && (mode != 'A') )
+                        throw new ArgumentException("The mode must either be T for thumb mode or A for ARM mode.", "mode");
+
+                    string command = "G " + address.ToString() + " " + mode + " ";
+
+                    List<string> resps;
+                    ReturnCodes retCode = SendCommand(command, 1, DefaultTimeout, out resps);
+                    if (retCode != ReturnCodes.CMD_SUCCESS)
+                        throw new ResponseErrorCodeException("Received an error code when trying to execute: " + retCode, command, resps);                    
                 }
 
+                /// <summary>
+                /// This command is used to erase one or more sector(s) of on-chip Flash memory.
+                /// The boot block can not be erased using this command. This command only allows
+                /// erasure of all user sectors when the code read protection is enabled.
+                /// </summary>
+                /// <param name="startSector">The start sector.</param>
+                /// <param name="endSector">The end sector. Should be greater than or equal to start sector number.</param>                
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the device</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>                
+                /// <exception cref="System.ArgumentException">Thrown one of the parameters breaks the described rules.</exception>
                 public void EraseSectors(uint startSector, uint endSector)
                 {
-                    throw new NotImplementedException();
+                    if (endSector < startSector)
+                        throw new ArgumentException("End sector must be greater than or equal to the start sector.", "endSector");
+
+                    string command = "E " + startSector.ToString() + " " + endSector.ToString();
+
+                    List<string> resps;
+                    ReturnCodes retCode = SendCommand(command, 1, DefaultTimeout, out resps);
+                    if (retCode != ReturnCodes.CMD_SUCCESS)
+                        throw new ResponseErrorCodeException("Received an error code when trying to erase sectors: " + retCode, command, resps);
                 }
 
-                public void BlankCheckSectors(uint startSector, uint endSector, out int status)
+                /// <summary>
+                /// This command is used to blank check one or more sectors of on-chip Flash
+                /// memory.
+                /// Blank check on sector 0 always fails as first 64 bytes are re-mapped to Flash
+                /// boot block.
+                /// </summary>
+                /// <param name="startSector">The start sector.</param>
+                /// <param name="endSector">The end sector. Should be greater than or equal to start sector number.</param>     
+                /// <param name="Blank">True if the sectors are blank, false if they are not.</param>
+                /// <param name="offset">The offset of the first non blank word location (ignore if Blank was true).</param>     
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the device</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>                
+                /// <exception cref="System.ArgumentException">Thrown one of the parameters breaks the described rules.</exception>
+                public void BlankCheckSectors(uint startSector, uint endSector, out bool Blank, out uint offset)
                 {
-                    throw new NotImplementedException();
+                    if (endSector < startSector)
+                        throw new ArgumentException("End sector must be greater than or equal to the start sector.", "endSector");
+
+                    string command = "I " + startSector.ToString() + " " + endSector.ToString();
+
+                    List<string> resps;
+                    ReturnCodes retCode = SendCommand(command, 1, DefaultTimeout, out resps);
+
+                    offset = 0;
+                    Blank = true;
+
+                    //interpret the response
+                    if (retCode == ReturnCodes.SECTOR_NOT_BLANK)
+                    {
+                        Blank = false;
+
+                        //The offset information is in the next response
+                        string reply;
+                        bool result = _ProtocolHandler.ReceiveData(out reply, DefaultTimeout * 1000);
+                        if (reply == null)
+                            throw new UnresponsiveConnectionException(
+                                    "Failed to receive non-blank offset data: connection is unresponsive.", command);
+                        else
+                        {
+                            resps.Add(reply);
+                            try
+                            {
+                                offset = Convert.ToUInt32(reply);
+                            }
+                            catch (Exception ex)
+                            {
+                                throw new ResponseException("Unable to interpret the value received for the offset of first non-blank data.", command, resps, ex);
+                            }
+                        }
+                    }
+                    else if (retCode != ReturnCodes.CMD_SUCCESS)
+                        throw new ResponseErrorCodeException("Received an error code when trying to blank check sectors: " + retCode, command, resps);
+                    
                 }
 
+                /// <summary>
+                /// This command is used to read the part identification number.
+                /// </summary>
+                /// <param name="partID">The part identification number, as a string.</param>                 
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the device</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>                                
                 public void ReadPartID(out string partID)
                 {
-                    throw new NotImplementedException();
+                    string command = "J";
+
+                    List<string> resps;
+                    ReturnCodes retCode = SendCommand(command, 2, DefaultTimeout, out resps);
+
+                    partID = "";
+
+                    //interpret the response
+                    if (retCode == ReturnCodes.CMD_SUCCESS)
+                        partID = resps[1];
+                    else
+                        throw new ResponseErrorCodeException("Received an error code when trying to read the part ID: " + retCode, command, resps);
                 }
 
+                /// <summary>
+                /// This command is used to read the boot code version number.
+                /// </summary>
+                /// <param name="version">The boot code version number, as a string.</param>                 
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the device</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>
                 public void ReadBootCodeVersion(out string version)
                 {
-                    throw new NotImplementedException();
+                    string command = "K";
+
+                    List<string> resps;
+                    ReturnCodes retCode = SendCommand(command, 2, DefaultTimeout, out resps);
+
+                    version = "";
+
+                    //interpret the response
+                    if (retCode == ReturnCodes.CMD_SUCCESS)
+                        version = resps[1];
+                    else
+                        throw new ResponseErrorCodeException("Received an error code when trying to read the boot code version: " + retCode, command, resps);
                 }
 
-                public void Compare(uint address1, uint address2, uint length, out int result)
+                /// <summary>
+                /// This command is used to compare the memory contents at two locations.
+                /// Compare result may not be correct when source or destination address
+                /// contains any of the first 64 bytes starting from address zero. First 64 bytes
+                /// are re-mapped to Flash boot sector
+                /// </summary>
+                /// <param name="address1">Starting Flash or RAM address of data bytes to be compared.
+                /// This address should be a word boundary.</param>
+                /// <param name="address2">Starting Flash or RAM address of data bytes to be compared.
+                /// This address should be a word boundary. </param>     
+                /// <param name="length">Number of bytes to be compared; should be a multiple of 4.</param>
+                /// <param name="Equal">True if the memory is equal, false if it is not.</param>
+                /// <param name="offset">The offset of the first mismatch (ignore if Equal was true).</param>     
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the device</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>                
+                /// <exception cref="System.ArgumentException">Thrown one of the parameters breaks the described rules.</exception>
+                public void Compare(uint address1, uint address2, uint length, out bool Equal, out uint offset)
                 {
-                    throw new NotImplementedException();
+                    if (address1 % 4 != 0)
+                        throw new ArgumentException("The addresses must be word aligned.", "address1");
+                    if (address2 % 4 != 0)
+                        throw new ArgumentException("The addresses must be word aligned.", "address2");
+                    if (length % 4 != 0)
+                        throw new ArgumentException("The number of bytes to compare must be a multiple of 4.", "length");
+
+                    string command = "M " + address1.ToString() + " " + address2.ToString() + " " + length.ToString();
+
+                    List<string> resps;
+                    ReturnCodes retCode = SendCommand(command, 1, DefaultTimeout, out resps);
+
+                    offset = 0;
+                    Equal = true;
+
+                    //interpret the response
+                    if (retCode == ReturnCodes.COMPARE_ERROR)
+                    {
+                        Equal = false;
+
+                        //The offset information is in the next response
+                        string reply;
+                        bool result = _ProtocolHandler.ReceiveData(out reply, DefaultTimeout * 1000);
+                        if (reply == null)
+                            throw new UnresponsiveConnectionException(
+                                    "Failed to receive offset of first non-equal data: connection is unresponsive.", command);
+                        else
+                        {
+                            resps.Add(reply);
+                            try
+                            {
+                                offset = Convert.ToUInt32(reply);
+                            }
+                            catch (Exception ex)
+                            {
+                                throw new ResponseException("Unable to interpret the value received for the offset of the first non-equal data.", command, resps, ex);
+                            }
+                        }
+                    }
+                    else if (retCode != ReturnCodes.CMD_SUCCESS)
+                        throw new ResponseErrorCodeException("Received an error code when trying to compare data: " + retCode, command, resps);
+                    
                 }
 
 
