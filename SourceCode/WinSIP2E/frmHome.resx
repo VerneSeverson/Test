@@ -117,13 +117,6 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="label165.Text" xml:space="preserve">
-    <value>The IP Host settings for the IP Host Table entry 
-selected in the Primary and Secondary Address
-are retrieved and can be edited if the 
-"enable IP Editing" checkbox is selected.  This checkbox
-clears after leaving this page.</value>
-  </data>
   <metadata name="dataGridViewTextBoxColumn1.UserAddedColumn" type="System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
     <value>True</value>
   </metadata>

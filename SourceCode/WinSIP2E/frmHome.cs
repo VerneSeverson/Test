@@ -36,61 +36,67 @@ namespace WinSIP2E
             cboUnitIDType.Items.Add("Unit ID");
             cboUnitIDType.SelectedItem = "MAC Address";
             //
-            cboAuthHost.Items.Add("Host A");
-            cboAuthHost.Items.Add("Host B");
-            cboAuthHost.Items.Add("Host C");
-            cboAuthHost.Items.Add("Host D");
-            cboAuthHost.SelectedItem = "Host A";
-            //
-            cboSettleHost.Items.Add("Host A");
-            cboSettleHost.Items.Add("Host B");
-            cboSettleHost.Items.Add("Host B");
-            cboSettleHost.Items.Add("Host B");
-            cboSettleHost.SelectedItem = "Host A";
-            //
-            cboMessageHost.Items.Add("Host A");
-            cboMessageHost.Items.Add("Host B");
-            cboMessageHost.Items.Add("Host C");
-            cboMessageHost.Items.Add("Host D");
-            cboMessageHost.SelectedItem = "Host C";
-            //
-            cboAlternateHost.Items.Add("Host A");
-            cboAlternateHost.Items.Add("Host B");
-            cboAlternateHost.Items.Add("Host C");
-            cboAlternateHost.Items.Add("Host D");
-            cboAlternateHost.SelectedItem = "Host C";
-            //
-            cboHostA.Items.Add("Not Used");
-            cboHostA.Items.Add("Paymentech");
-            cboHostA.Items.Add("WorldPay");
-            cboHostA.Items.Add("Global");
-            cboHostA.Items.Add("BlueVend");
-            cboHostA.Items.Add("EasyHost");
-            cboHostA.SelectedItem = "Paymentech";
-            //
-            cboHostB.Items.Add("Not Used");
-            cboHostB.Items.Add("Paymentech");
-            cboHostB.Items.Add("WorldPay");
-            cboHostB.Items.Add("Global");
-            cboHostB.Items.Add("BlueVend");
-            cboHostB.Items.Add("EasyHost");
-            cboHostB.SelectedItem = "Not Used";
-            //
-            cboHostC.Items.Add("Not Used");
-            cboHostC.Items.Add("Paymentech");
-            cboHostC.Items.Add("WorldPay");
-            cboHostC.Items.Add("Global");
-            cboHostC.Items.Add("BlueVend");
-            cboHostC.Items.Add("EasyHost");
-            cboHostC.SelectedItem = "Not Used";
-            //
-            cboHostD.Items.Add("Not Used");
-            cboHostD.Items.Add("Paymentech");
-            cboHostD.Items.Add("WorldPay");
-            cboHostD.Items.Add("Global");
-            cboHostD.Items.Add("BlueVend");
-            cboHostD.Items.Add("EasyHost");
-            cboHostD.SelectedItem = "Not Used";
+            //cboAuthHost.Items.Add("Host A");
+            //cboAuthHost.Items.Add("Host B");
+            //cboAuthHost.Items.Add("Host C");
+            //cboAuthHost.Items.Add("Host D");
+            //cboAuthHost.SelectedItem = "Host A";
+            ////
+            //cboSettleHost.Items.Add("Host A");
+            ////cboSettleHost.Items.Add("Host B");
+            ////cboSettleHost.Items.Add("Host B");
+            ////cboSettleHost.Items.Add("Host B");
+            //cboSettleHost.SelectedItem = "Host A";
+            ////
+            //cboMessageHost.Items.Add("Host A");
+            //cboMessageHost.Items.Add("Host B");
+            //cboMessageHost.Items.Add("Host C");
+            //cboMessageHost.Items.Add("Host D");
+            //cboMessageHost.SelectedItem = "Host C";
+            ////
+            //cboSplitSettle.Items.Add("Host A");
+            //cboSplitSettle.Items.Add("Host B");
+            //cboSplitSettle.Items.Add("Host C");
+            //cboSplitSettle.Items.Add("Host D");
+            //cboSplitSettle.SelectedItem = "Host D";
+            ////
+            //cboSplitAuthorization.Items.Add("Host A");
+            //cboSplitAuthorization.Items.Add("Host B");
+            //cboSplitAuthorization.Items.Add("Host C");
+            //cboSplitAuthorization.Items.Add("Host D");
+            //cboSplitAuthorization.SelectedItem = "Host D";
+            ////
+            //cboHostA.Items.Add("Not Used");
+            //cboHostA.Items.Add("Paymentech");
+            //cboHostA.Items.Add("WorldPay");
+            //cboHostA.Items.Add("Global");
+            //cboHostA.Items.Add("BlueVend");
+            //cboHostA.Items.Add("EasyHost");
+            //cboHostA.SelectedItem = "Paymentech";
+            ////
+            //cboHostB.Items.Add("Not Used");
+            //cboHostB.Items.Add("Paymentech");
+            //cboHostB.Items.Add("WorldPay");
+            //cboHostB.Items.Add("Global");
+            //cboHostB.Items.Add("BlueVend");
+            //cboHostB.Items.Add("EasyHost");
+            //cboHostB.SelectedItem = "Not Used";
+            ////
+            //cboHostC.Items.Add("Not Used");
+            //cboHostC.Items.Add("Paymentech");
+            //cboHostC.Items.Add("WorldPay");
+            //cboHostC.Items.Add("Global");
+            //cboHostC.Items.Add("BlueVend");
+            //cboHostC.Items.Add("EasyHost");
+            //cboHostC.SelectedItem = "Not Used";
+            ////
+            //cboHostD.Items.Add("Not Used");
+            //cboHostD.Items.Add("Paymentech");
+            //cboHostD.Items.Add("WorldPay");
+            //cboHostD.Items.Add("Global");
+            //cboHostD.Items.Add("BlueVend");
+            //cboHostD.Items.Add("EasyHost");
+            //cboHostD.SelectedItem = "Not Used";
             //
         }
 
@@ -612,6 +618,81 @@ namespace WinSIP2E
                 try { frm.Close(); }
                 catch { }
             }
+        }
+
+        private void label24_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void textBox36_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void lblAutID2_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void textBox2_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label6_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void textBox38_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void textBox41_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void txtAuthIPProtocol_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void comboBox7_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void textBox86_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void textBox109_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void txtAuthID1_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label7_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void txtNacPassword_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label55_Click(object sender, EventArgs e)
+        {
+
         }
 
         
