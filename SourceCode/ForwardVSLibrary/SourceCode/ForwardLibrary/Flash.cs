@@ -581,19 +581,11 @@ namespace ForwardLibrary
         namespace LPC2400
         {
             /// <summary>
-            /// This object represents the memory of a LPC2400 device
+            /// This object represents the memory of a standard LPC2400 device
             /// </summary>
             public class InternalFlash_LPC2400 : StandardFlash
             {
-                #region properties
-                public uint Checksum1Start_Address = 0x20;
-                public uint Checksum1End_Address = 0x24;
-                public uint Checksum1_Address = 0x28;
-
-                public uint Checksum2Start_Address = 0x2C;
-                public uint Checksum2End_Address = 0x30;
-                public uint Checksum2_Address = 0x34;
-                #endregion
+                
 
                 #region constructors
                 public InternalFlash_LPC2400()
@@ -626,64 +618,7 @@ namespace ForwardLibrary
                     WriteDataAtAddress(SectorAddress(sector) + 0x14, checksum);
                 }
 
-                /// <summary>
-                /// call this to add the checksums at the offsets specified
-                /// </summary>
-                /// <exception cref="System.InvalidOperationException">Thrown when there is no valid data to checksum.</exception>
-                public void InsertChecksums()
-                {
-                    uint sector, firstSector;    
-                    uint valCheck1Start, valCheck1End, valCheck1;
-                    uint valCheck2Start, valCheck2End, valCheck2;  
-                    //1. find the first sector occupied
-                        for (sector= 0; sector < NumberOfSectors; sector++)
-                        {
-                            if (SWrittenTo[sector])
-                                break;
-                        }
-                        if (sector >= NumberOfSectors)
-                            throw new InvalidOperationException("No sectors to checksum.");
-
-                    //2. calculate the first checksum                                    
-                        //this is the first sector, so we want to start checksumming after Checksum2_Address
-                        firstSector = sector;
-                        valCheck1Start = SectorAddress(firstSector) + Checksum2End_Address + 4;
-                        PrepareChecksum(valCheck1Start, out valCheck1End, out valCheck1);
-
-                    //3. find the next sector occupied
-                        if (valCheck1End + 4 < (SectorAddress((uint)NumberOfSectors - 1) + SectorSize((uint)NumberOfSectors - 1)))
-                        {
-                            for (sector = InSector(valCheck1End+4); sector < NumberOfSectors; sector++)
-                            {
-                                if (SWrittenTo[sector])
-                                    break;
-                            }
-                        }
-
-                    //4. calculate the second checksum
-                        if (sector >= NumberOfSectors)
-                        {
-                            //no more data to checksum, so let's just checksum the first checksum
-                            valCheck2Start = SectorAddress(firstSector) + Checksum1_Address;
-                            valCheck2End = SectorAddress(firstSector) + Checksum1_Address;
-                            valCheck2 = (~valCheck1) + 1;
-                        }
-                        else
-                        {
-                            //there is more data to checksum
-                            valCheck2Start = SectorAddress(sector);
-                            PrepareChecksum(valCheck2Start, out valCheck2End, out valCheck2);
-                        }
-
-                    //5. Okay -- write our checksums out
-                        WriteDataAtAddress(SectorAddress(firstSector) + Checksum1Start_Address, valCheck1Start);
-                        WriteDataAtAddress(SectorAddress(firstSector) + Checksum1End_Address, valCheck1End);
-                        WriteDataAtAddress(SectorAddress(firstSector) + Checksum1_Address, valCheck1);
-                        WriteDataAtAddress(SectorAddress(firstSector) + Checksum2Start_Address, valCheck2Start);
-                        WriteDataAtAddress(SectorAddress(firstSector) + Checksum2End_Address, valCheck2End);
-                        WriteDataAtAddress(SectorAddress(firstSector) + Checksum2_Address, valCheck2);
-                }
-
+                
                 #region Helper functions
                 private void BasicConstruction()
                 {                    
@@ -703,45 +638,6 @@ namespace ForwardLibrary
                         BinarySectorData.Add(new byte[SectorSize((uint) i)]);
 
                 }
-
-                /// <summary>
-                /// Calculate the checksum for a continuous chunk of flash starting with address startAddr
-                /// </summary>
-                /// <param name="startAddr">The address to start calculating at. This must be divisible by 4 (word aligned)</param>
-                /// <param name="endAddr">The last address that was included in the checksum </param>
-                /// <param name="checksum">the checksum value</param>
-                /// <exception cref="System.ArgumentException">Thrown when the start address is not valid (not word aligned or does not reside in a sector).</exception>
-                /// <exception cref="System.InvalidOperationException">Thrown when the start sector has no data.</exception>
-                private void PrepareChecksum(uint startAddr, out uint endAddr, out uint checksum)
-                {
-                    //0. make sure that startAddr is word aligned:
-                    if (startAddr % 4 != 0)
-                        throw new ArgumentException("The start address is not word aligned.", "startAddr");
-
-                    //1. determine sector of start address
-                    uint sector = InSector(startAddr);
-                    if (!SWrittenTo[sector])
-                        throw new InvalidOperationException("The sector of the start address has not loaded with data.");
-
-                    //2. calculate the checksum
-                    checksum = 0;
-                    uint address = startAddr;
-                    uint EndOfFlash = SectorAddress((uint) NumberOfSectors-1) + SectorSize((uint) NumberOfSectors-1) - 1;
-                    //keep going until we either get to the end of the flash or to an empty sector.
-                    while (SWrittenTo[sector] && address < EndOfFlash)
-                    {
-                        checksum += GetDataAtAddress(address);
-                        address += 4;
-                        if (address < EndOfFlash)
-                            sector = InSector(address);                    
-                    }
-                    endAddr = address - 4;
-
-                    //3. now do 2's complement of it
-                    checksum = (~checksum) + 1;
-
-                }
-
             
                 #endregion
             }
@@ -2002,6 +1898,296 @@ namespace ForwardLibrary
                     ts.TraceEvent(type, LogID, msg);
                 }
                 #endregion
+            }
+
+            // Namespace for Forward Pay Systems customizations of the above classes
+            namespace Forward
+            {
+                /// <summary>
+                /// This object represents the memory of an LPC2400 device with custom
+                /// Forward Pay Systems features added.
+                /// </summary>
+                public class FPS_InternalFlash_LPC2400 : InternalFlash_LPC2400
+                {
+
+                    #region properties
+                    public uint Checksum1Start_Address = 0x20;
+                    public uint Checksum1End_Address = 0x24;
+                    public uint Checksum1_Address = 0x28;
+
+                    public uint Checksum2Start_Address = 0x2C;
+                    public uint Checksum2End_Address = 0x30;
+                    public uint Checksum2_Address = 0x34;
+                    #endregion
+
+                    /// <summary>
+                    /// call this to add the checksums at the offsets specified
+                    /// </summary>
+                    /// <exception cref="System.InvalidOperationException">Thrown when there is no valid data to checksum.</exception>
+                    public void InsertChecksums()
+                    {
+                        uint sector, firstSector;
+                        uint valCheck1Start, valCheck1End, valCheck1;
+                        uint valCheck2Start, valCheck2End, valCheck2;
+                        //1. find the first sector occupied
+                        for (sector = 0; sector < NumberOfSectors; sector++)
+                        {
+                            if (SWrittenTo[sector])
+                                break;
+                        }
+                        if (sector >= NumberOfSectors)
+                            throw new InvalidOperationException("No sectors to checksum.");
+
+                        //2. calculate the first checksum                                    
+                        //this is the first sector, so we want to start checksumming after Checksum2_Address
+                        firstSector = sector;
+                        valCheck1Start = SectorAddress(firstSector) + Checksum2End_Address + 4;
+                        PrepareChecksum(valCheck1Start, out valCheck1End, out valCheck1);
+
+                        //3. find the next sector occupied
+                        if (valCheck1End + 4 < (SectorAddress((uint)NumberOfSectors - 1) + SectorSize((uint)NumberOfSectors - 1)))
+                        {
+                            for (sector = InSector(valCheck1End + 4); sector < NumberOfSectors; sector++)
+                            {
+                                if (SWrittenTo[sector])
+                                    break;
+                            }
+                        }
+
+                        //4. calculate the second checksum
+                        if (sector >= NumberOfSectors)
+                        {
+                            //no more data to checksum, so let's just checksum the first checksum
+                            valCheck2Start = SectorAddress(firstSector) + Checksum1_Address;
+                            valCheck2End = SectorAddress(firstSector) + Checksum1_Address;
+                            valCheck2 = (~valCheck1) + 1;
+                        }
+                        else
+                        {
+                            //there is more data to checksum
+                            valCheck2Start = SectorAddress(sector);
+                            PrepareChecksum(valCheck2Start, out valCheck2End, out valCheck2);
+                        }
+
+                        //5. Okay -- write our checksums out
+                        WriteDataAtAddress(SectorAddress(firstSector) + Checksum1Start_Address, valCheck1Start);
+                        WriteDataAtAddress(SectorAddress(firstSector) + Checksum1End_Address, valCheck1End);
+                        WriteDataAtAddress(SectorAddress(firstSector) + Checksum1_Address, valCheck1);
+                        WriteDataAtAddress(SectorAddress(firstSector) + Checksum2Start_Address, valCheck2Start);
+                        WriteDataAtAddress(SectorAddress(firstSector) + Checksum2End_Address, valCheck2End);
+                        WriteDataAtAddress(SectorAddress(firstSector) + Checksum2_Address, valCheck2);
+                    }
+
+                    #region Helper functions                    
+
+                    /// <summary>
+                    /// Calculate the checksum for a continuous chunk of flash starting with address startAddr
+                    /// </summary>
+                    /// <param name="startAddr">The address to start calculating at. This must be divisible by 4 (word aligned)</param>
+                    /// <param name="endAddr">The last address that was included in the checksum </param>
+                    /// <param name="checksum">the checksum value</param>
+                    /// <exception cref="System.ArgumentException">Thrown when the start address is not valid (not word aligned or does not reside in a sector).</exception>
+                    /// <exception cref="System.InvalidOperationException">Thrown when the start sector has no data.</exception>
+                    protected void PrepareChecksum(uint startAddr, out uint endAddr, out uint checksum)
+                    {
+                        //0. make sure that startAddr is word aligned:
+                        if (startAddr % 4 != 0)
+                            throw new ArgumentException("The start address is not word aligned.", "startAddr");
+
+                        //1. determine sector of start address
+                        uint sector = InSector(startAddr);
+                        if (!SWrittenTo[sector])
+                            throw new InvalidOperationException("The sector of the start address has not loaded with data.");
+
+                        //2. calculate the checksum
+                        checksum = 0;
+                        uint address = startAddr;
+                        uint EndOfFlash = SectorAddress((uint)NumberOfSectors - 1) + SectorSize((uint)NumberOfSectors - 1) - 1;
+                        //keep going until we either get to the end of the flash or to an empty sector.
+                        while (SWrittenTo[sector] && address < EndOfFlash)
+                        {
+                            checksum += GetDataAtAddress(address);
+                            address += 4;
+                            if (address < EndOfFlash)
+                                sector = InSector(address);
+                        }
+                        endAddr = address - 4;
+
+                        //3. now do 2's complement of it
+                        checksum = (~checksum) + 1;
+
+                    }
+
+
+                    #endregion
+                }
+
+                /// <summary>
+                /// This object represents the memory of an LPC2400 device plus a 
+                /// 4 MB external flash part. The memory mapping corresponds to the
+                /// UNAC product. The same Forward Pay Systems features added to
+                /// FPS_InternalFlash_LPC2400 are present here.
+                /// </summary>
+                public class FPS_4MBExtFlash_LPC2400 : FPS_InternalFlash_LPC2400
+                {
+                    public FPS_4MBExtFlash_LPC2400()
+                    {
+                        BasicConstruction();
+                    }
+
+                    private void BasicConstruction()
+                    {
+                        //the sector size and addresses for the external flash
+                        uint[] extSSize = new uint[62];
+                        for(int i = 0; i < extSSize.Length; i++)
+                            extSSize[i] = 0x10000;
+
+                        uint[] extSAddress = new uint[62];
+                        extSAddress[0] = 0x80010000;
+                        for (int i = 1; i < extSSize.Length; i++)
+                            extSAddress[i] = extSAddress[i-1] + extSSize[i-1]; 
+
+                        SSize = SSize.Concat(extSSize).ToArray();
+                        SAddress = SAddress.Concat(extSAddress).ToArray();
+
+                        SWrittenTo = new bool[SAddress.Length]; //initializes every item to false
+
+                        //create an empty byte array for each sector
+                        BinarySectorData = new List<byte[]>(NumberOfSectors);
+                        for (int i = 0; i < NumberOfSectors; i++)
+                            BinarySectorData.Add(new byte[SectorSize((uint)i)]);
+
+                    }
+                }
+
+                /// <summary>
+                /// This handler adds custom Forward Pay Systems functionality
+                /// on top of the LPC_ISP_CommandHandler.
+                /// </summary>
+                public class FPS_ISP_CommandHandler : LPC_ISP_CommandHandler
+                {
+                    public enum CompressionTypes : byte
+                    {
+                        BINARY_DATA = 0,
+                        RLE = 0x10
+                    }
+
+                    /// <summary>
+                    /// This command is used to generate an MD5 hash of data, either in RAM or FLASH.
+                    /// 
+                    /// </summary>
+                    /// <param name="address">Address to start the MD5 hash. This should be word-aligned.</param>
+                    /// <param name="size">Number of bytes to check. This must be divisible by 4.</param>                    
+                    /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the device</exception>
+                    /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
+                    /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>                
+                    /// <exception cref="System.ArgumentException">Thrown one of the parameters breaks the described rules.</exception>
+                    public void GenerateHashOfData(uint address, uint size, out byte[] hash)
+                    {
+                        if (address % 4 != 0)
+                            throw new ArgumentException("The address must be word-aligned.", "address");
+                        else if (size % 4 != 0)
+                            throw new ArgumentException("The number of bytes must be divisible by 4.", "size");                        
+
+                        string command = "H " + address.ToString() + " " + size.ToString();
+
+                        List<string> resps;
+                        ReturnCodes retCode = SendCommand(command, 1, DefaultTimeout, out resps);
+                        if (retCode == ReturnCodes.CMD_SUCCESS)
+                        {
+                            try
+                            {
+                                hash = Default.FPS_LibFuncs.AsciiEncodedHexStringToByteArray(resps[1]);
+                            }
+                            catch (Exception ex)
+                            {
+                                throw new ResponseException("Unable to interpret the hash received; it is not valid ascii-coded hex.", command, resps, ex);
+                            }
+                        }
+                        else
+                            throw new ResponseErrorCodeException("Received an error code when trying to read the hash: " + retCode, command, resps);
+                    }
+
+                    /// <summary>
+                    /// This command is used to read the flasher version string
+                    /// </summary>
+                    /// <param name="FlasherVersion">The Flasher version string.</param>                 
+                    /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the device</exception>
+                    /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
+                    /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>                                
+                    public void ReadFlasherVersionString(out string FlasherVersion)
+                    {
+                        string command = "V";
+
+                        List<string> resps;
+                        ReturnCodes retCode = SendCommand(command, 2, DefaultTimeout, out resps);
+
+                        FlasherVersion = "";
+
+                        //interpret the response
+                        if (retCode == ReturnCodes.CMD_SUCCESS)
+                            FlasherVersion = resps[1];
+                        else
+                            throw new ResponseErrorCodeException("Received an error code when trying to read the Flasher version string: " + retCode, command, resps);
+                    }
+
+                    /// <summary>
+                    /// This command is used to download data to RAM. Data will be compressed
+                    /// before sending.
+                    /// </summary>
+                    /// <param name="address">RAM address where data bytes are to be written. This address should be a word boundary.</param>
+                    /// <param name="data">The binary data to send. The data can have a maximum length of 900 bytes and must be an integer number of words (data length must be divisible by 4).</param>
+                    /// <param name="compType">The type of compression to use.</param>
+                    /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the device</exception>
+                    /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
+                    /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>                
+                    /// <exception cref="System.ArgumentException">Thrown when address is invalid or the data is an invalid length</exception>
+                    public void WriteToRAMwithCompression(uint address, byte[] data, CompressionTypes compType)
+                    {
+                        throw new NotImplementedException();
+                        //WriteRamCMD(address, data.Length);
+
+                        //break data up into 45 byte segments and send:
+                        //UUEncodeSendData(data, 3, DefaultTimeout);
+                    }   
+
+
+                    /// <summary>
+                    /// This command is used to generate a 32 bit sum of data, either in RAM or FLASH.
+                    /// 
+                    /// </summary>
+                    /// <param name="address">Address to start summing. This should be word-aligned.</param>
+                    /// <param name="size">Number of bytes to sum. This must be divisible by 4.</param>                    
+                    /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the device</exception>
+                    /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
+                    /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>                
+                    /// <exception cref="System.ArgumentException">Thrown one of the parameters breaks the described rules.</exception>
+                    public void GenerateSumOfData(uint address, uint size, out uint sum)
+                    {
+                        if (address % 4 != 0)
+                            throw new ArgumentException("The address must be word-aligned.", "address");
+                        else if (size % 4 != 0)
+                            throw new ArgumentException("The number of bytes must be divisible by 4.", "size");
+
+                        string command = "Z " + address.ToString() + " " + size.ToString();
+
+                        List<string> resps;
+                        ReturnCodes retCode = SendCommand(command, 1, DefaultTimeout, out resps);
+                        if (retCode == ReturnCodes.CMD_SUCCESS)
+                        {
+                            try
+                            {
+                                sum = uint.Parse(resps[1]);
+                            }
+                            catch (Exception ex)
+                            {
+                                throw new ResponseException("Unable to interpret the sum received; it is not a valid 32bit number.", command, resps, ex);
+                            }
+                        }
+                        else
+                            throw new ResponseErrorCodeException("Received an error code when trying to read the hash: " + retCode, command, resps);
+                    }
+                }
             }
         }
     }
