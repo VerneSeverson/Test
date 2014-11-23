@@ -66,6 +66,21 @@ namespace ForwardLibrary
                 
                 throw new Exception("No match for the friendly_name");
             }
+
+            /// <summary>
+            /// Convert an ascii-coded hex string to a byte array.
+            /// This code was taken from this example:
+            /// http://stackoverflow.com/questions/321370/convert-hex-string-to-byte-array
+            /// </summary>
+            /// <param name="hex">the string of ascii-coded hex</param>
+            /// <returns>the hex byte array</returns>
+            public static byte[] AsciiEncodedHexStringToByteArray(string hex)
+            {
+                return Enumerable.Range(0, hex.Length)
+                                 .Where(x => x % 2 == 0)
+                                 .Select(x => Convert.ToByte(hex.Substring(x, 2), 16))
+                                 .ToArray();
+            }
         }
 
         /// <summary>
