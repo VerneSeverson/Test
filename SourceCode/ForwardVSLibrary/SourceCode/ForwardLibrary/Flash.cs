@@ -663,7 +663,19 @@ namespace ForwardLibrary
                     get { return _LastSent; }
                 }
 
-                public ClientContext CommContext { get; set; }
+                ClientContext _CommContext;
+                /// <summary>
+                /// Communication object being used
+                /// </summary>
+                public ClientContext CommContext
+                {
+                    get { return _CommContext; }
+                    set
+                    {
+                        _CommContext = value;
+                        _CommContext.EventCallback = OnClientEvent;
+                    }
+                }
 
                 private static Random randObj = new Random(20);
                 private LinkedList<EventNotify> EventCallbacks = new LinkedList<EventNotify>();
@@ -757,6 +769,17 @@ namespace ForwardLibrary
                 }
                 #endregion
                 #endregion
+
+                /// <summary>
+                /// Constructor.
+                /// </summary>
+                /// <param name="context"></param>            
+                /// <param name="context"></param>            
+                public LPC_ISP_Handler(ClientContext context)
+                {                    
+                    CommContext = context;
+                    context.EventCallback = OnClientEvent;
+                }
 
                 /// <summary>
                 /// Force a clean up of the resources (not safe to use after this is called)
@@ -860,6 +883,29 @@ namespace ForwardLibrary
                 #endregion
 
                 #region send functions
+                public bool SendRawData(byte[] data)
+                {
+                    bool bSuccess = false;
+                    //bool bGotNB_Safe = false;
+                    try
+                    {
+                        _LastSent = DateTime.Now;                        
+                        string dat = System.Text.Encoding.Default.GetString(data);
+                        CommContext.LogMsg(TraceEventType.Verbose, "ISP SENT: " + dat);
+                        bSuccess = CommContext.Write(data);
+                    }
+                    catch (Exception ex)
+                    {
+                        CommContext.LogMsg(TraceEventType.Error, "Caught an unexpected exception when sending the raw data: " + System.Text.Encoding.Default.GetString(data.ToArray()) + ". Exception: " + ex.ToString());
+                    }
+                    finally
+                    {
+                        /*if (bGotNB_Safe)
+                            SendingContext.NB_Safe.Set();*/
+                    }
+                    return bSuccess;
+                }
+
                 /// <summary>
                 /// Send command (protocol-dependent characters are added here). 
                 /// Blocks until protocol determines the message was received or connection fails.
@@ -870,7 +916,7 @@ namespace ForwardLibrary
                 /// <returns>True if the data was sent, otherwise false</returns>
                 public bool SendCommand(byte[] data, int optionalRetries = ProtocolDefaults.DEF_NUM_RETRIES, int optionalRetryTime = ProtocolDefaults.DEF_RETRY_TIMEOUT_MS)
                 {
-                    bool bFoundAck = false;
+                    bool bSuccess = false;
                     //bool bGotNB_Safe = false;
                     try
                     {
@@ -881,7 +927,7 @@ namespace ForwardLibrary
                         data_with_crlf[data.Length + 1] = 0x0A;
                         string dat = System.Text.Encoding.Default.GetString(data);
                         CommContext.LogMsg(TraceEventType.Verbose, "ISP SENT: " + dat + "<CR><LF>");
-                        CommContext.Write(data_with_crlf);
+                        bSuccess = CommContext.Write(data_with_crlf);
                     }
                     catch (Exception ex)
                     {
@@ -892,7 +938,7 @@ namespace ForwardLibrary
                         /*if (bGotNB_Safe)
                             SendingContext.NB_Safe.Set();*/
                     }
-                    return bFoundAck;
+                    return bSuccess;
                 }
 
                 /// <summary>
@@ -1151,6 +1197,22 @@ namespace ForwardLibrary
                 public IProtocolHandler ProtocolHandler
                 {
                     get { return _ProtocolHandler; }
+                }
+
+                /// <summary>
+                /// constructor for when the protocol handler is already in place
+                /// </summary>
+                /// <param name="stxetxClient"></param>
+                /// <param name="optionalTS"></param>
+                public LPC_ISP_CommandHandler(IProtocolHandler client, TraceSource optionalTS = null)
+                {
+                    if (optionalTS == null)
+                        ts = new TraceSource("dummy");
+                    else
+                        ts = optionalTS;
+
+                    this._ProtocolHandler = client;
+                    
                 }
 
                 public void Dispose()
@@ -1483,6 +1545,90 @@ namespace ForwardLibrary
                     if (retCode != ReturnCodes.CMD_SUCCESS)
                         throw new ResponseErrorCodeException("Received an error code when trying to unlock the write, erase, and go commands: " + retCode, command, resps);
                 }
+
+                /// <summary>
+                /// This command is used to unlock Flash Write, Erase, and Go commands
+                /// </summary>
+                /// <param name="unlockCode"></param>
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the device</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>                
+                public void DoAutoBaudSynchronization(int optionalTimeoutms = 1000, int optionalClockFreq = 12000)
+                {
+                    string data = "?";
+
+                    if (_ProtocolHandler.CommContext.bConnected == false)
+                        throw new UnresponsiveConnectionException("Connection has disconnected.", data);
+
+                //1. flush out the receive buffer
+                    string dummy;
+                    while (ProtocolHandler.ReceiveData(out dummy, 0)) ;
+
+                //2. send the character
+                    if (!((LPC_ISP_Handler)_ProtocolHandler).SendRawData(System.Text.Encoding.ASCII.GetBytes(data)))
+                        throw new UnresponsiveConnectionException("Failed to send synchronization character '?'.", data);
+
+                //3. look for synchronized string
+                    bool result = false;
+                    bool sync = false;
+                    string data_reply;
+                    DateTime FinishTime = DateTime.Now + TimeSpan.FromMilliseconds(optionalTimeoutms);
+                    List<string> Responses = new List<string>();
+
+                    while (!sync && DateTime.Compare(DateTime.Now, FinishTime) < 0)
+                    {                        
+                        do
+                        {
+                            data_reply = null;
+                            result = _ProtocolHandler.ReceiveData(out data_reply, 50);
+                            if (data_reply != null)
+                            {
+                                Responses.Add(data_reply);
+                                if (data_reply.Trim() == "Synchronized")
+                                    sync = true;
+                            }
+                        } while (result);
+                    }
+
+                    if (!sync)
+                        throw new ResponseException("Did not receive a valid synchronized response to '?' character.", data, Responses);
+
+                //4. send the synchronized string back
+                    string command = "Synchronized";
+                    SendCommand(command);
+
+                //5. send the crystal frequency
+                    command = optionalClockFreq.ToString();
+                    SendCommand(command);
+
+                //6. watch for OK
+                    result = false;
+                    sync = false;
+                    FinishTime = DateTime.Now + TimeSpan.FromMilliseconds(optionalTimeoutms);
+                    Responses = new List<string>();
+
+                    while (!sync && DateTime.Compare(DateTime.Now, FinishTime) < 0)
+                    {
+                        
+                        do
+                        {
+                            data_reply = null;
+                            result = _ProtocolHandler.ReceiveData(out data_reply, 50);
+                            if (data_reply != null)
+                            {
+                                Responses.Add(data_reply);
+                                if (data_reply.Trim() == "OK")
+                                    sync = true;
+                            }
+                        } while (result);
+                    }
+
+                    if (!sync)
+                        throw new ResponseException("Did not receive a valid synchronized response to the clock frequency.", data, Responses);
+
+                    //looks like we made it!
+                }
+                
 
                 /// <summary>
                 /// This command is used to change the baud rate. The new baud rate is effective
@@ -2070,6 +2216,15 @@ namespace ForwardLibrary
                     {
                         BINARY_DATA = 0,
                         RLE = 0x10
+                    }
+
+                    /// <summary>
+                    /// constructor for when the protocol handler is already in place
+                    /// </summary>
+                    /// <param name="stxetxClient"></param>
+                    /// <param name="optionalTS"></param>
+                    public FPS_ISP_CommandHandler(IProtocolHandler client, TraceSource optionalTS = null) : base(client, optionalTS)
+                    {
                     }
 
                     /// <summary>
