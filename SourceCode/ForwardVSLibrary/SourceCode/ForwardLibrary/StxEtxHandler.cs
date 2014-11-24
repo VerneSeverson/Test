@@ -283,7 +283,11 @@ namespace ForwardLibrary
                 public ClientContext CommContext
                 {
                     get { return _CommContext; }
-                    set { _CommContext = value; }
+                    set 
+                    { 
+                        _CommContext = value;
+                        _CommContext.EventCallback = OnClientEvent; 
+                    }
                 }
 
 
