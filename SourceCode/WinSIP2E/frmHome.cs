@@ -495,6 +495,7 @@ namespace WinSIP2E
             //update the various group boxes:
             gbNAC.Enabled = !connected;
             gbNACsettingsFiles.Enabled = connected;
+            gbUpdateFirmware.Enabled = connected;
 
             cmdDisconnect.Enabled = connected;
 
@@ -693,6 +694,28 @@ namespace WinSIP2E
         private void label55_Click(object sender, EventArgs e)
         {
 
+        }
+
+        private void cmdFlashNAC_Click(object sender, EventArgs e)
+        {            
+            try
+            {
+                FlashUNAC flsh = new FlashUNAC(activeConnection.ProtocolHandler, Program.WinSIP_TS);
+                //flsh.Start();
+                OperationStatusDialog frm = new OperationStatusDialog();
+                frm.operation = flsh;
+                frm.ShowDialog();       
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Caught an unexpected exception: " + ex);
+            }
+            finally
+            {                
+            }
         }
 
         

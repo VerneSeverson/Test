@@ -29,35 +29,37 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle5 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle6 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle3 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle4 = new System.Windows.Forms.DataGridViewCellStyle();
             this.txtPassword = new System.Windows.Forms.TextBox();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
             this.tabControl_Main = new System.Windows.Forms.TabControl();
             this.tabMainConnect = new System.Windows.Forms.TabPage();
+            this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.label5 = new System.Windows.Forms.Label();
+            this.button2 = new System.Windows.Forms.Button();
+            this.cboUnitIDType = new System.Windows.Forms.ComboBox();
+            this.button1 = new System.Windows.Forms.Button();
             this.cmdConsole = new System.Windows.Forms.Button();
             this.cmdManual = new System.Windows.Forms.Button();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
             this.label11 = new System.Windows.Forms.Label();
             this.gbNAC = new System.Windows.Forms.GroupBox();
+            this.checkBox6 = new System.Windows.Forms.CheckBox();
             this.lblgbNAC_Inst2 = new System.Windows.Forms.Label();
             this.lblgbNAC_Inst1 = new System.Windows.Forms.Label();
             this.txtNacPassword = new System.Windows.Forms.TextBox();
             this.txtNacUsername = new System.Windows.Forms.TextBox();
             this.label8 = new System.Windows.Forms.Label();
             this.label7 = new System.Windows.Forms.Label();
-            this.label5 = new System.Windows.Forms.Label();
-            this.cboUnitIDType = new System.Windows.Forms.ComboBox();
             this.btnConnect = new System.Windows.Forms.Button();
-            this.txtID = new System.Windows.Forms.TextBox();
             this.gbLogin = new System.Windows.Forms.GroupBox();
             this.cmdSettings = new System.Windows.Forms.Button();
             this.label167 = new System.Windows.Forms.Label();
             this.lblgbLoginInst1 = new System.Windows.Forms.Label();
             this.lblgbLoginInst2 = new System.Windows.Forms.Label();
             this.cmdLogIn = new System.Windows.Forms.Button();
-            this.txtUsername = new System.Windows.Forms.TextBox();
             this.tabMainServers = new System.Windows.Forms.TabPage();
             this.btnCancelServerSettings = new System.Windows.Forms.Button();
             this.btnSaveServerSettings = new System.Windows.Forms.Button();
@@ -312,10 +314,16 @@
             this.tabUcrSettingsNew = new System.Windows.Forms.TabPage();
             this.tabControl_UcrSetting = new System.Windows.Forms.TabControl();
             this.tabUcrSettingSettings = new System.Windows.Forms.TabPage();
-            this.button4 = new System.Windows.Forms.Button();
+            this.groupBox2 = new System.Windows.Forms.GroupBox();
             this.checkBox1 = new System.Windows.Forms.CheckBox();
+            this.label54 = new System.Windows.Forms.Label();
+            this.label55 = new System.Windows.Forms.Label();
+            this.textBox11 = new System.Windows.Forms.TextBox();
+            this.groupBox29 = new System.Windows.Forms.GroupBox();
+            this.radioButton1 = new System.Windows.Forms.RadioButton();
+            this.radioButton2 = new System.Windows.Forms.RadioButton();
+            this.radioButton3 = new System.Windows.Forms.RadioButton();
             this.groupBox27 = new System.Windows.Forms.GroupBox();
-            this.button5 = new System.Windows.Forms.Button();
             this.button11 = new System.Windows.Forms.Button();
             this.label50 = new System.Windows.Forms.Label();
             this.label51 = new System.Windows.Forms.Label();
@@ -326,23 +334,18 @@
             this.comboBox4 = new System.Windows.Forms.ComboBox();
             this.comboBox5 = new System.Windows.Forms.ComboBox();
             this.checkBox2 = new System.Windows.Forms.CheckBox();
-            this.groupBox29 = new System.Windows.Forms.GroupBox();
-            this.radioButton1 = new System.Windows.Forms.RadioButton();
-            this.radioButton2 = new System.Windows.Forms.RadioButton();
-            this.radioButton3 = new System.Windows.Forms.RadioButton();
-            this.label54 = new System.Windows.Forms.Label();
-            this.button12 = new System.Windows.Forms.Button();
-            this.textBox11 = new System.Windows.Forms.TextBox();
-            this.label55 = new System.Windows.Forms.Label();
             this.groupBox30 = new System.Windows.Forms.GroupBox();
             this.label56 = new System.Windows.Forms.Label();
             this.textBox12 = new System.Windows.Forms.TextBox();
             this.textBox13 = new System.Windows.Forms.TextBox();
             this.checkBox9 = new System.Windows.Forms.CheckBox();
             this.checkBox10 = new System.Windows.Forms.CheckBox();
+            this.button4 = new System.Windows.Forms.Button();
+            this.button5 = new System.Windows.Forms.Button();
             this.groupBox31 = new System.Windows.Forms.GroupBox();
             this.textBox14 = new System.Windows.Forms.TextBox();
             this.label57 = new System.Windows.Forms.Label();
+            this.button12 = new System.Windows.Forms.Button();
             this.tabUCRSettingAuth = new System.Windows.Forms.TabPage();
             this.button15 = new System.Windows.Forms.Button();
             this.button16 = new System.Windows.Forms.Button();
@@ -450,8 +453,8 @@
             this.cmdSendScript = new System.Windows.Forms.Button();
             this.button29 = new System.Windows.Forms.Button();
             this.button30 = new System.Windows.Forms.Button();
-            this.groupBox44 = new System.Windows.Forms.GroupBox();
-            this.button24 = new System.Windows.Forms.Button();
+            this.gbUpdateFirmware = new System.Windows.Forms.GroupBox();
+            this.cmdFlashNAC = new System.Windows.Forms.Button();
             this.tabToolsUtilities = new System.Windows.Forms.TabPage();
             this.groupBox47 = new System.Windows.Forms.GroupBox();
             this.button32 = new System.Windows.Forms.Button();
@@ -497,13 +500,11 @@
             this.cmdDisconnect = new System.Windows.Forms.Button();
             this.cmdLogOut = new System.Windows.Forms.Button();
             this.tmrStatus = new System.Windows.Forms.Timer(this.components);
-            this.button1 = new System.Windows.Forms.Button();
-            this.button2 = new System.Windows.Forms.Button();
-            this.checkBox6 = new System.Windows.Forms.CheckBox();
-            this.groupBox1 = new System.Windows.Forms.GroupBox();
-            this.groupBox2 = new System.Windows.Forms.GroupBox();
+            this.txtID = new System.Windows.Forms.TextBox();
+            this.txtUsername = new System.Windows.Forms.TextBox();
             this.tabControl_Main.SuspendLayout();
             this.tabMainConnect.SuspendLayout();
+            this.groupBox1.SuspendLayout();
             this.groupBox3.SuspendLayout();
             this.gbNAC.SuspendLayout();
             this.gbLogin.SuspendLayout();
@@ -549,8 +550,9 @@
             this.tabUcrSettingsNew.SuspendLayout();
             this.tabControl_UcrSetting.SuspendLayout();
             this.tabUcrSettingSettings.SuspendLayout();
-            this.groupBox27.SuspendLayout();
+            this.groupBox2.SuspendLayout();
             this.groupBox29.SuspendLayout();
+            this.groupBox27.SuspendLayout();
             this.groupBox30.SuspendLayout();
             this.groupBox31.SuspendLayout();
             this.tabUCRSettingAuth.SuspendLayout();
@@ -573,7 +575,7 @@
             this.tabTools_Files.SuspendLayout();
             this.tabToolsFiles.SuspendLayout();
             this.gbNACsettingsFiles.SuspendLayout();
-            this.groupBox44.SuspendLayout();
+            this.gbUpdateFirmware.SuspendLayout();
             this.tabToolsUtilities.SuspendLayout();
             this.groupBox47.SuspendLayout();
             this.groupBox46.SuspendLayout();
@@ -581,8 +583,6 @@
             this.groupBox43.SuspendLayout();
             this.tabToolsCertificates.SuspendLayout();
             this.tabMainUserAdmin.SuspendLayout();
-            this.groupBox1.SuspendLayout();
-            this.groupBox2.SuspendLayout();
             this.SuspendLayout();
             // 
             // txtPassword
@@ -646,6 +646,56 @@
             this.tabMainConnect.TabIndex = 0;
             this.tabMainConnect.Text = "Connect";
             // 
+            // groupBox1
+            // 
+            this.groupBox1.Controls.Add(this.label5);
+            this.groupBox1.Controls.Add(this.button2);
+            this.groupBox1.Controls.Add(this.cboUnitIDType);
+            this.groupBox1.Controls.Add(this.button1);
+            this.groupBox1.Controls.Add(this.txtID);
+            this.groupBox1.Location = new System.Drawing.Point(12, 178);
+            this.groupBox1.Name = "groupBox1";
+            this.groupBox1.Size = new System.Drawing.Size(299, 109);
+            this.groupBox1.TabIndex = 10;
+            this.groupBox1.TabStop = false;
+            this.groupBox1.Text = "NAC Select";
+            // 
+            // label5
+            // 
+            this.label5.AutoSize = true;
+            this.label5.Location = new System.Drawing.Point(8, 16);
+            this.label5.Name = "label5";
+            this.label5.Size = new System.Drawing.Size(100, 13);
+            this.label5.TabIndex = 9;
+            this.label5.Text = "Enter Unit Identifier:";
+            // 
+            // button2
+            // 
+            this.button2.Location = new System.Drawing.Point(183, 70);
+            this.button2.Name = "button2";
+            this.button2.Size = new System.Drawing.Size(90, 22);
+            this.button2.TabIndex = 17;
+            this.button2.Text = "Save";
+            this.button2.UseVisualStyleBackColor = true;
+            // 
+            // cboUnitIDType
+            // 
+            this.cboUnitIDType.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cboUnitIDType.FormattingEnabled = true;
+            this.cboUnitIDType.Location = new System.Drawing.Point(11, 32);
+            this.cboUnitIDType.Name = "cboUnitIDType";
+            this.cboUnitIDType.Size = new System.Drawing.Size(96, 21);
+            this.cboUnitIDType.TabIndex = 8;
+            // 
+            // button1
+            // 
+            this.button1.Location = new System.Drawing.Point(57, 70);
+            this.button1.Name = "button1";
+            this.button1.Size = new System.Drawing.Size(90, 22);
+            this.button1.TabIndex = 16;
+            this.button1.Text = "Select";
+            this.button1.UseVisualStyleBackColor = true;
+            // 
             // cmdConsole
             // 
             this.cmdConsole.Location = new System.Drawing.Point(770, 6);
@@ -706,6 +756,16 @@
             this.gbNAC.Text = "NAC Connect";
             this.gbNAC.Enter += new System.EventHandler(this.groupBox2_Enter);
             // 
+            // checkBox6
+            // 
+            this.checkBox6.AutoSize = true;
+            this.checkBox6.Location = new System.Drawing.Point(14, 21);
+            this.checkBox6.Name = "checkBox6";
+            this.checkBox6.Size = new System.Drawing.Size(134, 17);
+            this.checkBox6.TabIndex = 18;
+            this.checkBox6.Text = "Use Server Credentials";
+            this.checkBox6.UseVisualStyleBackColor = true;
+            // 
             // lblgbNAC_Inst2
             // 
             this.lblgbNAC_Inst2.AutoSize = true;
@@ -760,24 +820,6 @@
             this.label7.Text = "NAC Username:";
             this.label7.Click += new System.EventHandler(this.label7_Click);
             // 
-            // label5
-            // 
-            this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(8, 16);
-            this.label5.Name = "label5";
-            this.label5.Size = new System.Drawing.Size(100, 13);
-            this.label5.TabIndex = 9;
-            this.label5.Text = "Enter Unit Identifier:";
-            // 
-            // cboUnitIDType
-            // 
-            this.cboUnitIDType.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.cboUnitIDType.FormattingEnabled = true;
-            this.cboUnitIDType.Location = new System.Drawing.Point(11, 32);
-            this.cboUnitIDType.Name = "cboUnitIDType";
-            this.cboUnitIDType.Size = new System.Drawing.Size(96, 21);
-            this.cboUnitIDType.TabIndex = 8;
-            // 
             // btnConnect
             // 
             this.btnConnect.Location = new System.Drawing.Point(182, 109);
@@ -787,16 +829,6 @@
             this.btnConnect.Text = "Connect";
             this.btnConnect.UseVisualStyleBackColor = true;
             this.btnConnect.Click += new System.EventHandler(this.btnConnect_Click);
-            // 
-            // txtID
-            // 
-            this.txtID.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::WinSIP2E.Properties.Settings.Default, "UnitID", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
-            this.txtID.Location = new System.Drawing.Point(114, 33);
-            this.txtID.Name = "txtID";
-            this.txtID.Size = new System.Drawing.Size(162, 20);
-            this.txtID.TabIndex = 2;
-            this.txtID.Text = global::WinSIP2E.Properties.Settings.Default.UnitID;
-            this.txtID.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.txtID_KeyPress);
             // 
             // gbLogin
             // 
@@ -868,16 +900,6 @@
             this.cmdLogIn.Text = "Log in";
             this.cmdLogIn.UseVisualStyleBackColor = true;
             this.cmdLogIn.Click += new System.EventHandler(this.cmdLogIn_click);
-            // 
-            // txtUsername
-            // 
-            this.txtUsername.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::WinSIP2E.Properties.Settings.Default, "UserName", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
-            this.txtUsername.Location = new System.Drawing.Point(96, 16);
-            this.txtUsername.Name = "txtUsername";
-            this.txtUsername.Size = new System.Drawing.Size(184, 20);
-            this.txtUsername.TabIndex = 0;
-            this.txtUsername.Text = global::WinSIP2E.Properties.Settings.Default.UserName;
-            this.txtUsername.TextChanged += new System.EventHandler(this.txtUsername_TextChanged);
             // 
             // tabMainServers
             // 
@@ -3333,14 +3355,18 @@
             this.tabUcrSettingSettings.TabIndex = 4;
             this.tabUcrSettingSettings.Text = "UCR Settings";
             // 
-            // button4
+            // groupBox2
             // 
-            this.button4.Location = new System.Drawing.Point(328, 449);
-            this.button4.Name = "button4";
-            this.button4.Size = new System.Drawing.Size(77, 24);
-            this.button4.TabIndex = 21;
-            this.button4.Text = "Cancel";
-            this.button4.UseVisualStyleBackColor = true;
+            this.groupBox2.Controls.Add(this.checkBox1);
+            this.groupBox2.Controls.Add(this.label54);
+            this.groupBox2.Controls.Add(this.label55);
+            this.groupBox2.Controls.Add(this.textBox11);
+            this.groupBox2.Location = new System.Drawing.Point(8, 69);
+            this.groupBox2.Name = "groupBox2";
+            this.groupBox2.Size = new System.Drawing.Size(257, 78);
+            this.groupBox2.TabIndex = 22;
+            this.groupBox2.TabStop = false;
+            this.groupBox2.Text = "COE Operation:";
             // 
             // checkBox1
             // 
@@ -3351,6 +3377,77 @@
             this.checkBox1.TabIndex = 20;
             this.checkBox1.Text = "Enable COE Port";
             this.checkBox1.UseVisualStyleBackColor = true;
+            // 
+            // label54
+            // 
+            this.label54.AutoSize = true;
+            this.label54.Location = new System.Drawing.Point(202, 44);
+            this.label54.Name = "label54";
+            this.label54.Size = new System.Drawing.Size(29, 13);
+            this.label54.TabIndex = 4;
+            this.label54.Text = "Sec.";
+            // 
+            // label55
+            // 
+            this.label55.AutoSize = true;
+            this.label55.Location = new System.Drawing.Point(4, 44);
+            this.label55.Name = "label55";
+            this.label55.Size = new System.Drawing.Size(124, 13);
+            this.label55.TabIndex = 2;
+            this.label55.Text = "COE Response Timeout:";
+            this.label55.Click += new System.EventHandler(this.label55_Click);
+            // 
+            // textBox11
+            // 
+            this.textBox11.Location = new System.Drawing.Point(134, 41);
+            this.textBox11.Name = "textBox11";
+            this.textBox11.Size = new System.Drawing.Size(56, 20);
+            this.textBox11.TabIndex = 3;
+            // 
+            // groupBox29
+            // 
+            this.groupBox29.Controls.Add(this.radioButton1);
+            this.groupBox29.Controls.Add(this.radioButton2);
+            this.groupBox29.Controls.Add(this.radioButton3);
+            this.groupBox29.Location = new System.Drawing.Point(8, 263);
+            this.groupBox29.Name = "groupBox29";
+            this.groupBox29.Size = new System.Drawing.Size(257, 89);
+            this.groupBox29.TabIndex = 5;
+            this.groupBox29.TabStop = false;
+            this.groupBox29.Text = "Host Response to COE:";
+            // 
+            // radioButton1
+            // 
+            this.radioButton1.AutoSize = true;
+            this.radioButton1.Location = new System.Drawing.Point(24, 64);
+            this.radioButton1.Name = "radioButton1";
+            this.radioButton1.Size = new System.Drawing.Size(114, 17);
+            this.radioButton1.TabIndex = 0;
+            this.radioButton1.TabStop = true;
+            this.radioButton1.Text = "Send all responses";
+            this.radioButton1.UseVisualStyleBackColor = true;
+            // 
+            // radioButton2
+            // 
+            this.radioButton2.AutoSize = true;
+            this.radioButton2.Location = new System.Drawing.Point(24, 39);
+            this.radioButton2.Name = "radioButton2";
+            this.radioButton2.Size = new System.Drawing.Size(166, 17);
+            this.radioButton2.TabIndex = 0;
+            this.radioButton2.TabStop = true;
+            this.radioButton2.Text = "Send only rejection responses";
+            this.radioButton2.UseVisualStyleBackColor = true;
+            // 
+            // radioButton3
+            // 
+            this.radioButton3.AutoSize = true;
+            this.radioButton3.Location = new System.Drawing.Point(24, 16);
+            this.radioButton3.Name = "radioButton3";
+            this.radioButton3.Size = new System.Drawing.Size(128, 17);
+            this.radioButton3.TabIndex = 0;
+            this.radioButton3.TabStop = true;
+            this.radioButton3.Text = "Do not pass response";
+            this.radioButton3.UseVisualStyleBackColor = true;
             // 
             // groupBox27
             // 
@@ -3370,15 +3467,6 @@
             this.groupBox27.TabIndex = 6;
             this.groupBox27.TabStop = false;
             this.groupBox27.Text = "COE Port Comm Settings:";
-            // 
-            // button5
-            // 
-            this.button5.Location = new System.Drawing.Point(325, 50);
-            this.button5.Name = "button5";
-            this.button5.Size = new System.Drawing.Size(80, 24);
-            this.button5.TabIndex = 21;
-            this.button5.Text = "Kiosk settings";
-            this.button5.UseVisualStyleBackColor = true;
             // 
             // button11
             // 
@@ -3467,86 +3555,6 @@
             this.checkBox2.Text = "Enable Equipment Port";
             this.checkBox2.UseVisualStyleBackColor = true;
             // 
-            // groupBox29
-            // 
-            this.groupBox29.Controls.Add(this.radioButton1);
-            this.groupBox29.Controls.Add(this.radioButton2);
-            this.groupBox29.Controls.Add(this.radioButton3);
-            this.groupBox29.Location = new System.Drawing.Point(8, 263);
-            this.groupBox29.Name = "groupBox29";
-            this.groupBox29.Size = new System.Drawing.Size(257, 89);
-            this.groupBox29.TabIndex = 5;
-            this.groupBox29.TabStop = false;
-            this.groupBox29.Text = "Host Response to COE:";
-            // 
-            // radioButton1
-            // 
-            this.radioButton1.AutoSize = true;
-            this.radioButton1.Location = new System.Drawing.Point(24, 64);
-            this.radioButton1.Name = "radioButton1";
-            this.radioButton1.Size = new System.Drawing.Size(114, 17);
-            this.radioButton1.TabIndex = 0;
-            this.radioButton1.TabStop = true;
-            this.radioButton1.Text = "Send all responses";
-            this.radioButton1.UseVisualStyleBackColor = true;
-            // 
-            // radioButton2
-            // 
-            this.radioButton2.AutoSize = true;
-            this.radioButton2.Location = new System.Drawing.Point(24, 39);
-            this.radioButton2.Name = "radioButton2";
-            this.radioButton2.Size = new System.Drawing.Size(166, 17);
-            this.radioButton2.TabIndex = 0;
-            this.radioButton2.TabStop = true;
-            this.radioButton2.Text = "Send only rejection responses";
-            this.radioButton2.UseVisualStyleBackColor = true;
-            // 
-            // radioButton3
-            // 
-            this.radioButton3.AutoSize = true;
-            this.radioButton3.Location = new System.Drawing.Point(24, 16);
-            this.radioButton3.Name = "radioButton3";
-            this.radioButton3.Size = new System.Drawing.Size(128, 17);
-            this.radioButton3.TabIndex = 0;
-            this.radioButton3.TabStop = true;
-            this.radioButton3.Text = "Do not pass response";
-            this.radioButton3.UseVisualStyleBackColor = true;
-            // 
-            // label54
-            // 
-            this.label54.AutoSize = true;
-            this.label54.Location = new System.Drawing.Point(202, 44);
-            this.label54.Name = "label54";
-            this.label54.Size = new System.Drawing.Size(29, 13);
-            this.label54.TabIndex = 4;
-            this.label54.Text = "Sec.";
-            // 
-            // button12
-            // 
-            this.button12.Location = new System.Drawing.Point(414, 449);
-            this.button12.Name = "button12";
-            this.button12.Size = new System.Drawing.Size(72, 24);
-            this.button12.TabIndex = 19;
-            this.button12.Text = "Save";
-            this.button12.UseVisualStyleBackColor = true;
-            // 
-            // textBox11
-            // 
-            this.textBox11.Location = new System.Drawing.Point(134, 41);
-            this.textBox11.Name = "textBox11";
-            this.textBox11.Size = new System.Drawing.Size(56, 20);
-            this.textBox11.TabIndex = 3;
-            // 
-            // label55
-            // 
-            this.label55.AutoSize = true;
-            this.label55.Location = new System.Drawing.Point(4, 44);
-            this.label55.Name = "label55";
-            this.label55.Size = new System.Drawing.Size(124, 13);
-            this.label55.TabIndex = 2;
-            this.label55.Text = "COE Response Timeout:";
-            this.label55.Click += new System.EventHandler(this.label55_Click);
-            // 
             // groupBox30
             // 
             this.groupBox30.Controls.Add(this.label56);
@@ -3604,6 +3612,24 @@
             this.checkBox10.Text = "Wait for Goods Delivered";
             this.checkBox10.UseVisualStyleBackColor = true;
             // 
+            // button4
+            // 
+            this.button4.Location = new System.Drawing.Point(328, 449);
+            this.button4.Name = "button4";
+            this.button4.Size = new System.Drawing.Size(77, 24);
+            this.button4.TabIndex = 21;
+            this.button4.Text = "Cancel";
+            this.button4.UseVisualStyleBackColor = true;
+            // 
+            // button5
+            // 
+            this.button5.Location = new System.Drawing.Point(325, 50);
+            this.button5.Name = "button5";
+            this.button5.Size = new System.Drawing.Size(80, 24);
+            this.button5.TabIndex = 21;
+            this.button5.Text = "Kiosk settings";
+            this.button5.UseVisualStyleBackColor = true;
+            // 
             // groupBox31
             // 
             this.groupBox31.Controls.Add(this.textBox14);
@@ -3630,6 +3656,15 @@
             this.label57.Size = new System.Drawing.Size(47, 13);
             this.label57.TabIndex = 0;
             this.label57.Text = "UCR ID:";
+            // 
+            // button12
+            // 
+            this.button12.Location = new System.Drawing.Point(414, 449);
+            this.button12.Name = "button12";
+            this.button12.Size = new System.Drawing.Size(72, 24);
+            this.button12.TabIndex = 19;
+            this.button12.Text = "Save";
+            this.button12.UseVisualStyleBackColor = true;
             // 
             // tabUCRSettingAuth
             // 
@@ -4063,25 +4098,25 @@
             // dataGridView1
             // 
             this.dataGridView1.AllowUserToAddRows = false;
-            dataGridViewCellStyle5.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle5.BackColor = System.Drawing.SystemColors.Control;
-            dataGridViewCellStyle5.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle5.ForeColor = System.Drawing.SystemColors.WindowText;
-            dataGridViewCellStyle5.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle5.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle5.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
-            this.dataGridView1.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle5;
+            dataGridViewCellStyle3.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle3.BackColor = System.Drawing.SystemColors.Control;
+            dataGridViewCellStyle3.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            dataGridViewCellStyle3.ForeColor = System.Drawing.SystemColors.WindowText;
+            dataGridViewCellStyle3.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle3.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle3.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
+            this.dataGridView1.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle3;
             this.dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.dataGridView1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
             this.dataGridViewTextBoxColumn1});
-            dataGridViewCellStyle6.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle6.BackColor = System.Drawing.SystemColors.Window;
-            dataGridViewCellStyle6.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle6.ForeColor = System.Drawing.SystemColors.ControlText;
-            dataGridViewCellStyle6.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle6.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle6.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
-            this.dataGridView1.DefaultCellStyle = dataGridViewCellStyle6;
+            dataGridViewCellStyle4.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle4.BackColor = System.Drawing.SystemColors.Window;
+            dataGridViewCellStyle4.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            dataGridViewCellStyle4.ForeColor = System.Drawing.SystemColors.ControlText;
+            dataGridViewCellStyle4.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle4.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle4.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
+            this.dataGridView1.DefaultCellStyle = dataGridViewCellStyle4;
             this.dataGridView1.Location = new System.Drawing.Point(15, 42);
             this.dataGridView1.Name = "dataGridView1";
             this.dataGridView1.Size = new System.Drawing.Size(511, 233);
@@ -4672,7 +4707,7 @@
             // 
             this.tabToolsFiles.BackColor = System.Drawing.SystemColors.Control;
             this.tabToolsFiles.Controls.Add(this.gbNACsettingsFiles);
-            this.tabToolsFiles.Controls.Add(this.groupBox44);
+            this.tabToolsFiles.Controls.Add(this.gbUpdateFirmware);
             this.tabToolsFiles.Location = new System.Drawing.Point(4, 22);
             this.tabToolsFiles.Name = "tabToolsFiles";
             this.tabToolsFiles.Padding = new System.Windows.Forms.Padding(3);
@@ -4720,24 +4755,25 @@
             this.button30.Text = "Restore NAC";
             this.button30.UseVisualStyleBackColor = true;
             // 
-            // groupBox44
+            // gbUpdateFirmware
             // 
-            this.groupBox44.Controls.Add(this.button24);
-            this.groupBox44.Location = new System.Drawing.Point(27, 49);
-            this.groupBox44.Name = "groupBox44";
-            this.groupBox44.Size = new System.Drawing.Size(225, 71);
-            this.groupBox44.TabIndex = 8;
-            this.groupBox44.TabStop = false;
-            this.groupBox44.Text = "Update NAC Firmware";
+            this.gbUpdateFirmware.Controls.Add(this.cmdFlashNAC);
+            this.gbUpdateFirmware.Location = new System.Drawing.Point(27, 49);
+            this.gbUpdateFirmware.Name = "gbUpdateFirmware";
+            this.gbUpdateFirmware.Size = new System.Drawing.Size(225, 71);
+            this.gbUpdateFirmware.TabIndex = 8;
+            this.gbUpdateFirmware.TabStop = false;
+            this.gbUpdateFirmware.Text = "Update NAC Firmware";
             // 
-            // button24
+            // cmdFlashNAC
             // 
-            this.button24.Location = new System.Drawing.Point(45, 33);
-            this.button24.Name = "button24";
-            this.button24.Size = new System.Drawing.Size(119, 24);
-            this.button24.TabIndex = 0;
-            this.button24.Text = "Update NAC";
-            this.button24.UseVisualStyleBackColor = true;
+            this.cmdFlashNAC.Location = new System.Drawing.Point(45, 33);
+            this.cmdFlashNAC.Name = "cmdFlashNAC";
+            this.cmdFlashNAC.Size = new System.Drawing.Size(119, 24);
+            this.cmdFlashNAC.TabIndex = 0;
+            this.cmdFlashNAC.Text = "Update NAC";
+            this.cmdFlashNAC.UseVisualStyleBackColor = true;
+            this.cmdFlashNAC.Click += new System.EventHandler(this.cmdFlashNAC_Click);
             // 
             // tabToolsUtilities
             // 
@@ -5175,60 +5211,25 @@
             this.tmrStatus.Interval = 500;
             this.tmrStatus.Tick += new System.EventHandler(this.tmrStatus_Tick);
             // 
-            // button1
+            // txtID
             // 
-            this.button1.Location = new System.Drawing.Point(57, 70);
-            this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(90, 22);
-            this.button1.TabIndex = 16;
-            this.button1.Text = "Select";
-            this.button1.UseVisualStyleBackColor = true;
+            this.txtID.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::WinSIP2E.Properties.Settings.Default, "UnitID", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
+            this.txtID.Location = new System.Drawing.Point(114, 33);
+            this.txtID.Name = "txtID";
+            this.txtID.Size = new System.Drawing.Size(162, 20);
+            this.txtID.TabIndex = 2;
+            this.txtID.Text = global::WinSIP2E.Properties.Settings.Default.UnitID;
+            this.txtID.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.txtID_KeyPress);
             // 
-            // button2
+            // txtUsername
             // 
-            this.button2.Location = new System.Drawing.Point(183, 70);
-            this.button2.Name = "button2";
-            this.button2.Size = new System.Drawing.Size(90, 22);
-            this.button2.TabIndex = 17;
-            this.button2.Text = "Save";
-            this.button2.UseVisualStyleBackColor = true;
-            // 
-            // checkBox6
-            // 
-            this.checkBox6.AutoSize = true;
-            this.checkBox6.Location = new System.Drawing.Point(14, 21);
-            this.checkBox6.Name = "checkBox6";
-            this.checkBox6.Size = new System.Drawing.Size(134, 17);
-            this.checkBox6.TabIndex = 18;
-            this.checkBox6.Text = "Use Server Credentials";
-            this.checkBox6.UseVisualStyleBackColor = true;
-            // 
-            // groupBox1
-            // 
-            this.groupBox1.Controls.Add(this.label5);
-            this.groupBox1.Controls.Add(this.button2);
-            this.groupBox1.Controls.Add(this.cboUnitIDType);
-            this.groupBox1.Controls.Add(this.button1);
-            this.groupBox1.Controls.Add(this.txtID);
-            this.groupBox1.Location = new System.Drawing.Point(12, 178);
-            this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(299, 109);
-            this.groupBox1.TabIndex = 10;
-            this.groupBox1.TabStop = false;
-            this.groupBox1.Text = "NAC Select";
-            // 
-            // groupBox2
-            // 
-            this.groupBox2.Controls.Add(this.checkBox1);
-            this.groupBox2.Controls.Add(this.label54);
-            this.groupBox2.Controls.Add(this.label55);
-            this.groupBox2.Controls.Add(this.textBox11);
-            this.groupBox2.Location = new System.Drawing.Point(8, 69);
-            this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Size = new System.Drawing.Size(257, 78);
-            this.groupBox2.TabIndex = 22;
-            this.groupBox2.TabStop = false;
-            this.groupBox2.Text = "COE Operation:";
+            this.txtUsername.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::WinSIP2E.Properties.Settings.Default, "UserName", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
+            this.txtUsername.Location = new System.Drawing.Point(96, 16);
+            this.txtUsername.Name = "txtUsername";
+            this.txtUsername.Size = new System.Drawing.Size(184, 20);
+            this.txtUsername.TabIndex = 0;
+            this.txtUsername.Text = global::WinSIP2E.Properties.Settings.Default.UserName;
+            this.txtUsername.TextChanged += new System.EventHandler(this.txtUsername_TextChanged);
             // 
             // frmHome
             // 
@@ -5254,6 +5255,8 @@
             this.Load += new System.EventHandler(this.frmHome_Load);
             this.tabControl_Main.ResumeLayout(false);
             this.tabMainConnect.ResumeLayout(false);
+            this.groupBox1.ResumeLayout(false);
+            this.groupBox1.PerformLayout();
             this.groupBox3.ResumeLayout(false);
             this.groupBox3.PerformLayout();
             this.gbNAC.ResumeLayout(false);
@@ -5325,10 +5328,12 @@
             this.tabUcrSettingsNew.ResumeLayout(false);
             this.tabControl_UcrSetting.ResumeLayout(false);
             this.tabUcrSettingSettings.ResumeLayout(false);
-            this.groupBox27.ResumeLayout(false);
-            this.groupBox27.PerformLayout();
+            this.groupBox2.ResumeLayout(false);
+            this.groupBox2.PerformLayout();
             this.groupBox29.ResumeLayout(false);
             this.groupBox29.PerformLayout();
+            this.groupBox27.ResumeLayout(false);
+            this.groupBox27.PerformLayout();
             this.groupBox30.ResumeLayout(false);
             this.groupBox30.PerformLayout();
             this.groupBox31.ResumeLayout(false);
@@ -5364,7 +5369,7 @@
             this.tabTools_Files.ResumeLayout(false);
             this.tabToolsFiles.ResumeLayout(false);
             this.gbNACsettingsFiles.ResumeLayout(false);
-            this.groupBox44.ResumeLayout(false);
+            this.gbUpdateFirmware.ResumeLayout(false);
             this.tabToolsUtilities.ResumeLayout(false);
             this.groupBox47.ResumeLayout(false);
             this.groupBox46.ResumeLayout(false);
@@ -5375,10 +5380,6 @@
             this.tabToolsCertificates.PerformLayout();
             this.tabMainUserAdmin.ResumeLayout(false);
             this.tabMainUserAdmin.PerformLayout();
-            this.groupBox1.ResumeLayout(false);
-            this.groupBox1.PerformLayout();
-            this.groupBox2.ResumeLayout(false);
-            this.groupBox2.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -5678,8 +5679,8 @@
         private System.Windows.Forms.Button cmdSendScript;
         private System.Windows.Forms.Button button29;
         private System.Windows.Forms.Button button30;
-        private System.Windows.Forms.GroupBox groupBox44;
-        private System.Windows.Forms.Button button24;
+        private System.Windows.Forms.GroupBox gbUpdateFirmware;
+        private System.Windows.Forms.Button cmdFlashNAC;
         private System.Windows.Forms.GroupBox groupBox46;
         private System.Windows.Forms.Button button26;
         private System.Windows.Forms.Button button27;

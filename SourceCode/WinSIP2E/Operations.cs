@@ -3,6 +3,8 @@ using ForwardLibrary.Communications.CommandHandlers;
 using ForwardLibrary.Communications.STXETX;
 using ForwardLibrary.Crypto;
 using ForwardLibrary.Default;
+using ForwardLibrary.Flash.LPC2400;
+using ForwardLibrary.Flash.LPC2400.Forward;
 using ForwardLibrary.WinSIPserver;
 using System;
 using System.Collections.Generic;
@@ -1897,6 +1899,355 @@ namespace WinSIP2E
                 if (Status == CompletionCode.UserCancelReq)
                     throw new OperationCanceledException("User canceled the operation");
             }
+        }
+
+        public class FlashUNAC : Operation
+        {
+            #region Properties
+            /// <summary>
+            /// Recommended interval to check Status in
+            /// milliseconds
+            /// </summary>
+            public override int RefreshInterval { get { return 100; } }
+
+            /// <summary>
+            /// Whether or not the operation can be canceled
+            /// </summary>
+            public override bool AllowCancel { get { return true; } }
+
+            /// <summary>
+            /// If this is set to true, it is requested that the user acknowledge
+            /// the final status message. (i.e. OperationStatusDialog should 
+            /// make the user press OK to close the dialog box)
+            /// </summary>
+            public override bool RequireUserOK
+            {
+                get
+                {                    
+                    return true;
+                }
+            }
+
+            private string _StatusErrorMessage = null;
+            public override string StatusMessage
+            {
+                get
+                {
+                    if (_StatusErrorMessage == null)
+                        return GetStatusOkMsg(CurrentState);
+                    else
+                        return _StatusErrorMessage;
+                }
+            }
+
+            public override string SubjectLine
+            {
+                get { return "Flashing the UNAC..."; }
+            }
+
+
+            private CompletionCode _Status = CompletionCode.NotStarted;
+            public override CompletionCode Status
+            {
+                get { return _Status; }
+            }
+
+            public override int StatusPercent { get { return GetStatusCompletionPercent(CurrentState); } }
+
+            private IProtocolHandler ServerProtocolHandler;
+            private FPS_ISP_CommandHandler ISP_CommandHandler;
+            private FPS_4MBExtFlash_LPC2400 FlashFile;
+            private string FileName;
+            private int CurrentSector = 0;            
+            private string PendingUserMessage = "";
+
+            private WorkState _CurrentState = WorkState.Idle;
+            private WorkState CurrentState
+            {
+                get { return _CurrentState; }
+                set
+                {
+                    CheckUserCancel();
+                    _CurrentState = value;
+                    LogMsg(TraceEventType.Verbose, StatusMessage);
+                }
+            }
+
+            #endregion
+
+            #region API
+            /// <summary>
+            /// Function to start the operation
+            /// Will throw InvalidOperation exception if Status != NotStarted
+            /// </summary>
+            public override void Start()
+            {
+                StartDel caller = this.DoTheWork;
+                _Status = CompletionCode.InProgress;
+                caller.BeginInvoke(delegate(IAsyncResult arr) { caller.EndInvoke(arr); }, null);                
+            }
+
+            /// <summary>
+            /// Function to cancel the operation
+            /// Will throw InvalidOperation exception if Status != InProgress
+            /// OR if AllowCancel == false
+            /// </summary>
+            public override void Cancel()
+            {
+                _Status = CompletionCode.UserCancelReq;
+            }
+            #endregion
+
+            #region constructors
+            /// <summary>
+            /// Possible exceptions:
+            /// ArgumentNullException
+            /// </summary>
+            /// <param name="handler">The active command handler object.</param>
+            /// <param name="fileName">The name of the script file to send.</param>  
+            /// <exception cref="System.ArgumentNullException">Thrown when any argument other then LogTS is null</exception>            
+            public FlashUNAC(IProtocolHandler handler, string fileName, TraceSource LogTS = null)
+            {
+                if ( (handler == null) || (fileName == null) )
+                    throw new ArgumentNullException();
+
+                this.ServerProtocolHandler = handler;
+                this.FileName = fileName;
+
+                if (LogTS != null)
+                    this.LogTS = LogTS;
+                else
+                    this.LogTS = new TraceSource("DummyTS");
+            }
+
+            /// <summary>
+            /// The user will be prompted to locate the flash file to send.            
+            /// </summary>
+            /// <param name="handler">An active StxEtxHandler object.</param>            
+            /// <exception cref="System.ArgumentNullException">Thrown when any argument other then LogTS is null</exception>            
+            /// /// <exception cref="System.OperationCanceledException">Thrown when the user presses cancel when prompted to select a script file</exception>      
+            public FlashUNAC(IProtocolHandler handler, TraceSource LogTS = null)
+            {
+                if (handler == null)
+                    throw new ArgumentNullException();
+
+                this.ServerProtocolHandler = handler;
+                if (!DetermineFlashFileName(out this.FileName))
+                    throw new OperationCanceledException("Sending the script file was canceled by the user.");
+
+                if (LogTS != null)
+                    this.LogTS = LogTS;
+                else
+                    this.LogTS = new TraceSource("DummyTS");
+            }
+            #endregion
+
+            #region main working functions
+            enum WorkState
+            {
+                [StatusOkMsg("Preparing to read the flash file."),
+                StatusErrorMsg("Failed to prepare to read the flash file."),
+                StatusCompletionPercent(0)]
+                Idle,
+                [StatusOkMsg("Reading the flash file."),
+                StatusErrorMsg("Invalid flash file."),
+                StatusCompletionPercent(1)]
+                ParseHexFile,
+                [StatusOkMsg("Checking if the UNAC is already in flash mode."),
+                StatusErrorMsg("Failed to determine the UNAC state."),
+                StatusCompletionPercent(2)]
+                CheckUNACmode,
+                [StatusOkMsg("Placing the UNAC into flash mode."),
+                StatusErrorMsg("Unable to instruct UNAC to enter flash mode."),
+                StatusCompletionPercent(3)]
+                SendFlashModeRequest,
+                [StatusOkMsg("UNAC is entering flash mode, waiting for reconnection."),
+                StatusErrorMsg("UNAC failed to reconnect after attempting to enter flash mode."),
+                StatusCompletionPercent(4)]
+                ReconnectToUNAC,
+                [StatusOkMsg("Estabilishing communication with UNAC flashing firmware."),
+                StatusErrorMsg("Failed to establish communication with UNAC flashing firmware."),
+                StatusCompletionPercent(5)]
+                FlasherSync,
+                [StatusOkMsg("Sending flash file."),
+                StatusErrorMsg("Failed to send flash file."),
+                StatusCompletionPercent(6)]
+                FlashInProgress,
+                [StatusOkMsg("User login successful."),
+                StatusErrorMsg("Should not see this message."),
+                StatusCompletionPercent(100)]
+                Finish
+            }
+
+            private void DoTheWork()
+            {
+
+                try
+                {
+                    //1. Read in the hex file
+                    CurrentState = WorkState.ParseHexFile;
+                    LoadTheHexFile();
+
+                    //2. See if the UNAC is already in flashmode
+                    CurrentState = WorkState.CheckUNACmode;
+                    if (!isUNACinFlashMode())
+                    {
+                    //3. Enter flash mode
+                        CurrentState = WorkState.SendFlashModeRequest;
+                        RequestFlashMode();
+
+                    //4. Reconnect to the UNAC in flash mode
+                        CurrentState = WorkState.ReconnectToUNAC;
+                        ReconnectToUNAC();
+
+                    //5. Connect to the UNAC in flash mode
+                        CurrentState = WorkState.FlasherSync;
+                        if (!isUNACinFlashMode())
+                            throw new InvalidOperationException();  //think about what kind of exception should be thrown
+                    }
+
+                    //6. Start flashing
+                    CurrentState = WorkState.FlashInProgress;
+
+                    
+                    //7. Done
+                    CurrentState = WorkState.Finish;
+
+                    //8. Mark completed
+                    _Status = CompletionCode.FinishedSuccess;
+
+                }
+                catch (OperationCanceledException ex)
+                {
+                    //I don't think we need to delete the CSR?
+                    _StatusErrorMessage = "User canceled the flashing the UNAC.";
+                    _Status = CompletionCode.UserCancelFinish;
+                    LogMsg(TraceEventType.Verbose, ex.ToString());
+                }
+                catch (Exception ex)
+                {                    
+                    _StatusErrorMessage = GetStatusErrorMsg(CurrentState) + " " + ex.Message;
+                    _Status = CompletionCode.FinishedError;
+                    LogMsg(TraceEventType.Warning, ex.ToString());
+                    try
+                    {                        
+                        CloseConnection();
+                    }
+                    catch { }   //don't care if this fails.
+                }
+            }
+            #endregion
+
+            #region private helper functions
+                        /// <summary>
+            /// Call this function to locate the script file
+            /// </summary>
+            /// <param name="fileName"></param>
+            /// <returns></returns>
+            private bool DetermineFlashFileName(out string fileName)
+            {
+                OpenFileDialog fDialog = new OpenFileDialog();
+                fDialog.Title = "Select script file to send";
+                fDialog.InitialDirectory = Properties.Settings.Default.LastManualBrowseFolder;
+                fDialog.CheckFileExists = true;
+                fDialog.CheckPathExists = true;
+                fDialog.Multiselect = false;
+                fDialog.Filter = "Script Files (.hex)|*.hex";
+                fDialog.FilterIndex = 1;
+
+                if (fDialog.ShowDialog() == DialogResult.OK)
+                {
+                    fileName = fDialog.FileName;
+                    Properties.Settings.Default.LastManualBrowseFolder = Path.GetDirectoryName(fDialog.FileName);
+                    return true;
+                }
+                else
+                {
+                    fileName = null;
+                    return false;
+                }
+            }
+
+
+            private void CheckUserCancel()
+            {
+                if (Status == CompletionCode.UserCancelReq)
+                    throw new OperationCanceledException("User canceled the operation");
+            }
+
+            private void CloseConnection()
+            {
+                if (ISP_CommandHandler != null)
+                    ISP_CommandHandler.Dispose();
+                ISP_CommandHandler = null;
+            }
+
+            /// <summary>
+            /// Create the FlashFile object and load in the hex file specified.
+            /// </summary>
+            private void LoadTheHexFile()
+            {
+                FlashFile = new FPS_4MBExtFlash_LPC2400();
+                FlashFile.LoadHexFile(FileName);
+            }
+
+            /// <summary>
+            /// Determine if the UNAC is in flash mode.
+            /// If it is in flash mode, ServerProtocolHandler is disabled and 
+            /// a live object is created for ISP_CommandHandler. 
+            /// 
+            /// If it is not in flash mode, ServerProtocolHandler should still work
+            /// just fine.
+            /// 
+            /// FOR NOW THIS FUNCTION IS STUBBED OUT
+            /// </summary>
+            /// <returns>true if the UNAC is in flash mode and Flasher is ready to flash, otherwise: false</returns>
+            private bool isUNACinFlashMode()
+            {
+                Boolean bSuccess = false;
+                //1. remove the link between the STX ETX handler and the communication object
+                //give it a dummy link
+                ClientContext LiveConnection = ServerProtocolHandler.CommContext;
+                ClientContext DummyConnection = new PlaceHolderClientContext(LiveConnection.logMsgs);
+                ServerProtocolHandler.CommContext = DummyConnection;
+
+                //2. Create an ISP command handler and give it the live link
+                ISP_CommandHandler = new FPS_ISP_CommandHandler(new LPC_ISP_Handler(LiveConnection));
+
+                //3. Try to do autobaud
+                try
+                {
+                    ISP_CommandHandler.DoAutoBaudSynchronization();
+                    bSuccess = true;
+                }
+                catch (Exception ex)
+                {
+                    //autobaud failed
+                    bSuccess = false;
+
+                    //if autobaud fails, restore the STX ETX handler.
+                    ServerProtocolHandler.CommContext = LiveConnection;
+                    ISP_CommandHandler.ProtocolHandler.CommContext = DummyConnection;
+                    ISP_CommandHandler.Dispose();
+                    ISP_CommandHandler = null;
+                }
+                //private IProtocolHandler ServerProtocolHandler;
+                //private FPS_ISP_CommandHandler ISP_CommandHandler;
+
+                return bSuccess;
+            }
+
+            private void RequestFlashMode()
+            {
+                //ServerProtocolHandler.SendCommand
+                throw new NotImplementedException();
+            }
+
+            private void ReconnectToUNAC()
+            {
+                throw new NotImplementedException();
+            }
+            #endregion
         }
     }
 
