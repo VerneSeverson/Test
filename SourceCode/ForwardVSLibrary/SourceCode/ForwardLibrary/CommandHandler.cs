@@ -464,6 +464,22 @@ namespace ForwardLibrary
                     LogID = (int)LogIDs.UNAC;                    
                 }
 
+                /// <summary>
+                /// Command to enter flash mode.
+                /// </summary>
+                /// <param name="Filename">the name of the hex file being flashed</param>
+                /// <param name="hash">the hash of the hex file</param>
+                /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param>
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the unac</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the unac responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the unac to complete an operation</exception>
+                public void EnterFlash(string Filename, byte[] hash, bool optionalCloseConn = false)
+                {
+                    string command = "NSCM12345678";
+                    List<string> resps = SendCommand(command, 0, optionalCloseConn);
+                }
+
+
                 #region 3.1 Set NAC Configuration - Server I/F
                 /// <summary>
                 /// Class used to hold data of RSR command

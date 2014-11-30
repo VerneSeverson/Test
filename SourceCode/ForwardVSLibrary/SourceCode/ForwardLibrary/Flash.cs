@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -921,7 +922,7 @@ namespace ForwardLibrary
                     try
                     {
                         _LastSent = DateTime.Now;
-                        byte[] data_with_crlf = new byte[data.Length];
+                        byte[] data_with_crlf = new byte[data.Length+2];
                         data.CopyTo(data_with_crlf, 0);
                         data_with_crlf[data.Length] = 0x0D;
                         data_with_crlf[data.Length + 1] = 0x0A;
@@ -931,7 +932,7 @@ namespace ForwardLibrary
                     }
                     catch (Exception ex)
                     {
-                        CommContext.LogMsg(TraceEventType.Error, "Caught an unexpected exception when sending the command: <STX>" + System.Text.Encoding.Default.GetString(data.ToArray()) + "<ETX>. optionalRetries: " + optionalRetries.ToString() + ". Exception: " + ex.ToString());
+                        CommContext.LogMsg(TraceEventType.Error, "Caught an unexpected exception when sending the command: " + System.Text.Encoding.Default.GetString(data.ToArray()) + "<CR><LF>. optionalRetries: " + optionalRetries.ToString() + ". Exception: " + ex.ToString());
                     }
                     finally
                     {
@@ -1103,7 +1104,7 @@ namespace ForwardLibrary
                                 break;
                             if ((theByte == 0x0A) && (LastRxByte == 0x0D))    //if we got a CRLF, we have a response packet
                             {
-                                CommContext.LogMsg(TraceEventType.Verbose, "ISP RCVD: <STX>" + System.Text.Encoding.Default.GetString(ReceivedData.ToArray()) + "<ETX>");
+                                CommContext.LogMsg(TraceEventType.Verbose, "ISP RCVD: " + System.Text.Encoding.Default.GetString(ReceivedData.ToArray()) + "<CR><LF>");
 
                                 //process the parsed command
                                 ProcessResponse(ReceivedData);
@@ -1584,7 +1585,7 @@ namespace ForwardLibrary
                             if (data_reply != null)
                             {
                                 Responses.Add(data_reply);
-                                if (data_reply.Trim() == "Synchronized")
+                                if ((data_reply.Trim() == "Synchronized") || (data_reply.Trim() == "?Synchronized"))
                                     sync = true;
                             }
                         } while (result);
@@ -1756,7 +1757,7 @@ namespace ForwardLibrary
                 /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
                 /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>                
                 /// <exception cref="System.ArgumentException">Thrown one of the parameters breaks the described rules.</exception>
-                public void CopyRAMtoFlash(uint flashAddress, uint ramAddress, int numberOfBytes)
+                public void CopyRAMtoFlash(uint flashAddress, uint ramAddress, uint numberOfBytes)
                 {
                     if (flashAddress % 256 != 0)
                         throw new ArgumentException("The flash address must be on a 256 byte boundary.", "flashAddress");
@@ -2176,6 +2177,7 @@ namespace ForwardLibrary
                 /// </summary>
                 public class FPS_4MBExtFlash_LPC2400 : FPS_InternalFlash_LPC2400
                 {
+                    
                     public FPS_4MBExtFlash_LPC2400()
                     {
                         BasicConstruction();
@@ -2203,6 +2205,27 @@ namespace ForwardLibrary
                         for (int i = 0; i < NumberOfSectors; i++)
                             BinarySectorData.Add(new byte[SectorSize((uint)i)]);
 
+                    }
+
+                    /// <summary>
+                    /// Compute the MD5 hash of a sector of the flash file.
+                    /// </summary>
+                    /// <param name="sector">The sector to compute the md5 hash for.</param>
+                    /// <returns>The computed hash</returns>
+                    /// <exception cref="System.ArgumentException">Thrown when the sector number is larger than the flash file or the sector is empty.</exception>                    
+                    public byte[] GetSectorMD5Hash(uint sector)
+                    {
+                        byte[] hash;
+                        if (sector >= NumberOfSectors)
+                            throw new ArgumentException("Information was requested for an invalid sector.", "sector");
+
+                        if (SectorEmpty(sector))
+                            throw new ArgumentException("Information was requested for an empty sector.", "sector");
+
+                        MD5 md5Hash = MD5.Create();                        
+                        hash = md5Hash.ComputeHash(BinarySectorData[(int)sector]);
+
+                        return hash;
                     }
                 }
 
