@@ -1901,8 +1901,61 @@ namespace WinSIP2E
             }
         }
 
+
         public class FlashUNAC : Operation
         {
+            public class FlashUNACinfo
+            {
+                /// <summary>
+                /// WinSIP server username
+                /// </summary>
+                public string userName;
+
+                /// <summary>
+                /// WinSIP server password
+                /// </summary>
+                public SecureString password;
+
+                /// <summary>
+                /// WinSIP server address
+                /// </summary>
+                public string serverAddress;
+
+                /// <summary>
+                /// WinSIP server common name (on certificate)
+                /// </summary>
+                public string serverCN;
+
+                private int _serverPort = 0;
+                /// <summary>
+                /// Port to use for connecting to the WinSIP server
+                /// </summary>
+                public int serverPort
+                {
+                    get { return _serverPort; }
+                    set { _serverPort = value; }
+                }
+
+                /// <summary>
+                /// WinSIP's public certificate (for connecting to the WinSIP server)
+                /// </summary>
+                public CStoredCertificate serverCert;
+
+                /// <summary>
+                /// UNAC ID
+                /// </summary>
+                public string UNAC_ID;
+
+                private BNAC_Table.ID_Type _UNAC_IDType = BNAC_Table.ID_Type.Index;
+                /// <summary>
+                /// The UNAC ID's type
+                /// </summary>
+                public BNAC_Table.ID_Type UNAC_IDType
+                {
+                    get { return _UNAC_IDType; }
+                    set { _UNAC_IDType = value; }
+                }
+            }
             #region Properties
             /// <summary>
             /// Recommended interval to check Status in
@@ -1934,7 +1987,12 @@ namespace WinSIP2E
                 get
                 {
                     if (_StatusErrorMessage == null)
-                        return GetStatusOkMsg(CurrentState);
+                    {
+                        if ( (_CurrentState == WorkState.ReconnectToUNAC) && (ReconnectOpperation != null) )
+                            return GetStatusOkMsg(CurrentState) + "\r\n" + ReconnectOpperation.StatusMessage;
+                        else
+                            return GetStatusOkMsg(CurrentState);
+                    }
                     else
                         return _StatusErrorMessage;
                 }
@@ -1954,9 +2012,23 @@ namespace WinSIP2E
 
             public override int StatusPercent { get { return GetStatusCompletionPercent(CurrentState); } }
 
-            private IProtocolHandler ServerProtocolHandler;
+            private WinSIPserver ServerHandler;
+            private FlashUNACinfo BasicInfo;            
+
+            Operation ReconnectOpperation = null;
+
+            /// <summary>
+            /// The RAM address where flash data should be stored before writing to flash
+            /// </summary>
+            public uint DeviceRAMaddr = 0x10000200;  
+
+            /// <summary>
+            /// The unlock code sent ot the device to unlock the flash commands
+            /// </summary>
+            public uint UnlockCode = 23130;
+
             private FPS_ISP_CommandHandler ISP_CommandHandler;
-            private FPS_4MBExtFlash_LPC2400 FlashFile;
+            private FPS_4MBExtFlash_LPC2400 FlashFile;            
             private string FileName;
             private int CurrentSector = 0;            
             private string PendingUserMessage = "";
@@ -2006,12 +2078,13 @@ namespace WinSIP2E
             /// <param name="handler">The active command handler object.</param>
             /// <param name="fileName">The name of the script file to send.</param>  
             /// <exception cref="System.ArgumentNullException">Thrown when any argument other then LogTS is null</exception>            
-            public FlashUNAC(IProtocolHandler handler, string fileName, TraceSource LogTS = null)
+            public FlashUNAC(WinSIPserver handler, string fileName, FlashUNACinfo info, TraceSource LogTS = null)
             {
                 if ( (handler == null) || (fileName == null) )
                     throw new ArgumentNullException();
-
-                this.ServerProtocolHandler = handler;
+                
+                this.ServerHandler = handler;
+                SetUpBasicFields(info, LogTS);                
                 this.FileName = fileName;
 
                 if (LogTS != null)
@@ -2025,13 +2098,14 @@ namespace WinSIP2E
             /// </summary>
             /// <param name="handler">An active StxEtxHandler object.</param>            
             /// <exception cref="System.ArgumentNullException">Thrown when any argument other then LogTS is null</exception>            
-            /// /// <exception cref="System.OperationCanceledException">Thrown when the user presses cancel when prompted to select a script file</exception>      
-            public FlashUNAC(IProtocolHandler handler, TraceSource LogTS = null)
+            /// <exception cref="System.OperationCanceledException">Thrown when the user presses cancel when prompted to select a script file</exception>      
+            public FlashUNAC(WinSIPserver handler, FlashUNACinfo info, TraceSource LogTS = null)
             {
                 if (handler == null)
                     throw new ArgumentNullException();
 
-                this.ServerProtocolHandler = handler;
+                this.ServerHandler = handler;
+                SetUpBasicFields(info, LogTS);                
                 if (!DetermineFlashFileName(out this.FileName))
                     throw new OperationCanceledException("Sending the script file was canceled by the user.");
 
@@ -2073,7 +2147,7 @@ namespace WinSIP2E
                 StatusErrorMsg("Failed to send flash file."),
                 StatusCompletionPercent(6)]
                 FlashInProgress,
-                [StatusOkMsg("User login successful."),
+                [StatusOkMsg("Flash successful."),
                 StatusErrorMsg("Should not see this message."),
                 StatusCompletionPercent(100)]
                 Finish
@@ -2108,8 +2182,8 @@ namespace WinSIP2E
 
                     //6. Start flashing
                     CurrentState = WorkState.FlashInProgress;
+                    FlashTheUNAC();
 
-                    
                     //7. Done
                     CurrentState = WorkState.Finish;
 
@@ -2139,6 +2213,20 @@ namespace WinSIP2E
             #endregion
 
             #region private helper functions
+            private void SetUpBasicFields(FlashUNACinfo info, TraceSource LogTS)
+            {
+                if ((info.userName == null) || (info.password == null) || (info.serverAddress == null) || (info.serverCN == null) || (info.serverCert == null) || 
+                    ( info.UNAC_ID == null) || (info.serverPort == 0) )
+                    throw new ArgumentNullException();
+
+                BasicInfo = info;
+
+                if (LogTS != null)
+                    this.LogTS = LogTS;
+                else
+                    this.LogTS = new TraceSource("DummyTS");
+            }
+
                         /// <summary>
             /// Call this function to locate the script file
             /// </summary>
@@ -2189,6 +2277,8 @@ namespace WinSIP2E
             {
                 FlashFile = new FPS_4MBExtFlash_LPC2400();
                 FlashFile.LoadHexFile(FileName);
+                FlashFile.InsertISR_Checksum();
+                FlashFile.InsertChecksums();
             }
 
             /// <summary>
@@ -2207,9 +2297,9 @@ namespace WinSIP2E
                 Boolean bSuccess = false;
                 //1. remove the link between the STX ETX handler and the communication object
                 //give it a dummy link
-                ClientContext LiveConnection = ServerProtocolHandler.CommContext;
+                ClientContext LiveConnection = ServerHandler.ProtocolHandler.CommContext;
                 ClientContext DummyConnection = new PlaceHolderClientContext(LiveConnection.logMsgs);
-                ServerProtocolHandler.CommContext = DummyConnection;
+                ServerHandler.ProtocolHandler.CommContext = DummyConnection;
 
                 //2. Create an ISP command handler and give it the live link
                 ISP_CommandHandler = new FPS_ISP_CommandHandler(new LPC_ISP_Handler(LiveConnection));
@@ -2226,7 +2316,7 @@ namespace WinSIP2E
                     bSuccess = false;
 
                     //if autobaud fails, restore the STX ETX handler.
-                    ServerProtocolHandler.CommContext = LiveConnection;
+                    ServerHandler.ProtocolHandler.CommContext = LiveConnection;
                     ISP_CommandHandler.ProtocolHandler.CommContext = DummyConnection;
                     ISP_CommandHandler.Dispose();
                     ISP_CommandHandler = null;
@@ -2239,14 +2329,53 @@ namespace WinSIP2E
 
             private void RequestFlashMode()
             {
-                //ServerProtocolHandler.SendCommand
-                throw new NotImplementedException();
+                UNAC unacCmdHandler = new UNAC(ServerHandler.ProtocolHandler, LogTS);                
+
+                unacCmdHandler.EnterFlash(FileName.Split('\\').Last(), null);                
             }
 
             private void ReconnectToUNAC()
             {
-                throw new NotImplementedException();
+                //1. reconnect to the server.
+                ServerHandler.Dispose();
+                ReconnectOpperation = new LoginToServer(BasicInfo.userName, BasicInfo.password, BasicInfo.serverAddress, BasicInfo.serverCN, BasicInfo.serverPort, BasicInfo.serverCert, LogTS);
+                ReconnectOpperation.Start();
+                while ((ReconnectOpperation.Status != CompletionCode.FinishedError) &&
+                        (ReconnectOpperation.Status != CompletionCode.FinishedSuccess) &&
+                        (ReconnectOpperation.Status != CompletionCode.UserCancelFinish))
+                {
+                    if (Status == CompletionCode.UserCancelReq)
+                        ReconnectOpperation.Cancel();
+                    else
+                        Thread.Sleep(ReconnectOpperation.RefreshInterval);
+                }
+                //was the reconnect operation to server successful?
+                if (ReconnectOpperation.Status != CompletionCode.FinishedSuccess)
+                    throw new InvalidOperationException("Unable to reconnect to the login server after instructing the UNAC to enter flash mode.\r\nError: " + ReconnectOpperation.StatusMessage);
+                ServerHandler = ((LoginToServer)ReconnectOpperation).ServerConnection;
+
+                //2. if successfully reconnected to the server, reconnect to the UNAC:
+                ReconnectOpperation = new EstabilishPassthroughConnection(BasicInfo.UNAC_ID, BasicInfo.UNAC_IDType, ServerHandler, LogTS);
+                ReconnectOpperation.Start();
+                while ((ReconnectOpperation.Status != CompletionCode.FinishedError) &&
+                        (ReconnectOpperation.Status != CompletionCode.FinishedSuccess) &&
+                        (ReconnectOpperation.Status != CompletionCode.UserCancelFinish))
+                {
+                    if (Status == CompletionCode.UserCancelReq)
+                        ReconnectOpperation.Cancel();
+                    else
+                        Thread.Sleep(ReconnectOpperation.RefreshInterval);
+                }
+
+                //was the reconnect operation successful?
+                if (ReconnectOpperation.Status != CompletionCode.FinishedSuccess)
+                    throw new InvalidOperationException("Unable to reconnect to the UNAC after instructing it to enter flash mode.");
             }
+
+            private void FlashTheUNAC()
+            {
+            }
+
             #endregion
         }
     }
