@@ -518,7 +518,7 @@ namespace ForwardLibrary
                     bool bFoundAck = false;
                     try
                     {
-                        while (optionalRetries >= 0)
+                        while (optionalRetries-- >= 0)
                         {
                             bool reply = SendingContext.AckFound.WaitOne(optionalRetryTime);
                             if (reply == true)  //got an ack!
@@ -535,7 +535,6 @@ namespace ForwardLibrary
                             else
                             {
                                 SendDataNB(data);
-                                optionalRetries -= 1;
                             }
                         }
                     }

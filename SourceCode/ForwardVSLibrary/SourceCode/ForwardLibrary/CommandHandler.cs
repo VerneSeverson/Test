@@ -351,52 +351,53 @@ namespace ForwardLibrary
                     
                     try
                     {
-                        while (optionalRetries-- > 0)
+                        if (_ProtocolHandler.CommContext.bConnected == false)
+                            throw new UnresponsiveConnectionException("Connection has disconnected.", command);
+
+                        //flush out the receive buffer
+                        string dummy;
+                        while (_ProtocolHandler.ReceiveData(out dummy, 0)) ;
+
+                        if (_ProtocolHandler.SendCommand(command, optionalRetries))
                         {
-                            if (_ProtocolHandler.CommContext.bConnected == false)
-                                throw new UnresponsiveConnectionException("Connection has disconnected.", command);
-
-                            if (_ProtocolHandler.SendCommand(command))
+                            string reply = null;
+                            bool result = true;
+                            int giveUp = NumResponses + 3;
+                            DateTime TimeoutTime = DateTime.Now + TimeSpan.FromSeconds(optionalTimeout);
+                            while ((DateTime.Compare(TimeoutTime, DateTime.Now) >= 0 && Responses.Count < NumResponses && giveUp-- > 0) || (result))                                
                             {
-                                string reply = null;
-                                bool result = true;
-                                int giveUp = NumResponses + 3;
-                                while (result && Responses.Count < NumResponses && giveUp-- > 0)
-                                {
-                                    result = _ProtocolHandler.ReceiveData(out reply, optionalTimeout * 1000);
-                                    if (reply != null)
-                                        Responses.Add(reply);
+                                result = _ProtocolHandler.ReceiveData(out reply, optionalTimeout * 1000);
+                                if (reply != null)
+                                    Responses.Add(reply);
 
-                                }
-
-                                if (Responses.Count == 1)
-                                {
-                                    string resp = Responses[0];
-                                    if (resp == "ERM")
-                                        throw new ResponseErrorCodeException("Received an unexpected ERM.", command, Responses);
-                                    else if (resp == "ERP")
-                                        throw new ResponseErrorCodeException("The user does not have permission to use this command.", command, Responses);
-                                    if (resp == "ERL")
-                                        throw new ResponseErrorCodeException("The communication link is not suitable for this command.", command, Responses);
-                                }
-                                    
-                                //see if we found all the responses we were looking for
-                                if (Responses.Count < NumResponses)
-                                {
-                                    throw new ResponseException(
-                                        "Did not receive the desired number of responses: found "
-                                        + Responses.Count.ToString() + " of " + NumResponses.ToString(),
-                                        command, Responses);
-                                    
-                                }
-                                break;
                             }
-                            else if (optionalRetries < 1)
+
+                            if (Responses.Count == 1)
                             {
-                                throw new UnresponsiveConnectionException(
-                                    "Failed to send the data: connection is unresponsive.", command);                                
+                                string resp = Responses[0];
+                                if (resp == "ERM")
+                                    throw new ResponseErrorCodeException("Received an unexpected ERM.", command, Responses);
+                                else if (resp == "ERP")
+                                    throw new ResponseErrorCodeException("The user does not have permission to use this command.", command, Responses);
+                                if (resp == "ERL")
+                                    throw new ResponseErrorCodeException("The communication link is not suitable for this command.", command, Responses);
                             }
+                                    
+                            //see if we found all the responses we were looking for
+                            if (Responses.Count < NumResponses)
+                            {
+                                throw new ResponseException(
+                                    "Did not receive the desired number of responses: found "
+                                    + Responses.Count.ToString() + " of " + NumResponses.ToString(),
+                                    command, Responses);
+                                    
+                            }                                
                         }
+                        else //(the retries already occured inside the protocol handler)
+                        {
+                            throw new UnresponsiveConnectionException(
+                                "Failed to send the data: connection is unresponsive.", command);                                
+                        }                        
                     }
                     catch (Exception ex)
                     {

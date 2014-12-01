@@ -1249,8 +1249,8 @@ namespace ForwardLibrary
 
                     try
                     {
-                        while (optionalRetries-- > 0)
-                        {
+                        while (optionalRetries-- >= 0)
+                        {                            
                             if (_ProtocolHandler.CommContext.bConnected == false)
                                 throw new UnresponsiveConnectionException("Connection has disconnected.", command);
 
@@ -1261,28 +1261,29 @@ namespace ForwardLibrary
                             if (_ProtocolHandler.SendCommand(command))
                             {
                                 string reply = null;
-                                bool result = true;
+                                bool result = false;
                                 int giveUp = NumResponses + 3;
-                                while (result && Responses.Count < NumResponses && giveUp-- > 0)
+                                DateTime TimeoutTime = DateTime.Now + TimeSpan.FromSeconds(optionalTimeout);
+                                while ((DateTime.Compare(TimeoutTime, DateTime.Now) >= 0 && Responses.Count < NumResponses && giveUp-- > 0) || (result) )
                                 {
                                     result = _ProtocolHandler.ReceiveData(out reply, optionalTimeout * 1000);
                                     if (reply != null)
                                     {
                                         //Check for and throw out the echo
-                                        if (reply.Trim() == command.Trim()) //if we got the echo clear out the received data
-                                            Responses = new List<string>();
+                                        if (reply.Trim() == command.Trim()) //if we got the echo clear out the received data                                        
+                                            Responses = new List<string>();                                                                                    
                                         else
-                                        {
+                                        {                                            
                                             Responses.Add(reply);
-                                        //Check to make sure that we received a valid status code
-                                            if (Responses.Count == 1)   //this is the status code
+                                            //Check to make sure that we received a valid status code
+                                            if (Responses.Count == 1)   //this is the status code (or an echo)
                                             {
                                                 int status_code = int.Parse(reply);
                                                 if (status_code > (int)ReturnCodes.CODE_READ_PROTECTION_ENABLED)
                                                     throw new ResponseException("Unexpected status code found: " + status_code, command, reply);
-                                                ReturnCodes rc = (ReturnCodes) status_code;
+                                                ReturnCodes rc = (ReturnCodes)status_code;
                                                 if (rc > ReturnCodes.CMD_SUCCESS)
-                                                    throw new ResponseErrorCodeException("Error status code found: " + rc.ToString(), command, reply); 
+                                                    throw new ResponseErrorCodeException("Error status code found: " + rc.ToString(), command, reply);
                                             }
                                         }
                                     }
@@ -1669,9 +1670,9 @@ namespace ForwardLibrary
                 {
                     string command = "A ";
                     if (EchoOn)
-                        command = command + " 1";
+                        command = command + "1";
                     else
-                        command = command + " 0";                    
+                        command = command + "0";                    
 
                     List<string> resps;
                     ReturnCodes retCode = SendCommand(command, 1, DefaultTimeout, out resps);
@@ -1685,17 +1686,37 @@ namespace ForwardLibrary
                 /// protection is enabled.
                 /// </summary>
                 /// <param name="address">RAM address where data bytes are to be written. This address should be a word boundary.</param>
-                /// <param name="data">The binary data to send. The data can have a maximum length of 900 bytes and must be an integer number of words (data length must be divisible by 4).</param>
+                /// <param name="data">The binary data to send. The data length must be an integer number of words (data length must be divisible by 4).</param>
                 /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the device</exception>
                 /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
                 /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>                
                 /// <exception cref="System.ArgumentException">Thrown when address is invalid or the data is an invalid length</exception>
                 public void WriteToRAM(uint address, byte[] data)
                 {
-                    WriteRamCMD(address, data.Length);
+                    if (data.Length % 4 != 0)
+                        throw new ArgumentException("The data length is invalid.", "data");
+                    if (address % 4 != 0)
+                        throw new ArgumentException("The address is invalid.", "address");
 
-                    //break data up into 45 byte segments and send:
-                    UUEncodeSendData(data, 3, DefaultTimeout);
+                    //break data up into segments of 900 bytes (at most)      
+                    int CurPos = 0;
+                    while (CurPos < data.Length)
+                    {
+                        int Length = data.Length;
+                        if (data.Length - CurPos > 900)
+                            Length = 900;                        
+                            
+                        byte[] dataToSend = new byte[Length];
+                        Array.Copy(data, CurPos, dataToSend, 0, Length);
+                        CurPos += Length;
+
+                        WriteRamCMD(address, Length);
+
+                        //break data up into 45 byte segments and send:
+                        UUEncodeSendData(dataToSend, 3, DefaultTimeout);
+                    }
+
+                    
                 }                
 
                 /// <summary>
@@ -2011,6 +2032,11 @@ namespace ForwardLibrary
                         throw new ResponseErrorCodeException("Received an error code when trying to issue a read RAM command: " + retCode, command, resps);
                 }
 
+                /// <summary>
+                /// 
+                /// </summary>
+                /// <param name="address">The address must be word aligned (divisible by 4)</param>
+                /// <param name="length">The length must be divisible by 4 and can be a maximum of 900 bytes</param>
                 protected void WriteRamCMD(uint address, int length)
                 {
                     string command = "W ";
@@ -2270,7 +2296,7 @@ namespace ForwardLibrary
                         string command = "H " + address.ToString() + " " + size.ToString();
 
                         List<string> resps;
-                        ReturnCodes retCode = SendCommand(command, 1, DefaultTimeout, out resps);
+                        ReturnCodes retCode = SendCommand(command, 2, DefaultTimeout, out resps);
                         if (retCode == ReturnCodes.CMD_SUCCESS)
                         {
                             try
