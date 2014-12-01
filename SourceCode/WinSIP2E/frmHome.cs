@@ -735,6 +735,7 @@ namespace WinSIP2E
                 };
                 
                 FlashUNAC flsh = new FlashUNAC(activeConnection, FINFO, Program.WinSIP_TS);
+                activeConnection.ProtocolHandler.PeriodicPing(false, TimeSpan.FromMinutes(1));
                 DetachAndRemoveActiveConnection();
 
                 //flsh.Start();

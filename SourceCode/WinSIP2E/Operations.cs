@@ -1255,6 +1255,8 @@ namespace WinSIP2E
                     //1. Request connection to UNAC  
                     CurrentState = WorkState.RequestPassthrough;
                     ServerHandler.CONB(UnitID, ID_Type, out bnac_status);
+                    if (bnac_status.PendingRequest == BNAC_StateTable.BNAC_Status.RDNS_REQUEST)
+                        throw new InvalidOperationException("UNAC is currently busy with another connection. Try again later.");
 
                     //2. Wait for the UNAC to connect and indicate it is ready:                                        
                     CurrentState = WorkState.WaitForUNAC;
@@ -1990,6 +1992,8 @@ namespace WinSIP2E
                     {
                         if ( (_CurrentState == WorkState.ReconnectToUNAC) && (ReconnectOpperation != null) )
                             return GetStatusOkMsg(CurrentState) + "\r\n" + ReconnectOpperation.StatusMessage;
+                        else if (_CurrentState == WorkState.FlashInProgress)
+                            return GetStatusOkMsg(CurrentState) + " Currently flashing sector " + CurrentSector.ToString() + ".";
                         else
                             return GetStatusOkMsg(CurrentState);
                     }
@@ -2010,7 +2014,23 @@ namespace WinSIP2E
                 get { return _Status; }
             }
 
-            public override int StatusPercent { get { return GetStatusCompletionPercent(CurrentState); } }
+            public override int StatusPercent { 
+                get 
+                {
+                    if (_CurrentState != WorkState.FlashInProgress)
+                        return GetStatusCompletionPercent(CurrentState);
+                    else
+                    {
+                        if (SectorsToFlash == 0)
+                            return 0;
+                        else
+                        {
+                            double percent = 100.0*((double)SectorsFlashed) / ((double)SectorsToFlash);
+                            return (int)percent;
+                        }
+                    }
+                } 
+            }
 
             private WinSIPserver ServerHandler;
             private FlashUNACinfo BasicInfo;            
@@ -2030,8 +2050,9 @@ namespace WinSIP2E
             private FPS_ISP_CommandHandler ISP_CommandHandler;
             private FPS_4MBExtFlash_LPC2400 FlashFile;            
             private string FileName;
-            private int CurrentSector = 0;            
-            private string PendingUserMessage = "";
+            private int CurrentSector = 0;
+            private int SectorsFlashed = 0;
+            private int SectorsToFlash = 0;            
 
             private WorkState _CurrentState = WorkState.Idle;
             private WorkState CurrentState
@@ -2373,7 +2394,123 @@ namespace WinSIP2E
             }
 
             private void FlashTheUNAC()
-            {
+            {         
+                bool TryAgain = false;       
+                int RetriesRemain = 3;
+                //setup the status registers
+                SectorsFlashed = 0;
+                for (uint i = 0; i < FlashFile.NumberOfSectors; i++)
+                {
+                    if (!FlashFile.SectorEmpty(i))
+                        SectorsToFlash++;
+                }
+
+            //CONFIGURE FLASHER SETTINGS
+                do
+                {
+                    try
+                    {
+                        //turn echo off
+                        ISP_CommandHandler.Echo(false);
+
+                        //Send the unlock command (only needs to be sent once per ISP session):
+                        ISP_CommandHandler.Unlock(UnlockCode);
+
+                        TryAgain = false; //success!
+                    }
+                    catch (Exception ex)
+                    {
+                        LogMsg(TraceEventType.Error, "Caught the following exception while trying to send commands to setup flasher.\r\n" + ex.ToString());
+                        RetriesRemain--;
+                        if (!ISP_CommandHandler.ProtocolHandler.CommContext.bConnected)
+                        {
+                            LogMsg(TraceEventType.Error, "Connection terminated. Aborting flash attempt.");
+                            throw ex;   //connection lost or out of retries, re-throw exception and abort
+                        }
+                        else if (RetriesRemain <= 0)
+                        {
+                            LogMsg(TraceEventType.Error, "Out of retries for this sector. Aborting flash attempt.");
+                            throw ex;   //connection lost or out of retries, re-throw exception and abort
+                        }
+                        else
+                        {
+                            LogMsg(TraceEventType.Error, "Delaying 1 second and then retrying. " + RetriesRemain.ToString() + " retries remain.");
+                            TryAgain = true;
+                            Thread.Sleep(1000);
+                        }
+                    }
+                } while (TryAgain);
+
+            //DO THE FLASHING
+                for (uint i = 0; i < FlashFile.NumberOfSectors; i++)
+                {
+                    CurrentSector = (int)i;     //status info
+
+                    if (!FlashFile.SectorEmpty(i))
+                    {
+                        RetriesRemain = 3;
+                        TryAgain = false;
+                        do
+                        {
+                            try
+                            {
+                                //does it have a valid md5 hash?
+                                byte[] found_hash;
+                                ISP_CommandHandler.GenerateHashOfData(FlashFile.SectorAddress(i), FlashFile.SectorSize(i), out found_hash);
+                                byte[] calc_hash = FlashFile.GetSectorMD5Hash(i);
+                                if (found_hash != FlashFile.GetSectorMD5Hash(i))
+                                {
+                                    //needs to be flashed
+
+                                    //1. Copy to RAM (optionally use compression)
+                                    ISP_CommandHandler.WriteToRAM(DeviceRAMaddr, FlashFile.GetSectorData(i));
+
+                                    //2. Prepare sector for erasing
+                                    ISP_CommandHandler.PrepareSectors(i, i);
+
+                                    //3. Erase the sector
+                                    /*ISP_CommandHandler.EraseSectors(i, i);
+
+                                    //4. Prepare sector for flashing
+                                    ISP_CommandHandler.PrepareSectors(i, i);
+
+                                    //5. Copy the RAM into the sector
+                                    ISP_CommandHandler.CopyRAMtoFlash(FlashFile.SectorAddress(i), DeviceRAMaddr, FlashFile.SectorSize(i));*/
+
+                                    //6. Verify the flash
+                                    ISP_CommandHandler.GenerateHashOfData(DeviceRAMaddr, FlashFile.SectorSize(i), out found_hash);
+                                    if (found_hash != FlashFile.GetSectorMD5Hash(i))
+                                        throw new InvalidOperationException("Hash verification failed for sector " + i.ToString() + ".");
+
+                                    //7. sector complete
+                                    TryAgain = false;
+                                    SectorsFlashed++;   //status info: indicate another sector has been flashed.
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                LogMsg(TraceEventType.Error, "Caught the following exception while flashing sector " + i.ToString() + ".\r\n" + ex.ToString());                                                                
+                                RetriesRemain--;
+                                if (!ISP_CommandHandler.ProtocolHandler.CommContext.bConnected)
+                                {
+                                    LogMsg(TraceEventType.Error, "Connection terminated. Aborting flash attempt.");
+                                    throw ex;   //connection lost or out of retries, re-throw exception and abort
+                                }
+                                else if (RetriesRemain <= 0)
+                                {
+                                    LogMsg(TraceEventType.Error, "Out of retries for this sector. Aborting flash attempt.");
+                                    throw ex;   //connection lost or out of retries, re-throw exception and abort
+                                }
+                                else
+                                {
+                                    LogMsg(TraceEventType.Error, "Delaying 1 second and then retrying. " + RetriesRemain.ToString() + " retries remain for this sector.");
+                                    TryAgain = true;
+                                    Thread.Sleep(1000);
+                                }
+                            }
+                        } while (TryAgain);
+                    }
+                }
             }
 
             #endregion
