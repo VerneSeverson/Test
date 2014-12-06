@@ -2040,7 +2040,7 @@ namespace WinSIP2E
             /// <summary>
             /// The RAM address where flash data should be stored before writing to flash
             /// </summary>
-            public uint DeviceRAMaddr = 0x10000200;  
+            public uint DeviceRAMaddr = 0x81030000;  
 
             /// <summary>
             /// The unlock code sent ot the device to unlock the flash commands
@@ -2315,6 +2315,7 @@ namespace WinSIP2E
             /// <returns>true if the UNAC is in flash mode and Flasher is ready to flash, otherwise: false</returns>
             private bool isUNACinFlashMode()
             {
+                int retry = 2;
                 Boolean bSuccess = false;
                 //1. remove the link between the STX ETX handler and the communication object
                 //give it a dummy link
@@ -2326,22 +2327,30 @@ namespace WinSIP2E
                 ISP_CommandHandler = new FPS_ISP_CommandHandler(new LPC_ISP_Handler(LiveConnection));
 
                 //3. Try to do autobaud
-                try
+                do
                 {
-                    ISP_CommandHandler.DoAutoBaudSynchronization();
-                    bSuccess = true;
-                }
-                catch (Exception ex)
-                {
-                    //autobaud failed
-                    bSuccess = false;
+                    try
+                    {
+                        ISP_CommandHandler.DoAutoBaudSynchronization();
+                        bSuccess = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        if (--retry <= 0)
+                        {
+                            //autobaud failed
+                            bSuccess = false;
 
-                    //if autobaud fails, restore the STX ETX handler.
-                    ServerHandler.ProtocolHandler.CommContext = LiveConnection;
-                    ISP_CommandHandler.ProtocolHandler.CommContext = DummyConnection;
-                    ISP_CommandHandler.Dispose();
-                    ISP_CommandHandler = null;
-                }
+                            //if autobaud fails, restore the STX ETX handler.
+                            ServerHandler.ProtocolHandler.CommContext = LiveConnection;
+                            ISP_CommandHandler.ProtocolHandler.CommContext = DummyConnection;
+                            ISP_CommandHandler.Dispose();
+                            ISP_CommandHandler = null;
+
+                            break;
+                        }                        
+                    }
+                } while (!bSuccess);
                 //private IProtocolHandler ServerProtocolHandler;
                 //private FPS_ISP_CommandHandler ISP_CommandHandler;
 
