@@ -361,7 +361,7 @@ namespace ForwardLibrary
                         if (_ProtocolHandler.SendCommand(command, optionalRetries))
                         {
                             string reply = null;
-                            bool result = true;
+                            bool result = false;    //important that this is false so that commands which need no response do not attempt to receive a response.
                             int giveUp = NumResponses + 3;
                             DateTime TimeoutTime = DateTime.Now + TimeSpan.FromSeconds(optionalTimeout);
                             while ((DateTime.Compare(TimeoutTime, DateTime.Now) >= 0 && Responses.Count < NumResponses && giveUp-- > 0) || (result))                                

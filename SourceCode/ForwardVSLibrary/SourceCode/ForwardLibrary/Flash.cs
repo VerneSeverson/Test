@@ -1,5 +1,6 @@
 ﻿using ForwardLibrary.Communications;
 using ForwardLibrary.Communications.CommandHandlers;
+using ForwardLibrary.Default;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -1405,7 +1406,7 @@ namespace ForwardLibrary
                                 i += Length;
 
                                 //b. uu encode the line
-                                command = Convert.ToBase64String(dataToSend);
+                                command = UUencoding.UU_EncodeLine(dataToSend);
 
                                 //c. send the uu encoded line
                                 ProtocolHandler.SendCommand(command);
@@ -1494,7 +1495,7 @@ namespace ForwardLibrary
 
                                 //b. UU decode the line
                                 byte[] rawdata;
-                                rawdata = Convert.FromBase64String(incomingdata.Trim());
+                                rawdata = UUencoding.UU_DecodeLine(incomingdata);
 
                                 //c. add it to our received data length
                                 ReceivedDataPacket.Write(rawdata, 0, rawdata.Length);
@@ -1555,7 +1556,7 @@ namespace ForwardLibrary
                 /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the device</exception>
                 /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
                 /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>                
-                public void DoAutoBaudSynchronization(int optionalTimeoutms = 1000, int optionalClockFreq = 12000)
+                public void DoAutoBaudSynchronization(int optionalTimeoutms = 3000, int optionalClockFreq = 12000)
                 {
                     string data = "?";
 
@@ -1702,8 +1703,8 @@ namespace ForwardLibrary
                     int CurPos = 0;
                     while (CurPos < data.Length)
                     {
-                        int Length = data.Length;
-                        if (data.Length - CurPos > 900)
+                        int Length = data.Length - CurPos; 
+                        if (Length > 900)
                             Length = 900;                        
                             
                         byte[] dataToSend = new byte[Length];
