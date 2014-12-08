@@ -169,6 +169,46 @@ namespace ForwardLibrary
             }
             #endregion
 
+
+            public interface ICommandHandler
+            {
+                int LogID
+                {
+                    get;
+                    set;
+                }
+
+                TraceSource ts
+                {
+                    get;
+                    set;
+                }
+
+                IProtocolHandler ProtocolHandler
+                {
+                    get;
+                }
+
+                /// <summary>
+                /// Send a command
+                /// </summary>
+                /// <param name="command">The command to send</param>
+                /// <param name="NumResponses">The number of replies required (as defined by protocol handler)</param>
+                /// <param name="optionalCloseConn">Set to true if the connection should be closed when this function is done. Default: false</param>
+                /// <param name="optionalRetries">Number of retries to get the command sent. Default: 3 (if supported by protocol handler)</param>
+                /// <param name="optionalTimeout">Timeout (in seconds) when waiting for an STXETX response. Default: 10 seconds (if supported by protocol handler)</param>
+                /// <returns></returns>
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the server</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the server responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the server to complete an operation</exception>
+                List<string> SendCommand(string command, int NumResponses = 0,
+                                        bool optionalCloseConn = false, int optionalRetries = 3,
+                                        int optionalTimeout = 10);
+
+
+                void Dispose();                
+            }
+
             /// <summary>
             /// General command handler class. Children classes inherit this class for specific devices.
             /// 
@@ -220,7 +260,7 @@ namespace ForwardLibrary
             ///     }
             /// }
             /// </summary>
-            public class CommandHandler
+            public class CommandHandler : ICommandHandler
             {
                 public enum LogIDs
                 {
@@ -230,13 +270,22 @@ namespace ForwardLibrary
                     UNAC = 503
                 }
 
+                private int _LogID = (int)LogIDs.GenericCommandHandler;
                 /// <summary>
                 /// This controls the LogID for the command handler, but not the underlying communication interface
                 /// </summary>
-                public int LogID = (int) LogIDs.GenericCommandHandler;
+                public int LogID
+                {
+                    get { return _LogID; }
+                    set { _LogID = value; }
+                }
 
-                
-                public TraceSource ts;
+
+                public TraceSource ts
+                {
+                    get;
+                    set;
+                }
 
                 protected IProtocolHandler _ProtocolHandler = null;
 
@@ -302,52 +351,53 @@ namespace ForwardLibrary
                     
                     try
                     {
-                        while (optionalRetries-- > 0)
+                        if (_ProtocolHandler.CommContext.bConnected == false)
+                            throw new UnresponsiveConnectionException("Connection has disconnected.", command);
+
+                        //flush out the receive buffer
+                        string dummy;
+                        while (_ProtocolHandler.ReceiveData(out dummy, 0)) ;
+
+                        if (_ProtocolHandler.SendCommand(command, optionalRetries))
                         {
-                            if (_ProtocolHandler.CommContext.bConnected == false)
-                                throw new UnresponsiveConnectionException("Connection has disconnected.", command);
-
-                            if (_ProtocolHandler.SendCommand(command))
+                            string reply = null;
+                            bool result = false;    //important that this is false so that commands which need no response do not attempt to receive a response.
+                            int giveUp = NumResponses + 3;
+                            DateTime TimeoutTime = DateTime.Now + TimeSpan.FromSeconds(optionalTimeout);
+                            while ((DateTime.Compare(TimeoutTime, DateTime.Now) >= 0 && Responses.Count < NumResponses && giveUp-- > 0) || (result))                                
                             {
-                                string reply = null;
-                                bool result = true;
-                                int giveUp = NumResponses + 3;
-                                while (result && Responses.Count < NumResponses && giveUp-- > 0)
-                                {
-                                    result = _ProtocolHandler.ReceiveData(out reply, optionalTimeout * 1000);
-                                    if (reply != null)
-                                        Responses.Add(reply);
+                                result = _ProtocolHandler.ReceiveData(out reply, optionalTimeout * 1000);
+                                if (reply != null)
+                                    Responses.Add(reply);
 
-                                }
-
-                                if (Responses.Count == 1)
-                                {
-                                    string resp = Responses[0];
-                                    if (resp == "ERM")
-                                        throw new ResponseErrorCodeException("Received an unexpected ERM.", command, Responses);
-                                    else if (resp == "ERP")
-                                        throw new ResponseErrorCodeException("The user does not have permission to use this command.", command, Responses);
-                                    if (resp == "ERL")
-                                        throw new ResponseErrorCodeException("The communication link is not suitable for this command.", command, Responses);
-                                }
-                                    
-                                //see if we found all the responses we were looking for
-                                if (Responses.Count < NumResponses)
-                                {
-                                    throw new ResponseException(
-                                        "Did not receive the desired number of responses: found "
-                                        + Responses.Count.ToString() + " of " + NumResponses.ToString(),
-                                        command, Responses);
-                                    
-                                }
-                                break;
                             }
-                            else if (optionalRetries < 1)
+
+                            if (Responses.Count == 1)
                             {
-                                throw new UnresponsiveConnectionException(
-                                    "Failed to send the data: connection is unresponsive.", command);                                
+                                string resp = Responses[0];
+                                if (resp == "ERM")
+                                    throw new ResponseErrorCodeException("Received an unexpected ERM.", command, Responses);
+                                else if (resp == "ERP")
+                                    throw new ResponseErrorCodeException("The user does not have permission to use this command.", command, Responses);
+                                if (resp == "ERL")
+                                    throw new ResponseErrorCodeException("The communication link is not suitable for this command.", command, Responses);
                             }
+                                    
+                            //see if we found all the responses we were looking for
+                            if (Responses.Count < NumResponses)
+                            {
+                                throw new ResponseException(
+                                    "Did not receive the desired number of responses: found "
+                                    + Responses.Count.ToString() + " of " + NumResponses.ToString(),
+                                    command, Responses);
+                                    
+                            }                                
                         }
+                        else //(the retries already occured inside the protocol handler)
+                        {
+                            throw new UnresponsiveConnectionException(
+                                "Failed to send the data: connection is unresponsive.", command);                                
+                        }                        
                     }
                     catch (Exception ex)
                     {
@@ -414,6 +464,22 @@ namespace ForwardLibrary
                 {
                     LogID = (int)LogIDs.UNAC;                    
                 }
+
+                /// <summary>
+                /// Command to enter flash mode.
+                /// </summary>
+                /// <param name="Filename">the name of the hex file being flashed</param>
+                /// <param name="hash">the hash of the hex file</param>
+                /// <param name="optionalCloseConn">set to true if the connection should be closed after calling this function</param>
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the unac</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the unac responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the unac to complete an operation</exception>
+                public void EnterFlash(string Filename, byte[] hash, bool optionalCloseConn = false)
+                {
+                    string command = "NSCM12345678";
+                    List<string> resps = SendCommand(command, 0, optionalCloseConn);
+                }
+
 
                 #region 3.1 Set NAC Configuration - Server I/F
                 /// <summary>

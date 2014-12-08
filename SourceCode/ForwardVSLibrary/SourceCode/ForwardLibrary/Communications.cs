@@ -616,6 +616,30 @@ namespace ForwardLibrary
         }
 
         /// <summary>
+        /// This is a stubbed-out class that can be handed to a protocol
+        /// implementer to hold the place of a live connection.
+        /// </summary>
+        public class PlaceHolderClientContext : ClientContext
+        {
+            public PlaceHolderClientContext(CommLogMessages msgs)
+                : base(msgs)
+            {
+                _bConnected = true;
+            }
+
+            public override bool Write(byte[] data)
+            {
+                return true;
+            }
+            public override void Close()
+            {                
+            }
+            public override void LogMsg(TraceEventType eventType, string msg)
+            {
+            }
+        }
+
+        /// <summary>
         /// TCP Client's implementation of ClientContext
         /// </summary>
         public class TCP_ClientContext : ClientContext

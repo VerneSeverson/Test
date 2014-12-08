@@ -47,6 +47,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CryptoRandom.cs" />
+    <Compile Include="Flash.cs" />
     <Compile Include="WinSIPserver.cs" />
     <Compile Include="Class1.cs" />
     <Compile Include="CommandHandler.cs" />

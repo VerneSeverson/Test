@@ -353,10 +353,7 @@ namespace WinSIP2E
                         //4. Link the active connection to WinSIP
                         if (login.Status == Operation.CompletionCode.FinishedSuccess)
                         {
-                            activeConnection = login.ServerConnection;
-                            activeConnection.ProtocolHandler.PeriodicPing(true, TimeSpan.FromSeconds(Program.ConnectionPingTime));
-                            activeConnection.ProtocolHandler.AddCommEventHandler(this.ActiveConnectionEvents);
-                            Program.bServerDisconnectExpected = false;
+                            AttachActiveConnection(login.ServerConnection);
 
                         //5. Update the UI
                             UpdateUI_ServerLoginChange(true);
@@ -404,6 +401,29 @@ namespace WinSIP2E
                     LogoutOfServer();
                 }
             }
+        }
+
+        /// <summary>
+        /// Used to detatch the active connection from the UI (disconnect events
+        /// are not handled, sets the activeConnection object to null, etc.)
+        /// </summary>
+        public void DetachAndRemoveActiveConnection()
+        {
+            activeConnection.ProtocolHandler.RemoveCommEventHandler(this.ActiveConnectionEvents);
+            activeConnection = null;
+        }
+
+        /// <summary>
+        /// Used to make a WinSIP server connection the active connection.
+        /// Sets up periodic pinging and logic for disconnect events.
+        /// </summary>
+        /// <param name="conn"></param>
+        public void AttachActiveConnection(WinSIPserver conn)
+        {
+            activeConnection = conn;
+            activeConnection.ProtocolHandler.PeriodicPing(true, TimeSpan.FromSeconds(Program.ConnectionPingTime));
+            activeConnection.ProtocolHandler.AddCommEventHandler(this.ActiveConnectionEvents);
+            Program.bServerDisconnectExpected = false;            
         }
 
         /// <summary>
@@ -495,6 +515,7 @@ namespace WinSIP2E
             //update the various group boxes:
             gbNAC.Enabled = !connected;
             gbNACsettingsFiles.Enabled = connected;
+            gbUpdateFirmware.Enabled = connected;
 
             cmdDisconnect.Enabled = connected;
 
@@ -693,6 +714,47 @@ namespace WinSIP2E
         private void label55_Click(object sender, EventArgs e)
         {
 
+        }
+
+        private void cmdFlashNAC_Click(object sender, EventArgs e)
+        {            
+            try
+            {
+                string ID = txtID.Text;
+                BNAC_Table.ID_Type id_type = FPS_LibFuncs.ParseEnumFriendlyName<BNAC_Table.ID_Type>(cboUnitIDType.Text);
+                FlashUNAC.FlashUNACinfo FINFO = new FlashUNAC.FlashUNACinfo
+                {
+                    userName = txtUsername.Text,
+                    password = CStoredCertificate.MakeSecureString(txtPassword.Text),
+                    serverAddress = WinSIP2E.Properties.Settings.Default.ServerAddress,
+                    serverCN = WinSIP2E.Properties.Settings.Default.ManuallySetCN ? WinSIP2E.Properties.Settings.Default.ServerCN : WinSIP2E.Properties.Settings.Default.ServerAddress,
+                    serverPort = WinSIP2E.Properties.Settings.Default.ManuallySetPort ? Convert.ToInt32(WinSIP2E.Properties.Settings.Default.ServerPort) : 1102,
+                    serverCert = Program.WinSIP_Cert,
+                    UNAC_ID = txtID.Text,
+                    UNAC_IDType = FPS_LibFuncs.ParseEnumFriendlyName<BNAC_Table.ID_Type>(cboUnitIDType.Text)
+                };
+                
+                FlashUNAC flsh = new FlashUNAC(activeConnection, FINFO, Program.WinSIP_TS);
+                activeConnection.ProtocolHandler.PeriodicPing(false, TimeSpan.FromMinutes(1));
+                DetachAndRemoveActiveConnection();
+
+                //flsh.Start();
+                OperationStatusDialog frm = new OperationStatusDialog();
+                frm.operation = flsh;
+                frm.ShowDialog();
+                LogoutOfServer();
+                LoginToServer();
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Caught an unexpected exception: " + ex);
+            }
+            finally
+            {                
+            }
         }
 
         

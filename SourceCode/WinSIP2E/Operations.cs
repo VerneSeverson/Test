@@ -3,6 +3,8 @@ using ForwardLibrary.Communications.CommandHandlers;
 using ForwardLibrary.Communications.STXETX;
 using ForwardLibrary.Crypto;
 using ForwardLibrary.Default;
+using ForwardLibrary.Flash.LPC2400;
+using ForwardLibrary.Flash.LPC2400.Forward;
 using ForwardLibrary.WinSIPserver;
 using System;
 using System.Collections.Generic;
@@ -1253,6 +1255,8 @@ namespace WinSIP2E
                     //1. Request connection to UNAC  
                     CurrentState = WorkState.RequestPassthrough;
                     ServerHandler.CONB(UnitID, ID_Type, out bnac_status);
+                    if (bnac_status.PendingRequest == BNAC_StateTable.BNAC_Status.RDNS_REQUEST)
+                        throw new InvalidOperationException("UNAC is currently busy with another connection. Try again later.");
 
                     //2. Wait for the UNAC to connect and indicate it is ready:                                        
                     CurrentState = WorkState.WaitForUNAC;
@@ -1897,6 +1901,689 @@ namespace WinSIP2E
                 if (Status == CompletionCode.UserCancelReq)
                     throw new OperationCanceledException("User canceled the operation");
             }
+        }
+
+
+        public class FlashUNAC : Operation
+        {
+            public class FlashUNACinfo
+            {
+                /// <summary>
+                /// WinSIP server username
+                /// </summary>
+                public string userName;
+
+                /// <summary>
+                /// WinSIP server password
+                /// </summary>
+                public SecureString password;
+
+                /// <summary>
+                /// WinSIP server address
+                /// </summary>
+                public string serverAddress;
+
+                /// <summary>
+                /// WinSIP server common name (on certificate)
+                /// </summary>
+                public string serverCN;
+
+                private int _serverPort = 0;
+                /// <summary>
+                /// Port to use for connecting to the WinSIP server
+                /// </summary>
+                public int serverPort
+                {
+                    get { return _serverPort; }
+                    set { _serverPort = value; }
+                }
+
+                /// <summary>
+                /// WinSIP's public certificate (for connecting to the WinSIP server)
+                /// </summary>
+                public CStoredCertificate serverCert;
+
+                /// <summary>
+                /// UNAC ID
+                /// </summary>
+                public string UNAC_ID;
+
+                private BNAC_Table.ID_Type _UNAC_IDType = BNAC_Table.ID_Type.Index;
+                /// <summary>
+                /// The UNAC ID's type
+                /// </summary>
+                public BNAC_Table.ID_Type UNAC_IDType
+                {
+                    get { return _UNAC_IDType; }
+                    set { _UNAC_IDType = value; }
+                }
+            }
+            #region Properties
+            /// <summary>
+            /// Recommended interval to check Status in
+            /// milliseconds
+            /// </summary>
+            public override int RefreshInterval { get { return 100; } }
+
+            /// <summary>
+            /// Whether or not the operation can be canceled
+            /// </summary>
+            public override bool AllowCancel { get { return true; } }
+
+            /// <summary>
+            /// If this is set to true, it is requested that the user acknowledge
+            /// the final status message. (i.e. OperationStatusDialog should 
+            /// make the user press OK to close the dialog box)
+            /// </summary>
+            public override bool RequireUserOK
+            {
+                get
+                {                    
+                    return true;
+                }
+            }
+
+            private string _StatusErrorMessage = null;
+            public override string StatusMessage
+            {
+                get
+                {
+                    if (_StatusErrorMessage == null)
+                    {
+                        if ( (_CurrentState == WorkState.ReconnectToUNAC) && (ReconnectOpperation != null) )
+                            return GetStatusOkMsg(CurrentState) + "\r\n" + ReconnectOpperation.StatusMessage;
+                        else if (_CurrentState == WorkState.FlashInProgress)
+                            return GetStatusOkMsg(CurrentState) + " Currently flashing sector " + CurrentSector.ToString() 
+                                + " of " + FinalSectorToFlash.ToString() + ".";
+                        else
+                            return GetStatusOkMsg(CurrentState);
+                    }
+                    else
+                        return _StatusErrorMessage;
+                }
+            }
+
+            public override string SubjectLine
+            {
+                get { return "Flashing the UNAC..."; }
+            }
+
+
+            private CompletionCode _Status = CompletionCode.NotStarted;
+            public override CompletionCode Status
+            {
+                get { return _Status; }
+            }
+
+            public override int StatusPercent { 
+                get 
+                {
+                    if (_CurrentState != WorkState.FlashInProgress)
+                        return GetStatusCompletionPercent(CurrentState);
+                    else
+                    {
+                        if (SectorsToFlash == 0)
+                            return 0;
+                        else
+                        {
+                            double percent = 100.0*((double)SectorsFlashed) / ((double)SectorsToFlash);
+                            return (int)percent;
+                        }
+                    }
+                } 
+            }
+
+            private WinSIPserver ServerHandler;
+            private FlashUNACinfo BasicInfo;            
+
+            Operation ReconnectOpperation = null;
+
+            /// <summary>
+            /// The RAM address where flash data should be stored before writing to external flash
+            /// </summary>
+            public uint ExternalDeviceRAMaddr = 0x81030000;
+
+            /// <summary>
+            /// The RAM address where flash data should be stored before writing to internal flash
+            /// </summary>
+            public uint InternalDeviceRAMaddr = 0x40002000;
+
+            /// <summary>
+            /// The first sector in external flash (for sectors below this, InternalDeviceRAMaddr 
+            /// will be used. for sectors equal or greater than this, ExternalDeviceRAMaddr will be
+            /// used).
+            /// 
+            /// </summary>
+            public uint FirstExternalSector = 28;
+            
+
+            /// <summary>
+            /// The unlock code sent ot the device to unlock the flash commands
+            /// </summary>
+            public uint UnlockCode = 23130;
+
+            private FPS_ISP_CommandHandler ISP_CommandHandler;
+            private FPS_4MBExtFlash_LPC2400 FlashFile;            
+            private string FileName;
+            private int CurrentSector = 0;
+            private int SectorsFlashed = 0;
+            private int SectorsToFlash = 0;
+            private int FinalSectorToFlash = 0;
+
+            private WorkState _CurrentState = WorkState.Idle;
+            private WorkState CurrentState
+            {
+                get { return _CurrentState; }
+                set
+                {
+                    CheckUserCancel();
+                    _CurrentState = value;
+                    LogMsg(TraceEventType.Verbose, StatusMessage);
+                }
+            }
+
+            #endregion
+
+            #region API
+            /// <summary>
+            /// Function to start the operation
+            /// Will throw InvalidOperation exception if Status != NotStarted
+            /// </summary>
+            public override void Start()
+            {
+                StartDel caller = this.DoTheWork;
+                _Status = CompletionCode.InProgress;
+                caller.BeginInvoke(delegate(IAsyncResult arr) { caller.EndInvoke(arr); }, null);                
+            }
+
+            /// <summary>
+            /// Function to cancel the operation
+            /// Will throw InvalidOperation exception if Status != InProgress
+            /// OR if AllowCancel == false
+            /// </summary>
+            public override void Cancel()
+            {
+                _Status = CompletionCode.UserCancelReq;
+            }
+            #endregion
+
+            #region constructors
+            /// <summary>
+            /// Possible exceptions:
+            /// ArgumentNullException
+            /// </summary>
+            /// <param name="handler">The active command handler object.</param>
+            /// <param name="fileName">The name of the script file to send.</param>  
+            /// <exception cref="System.ArgumentNullException">Thrown when any argument other then LogTS is null</exception>            
+            public FlashUNAC(WinSIPserver handler, string fileName, FlashUNACinfo info, TraceSource LogTS = null)
+            {
+                if ( (handler == null) || (fileName == null) )
+                    throw new ArgumentNullException();
+                
+                this.ServerHandler = handler;
+                SetUpBasicFields(info, LogTS);                
+                this.FileName = fileName;
+
+                if (LogTS != null)
+                    this.LogTS = LogTS;
+                else
+                    this.LogTS = new TraceSource("DummyTS");
+            }
+
+            /// <summary>
+            /// The user will be prompted to locate the flash file to send.            
+            /// </summary>
+            /// <param name="handler">An active StxEtxHandler object.</param>            
+            /// <exception cref="System.ArgumentNullException">Thrown when any argument other then LogTS is null</exception>            
+            /// <exception cref="System.OperationCanceledException">Thrown when the user presses cancel when prompted to select a script file</exception>      
+            public FlashUNAC(WinSIPserver handler, FlashUNACinfo info, TraceSource LogTS = null)
+            {
+                if (handler == null)
+                    throw new ArgumentNullException();
+
+                this.ServerHandler = handler;
+                SetUpBasicFields(info, LogTS);                
+                if (!DetermineFlashFileName(out this.FileName))
+                    throw new OperationCanceledException("Sending the script file was canceled by the user.");
+
+                if (LogTS != null)
+                    this.LogTS = LogTS;
+                else
+                    this.LogTS = new TraceSource("DummyTS");
+            }
+            #endregion
+
+            #region main working functions
+            enum WorkState
+            {
+                [StatusOkMsg("Preparing to read the flash file."),
+                StatusErrorMsg("Failed to prepare to read the flash file."),
+                StatusCompletionPercent(0)]
+                Idle,
+                [StatusOkMsg("Reading the flash file."),
+                StatusErrorMsg("Invalid flash file."),
+                StatusCompletionPercent(1)]
+                ParseHexFile,
+                [StatusOkMsg("Checking if the UNAC is already in flash mode."),
+                StatusErrorMsg("Failed to determine the UNAC state."),
+                StatusCompletionPercent(2)]
+                CheckUNACmode,
+                [StatusOkMsg("Placing the UNAC into flash mode."),
+                StatusErrorMsg("Unable to instruct UNAC to enter flash mode."),
+                StatusCompletionPercent(3)]
+                SendFlashModeRequest,
+                [StatusOkMsg("UNAC is entering flash mode, waiting for reconnection."),
+                StatusErrorMsg("UNAC failed to reconnect after attempting to enter flash mode."),
+                StatusCompletionPercent(4)]
+                ReconnectToUNAC,
+                [StatusOkMsg("Estabilishing communication with UNAC flashing firmware."),
+                StatusErrorMsg("Failed to establish communication with UNAC flashing firmware."),
+                StatusCompletionPercent(5)]
+                FlasherSync,
+                [StatusOkMsg("Sending flash file."),
+                StatusErrorMsg("Failed to send flash file."),
+                StatusCompletionPercent(6)]
+                FlashInProgress,
+                [StatusOkMsg("Exiting flash mode."),
+                StatusErrorMsg("Flash was successful, but UNAC failed to exit flash mode."),
+                StatusCompletionPercent(100)]
+                ExitFlash,
+                [StatusOkMsg("Flash successful."),
+                StatusErrorMsg("Should not see this message."),
+                StatusCompletionPercent(100)]
+                Finish
+            }
+
+            private void DoTheWork()
+            {
+
+                try
+                {
+                    //1. Read in the hex file
+                    CurrentState = WorkState.ParseHexFile;
+                    LoadTheHexFile();
+
+                    //2. See if the UNAC is already in flashmode
+                    CurrentState = WorkState.CheckUNACmode;
+                    if (!isUNACinFlashMode())
+                    {
+                    //3. Enter flash mode
+                        CurrentState = WorkState.SendFlashModeRequest;
+                        RequestFlashMode();
+
+                    //4. Reconnect to the UNAC in flash mode
+                        CurrentState = WorkState.ReconnectToUNAC;
+                        ReconnectToUNAC();
+
+                    //5. Connect to the UNAC in flash mode
+                        CurrentState = WorkState.FlasherSync;
+                        if (!isUNACinFlashMode())
+                            throw new InvalidOperationException();  //think about what kind of exception should be thrown
+                    }
+
+                    //6. Start flashing
+                    CurrentState = WorkState.FlashInProgress;
+                    FlashTheUNAC();
+
+                    //7. Exit flash mode
+                    CurrentState = WorkState.ExitFlash;
+                    ExitFlashMode();
+
+                    //8. Done
+                    CurrentState = WorkState.Finish;
+
+                    //9. Mark completed
+                    _Status = CompletionCode.FinishedSuccess;
+
+                }
+                catch (OperationCanceledException ex)
+                {
+                    //I don't think we need to delete the CSR?
+                    _StatusErrorMessage = "User canceled the flashing the UNAC.";
+                    _Status = CompletionCode.UserCancelFinish;
+                    LogMsg(TraceEventType.Verbose, ex.ToString());
+                }
+                catch (Exception ex)
+                {                    
+                    _StatusErrorMessage = GetStatusErrorMsg(CurrentState) + " " + ex.Message;
+                    _Status = CompletionCode.FinishedError;
+                    LogMsg(TraceEventType.Warning, ex.ToString());
+                    try
+                    {                        
+                        CloseConnection();
+                    }
+                    catch { }   //don't care if this fails.
+                }
+            }
+            #endregion
+
+            #region private helper functions
+            private void SetUpBasicFields(FlashUNACinfo info, TraceSource LogTS)
+            {
+                if ((info.userName == null) || (info.password == null) || (info.serverAddress == null) || (info.serverCN == null) || (info.serverCert == null) || 
+                    ( info.UNAC_ID == null) || (info.serverPort == 0) )
+                    throw new ArgumentNullException();
+
+                BasicInfo = info;
+
+                if (LogTS != null)
+                    this.LogTS = LogTS;
+                else
+                    this.LogTS = new TraceSource("DummyTS");
+            }
+
+                        /// <summary>
+            /// Call this function to locate the script file
+            /// </summary>
+            /// <param name="fileName"></param>
+            /// <returns></returns>
+            private bool DetermineFlashFileName(out string fileName)
+            {
+                OpenFileDialog fDialog = new OpenFileDialog();
+                fDialog.Title = "Select script file to send";
+                fDialog.InitialDirectory = Properties.Settings.Default.LastManualBrowseFolder;
+                fDialog.CheckFileExists = true;
+                fDialog.CheckPathExists = true;
+                fDialog.Multiselect = false;
+                fDialog.Filter = "Script Files (.hex)|*.hex";
+                fDialog.FilterIndex = 1;
+
+                if (fDialog.ShowDialog() == DialogResult.OK)
+                {
+                    fileName = fDialog.FileName;
+                    Properties.Settings.Default.LastManualBrowseFolder = Path.GetDirectoryName(fDialog.FileName);
+                    return true;
+                }
+                else
+                {
+                    fileName = null;
+                    return false;
+                }
+            }
+
+
+            private void CheckUserCancel()
+            {
+                if (Status == CompletionCode.UserCancelReq)
+                    throw new OperationCanceledException("User canceled the operation");
+            }
+
+            private void CloseConnection()
+            {
+                if (ISP_CommandHandler != null)
+                    ISP_CommandHandler.Dispose();
+                ISP_CommandHandler = null;
+            }
+
+            /// <summary>
+            /// Create the FlashFile object and load in the hex file specified.
+            /// </summary>
+            private void LoadTheHexFile()
+            {
+                FlashFile = new FPS_4MBExtFlash_LPC2400();
+                FlashFile.LoadHexFile(FileName);
+                FlashFile.InsertISR_Checksum();
+                FlashFile.InsertChecksums();
+            }
+
+            /// <summary>
+            /// Determine if the UNAC is in flash mode.
+            /// If it is in flash mode, ServerProtocolHandler is disabled and 
+            /// a live object is created for ISP_CommandHandler. 
+            /// 
+            /// If it is not in flash mode, ServerProtocolHandler should still work
+            /// just fine.
+            /// 
+            /// FOR NOW THIS FUNCTION IS STUBBED OUT
+            /// </summary>
+            /// <returns>true if the UNAC is in flash mode and Flasher is ready to flash, otherwise: false</returns>
+            private bool isUNACinFlashMode()
+            {
+                int retry = 2;
+                Boolean bSuccess = false;
+                //1. remove the link between the STX ETX handler and the communication object
+                //give it a dummy link
+                ClientContext LiveConnection = ServerHandler.ProtocolHandler.CommContext;
+                ClientContext DummyConnection = new PlaceHolderClientContext(LiveConnection.logMsgs);
+                ServerHandler.ProtocolHandler.CommContext = DummyConnection;
+
+                //2. Create an ISP command handler and give it the live link
+                ISP_CommandHandler = new FPS_ISP_CommandHandler(new LPC_ISP_Handler(LiveConnection));
+
+                //3. Try to do autobaud
+                do
+                {
+                    try
+                    {
+                        ISP_CommandHandler.DoAutoBaudSynchronization();
+                        bSuccess = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        if (--retry <= 0)
+                        {
+                            //autobaud failed
+                            bSuccess = false;
+
+                            //if autobaud fails, restore the STX ETX handler.
+                            ServerHandler.ProtocolHandler.CommContext = LiveConnection;
+                            ISP_CommandHandler.ProtocolHandler.CommContext = DummyConnection;
+                            ISP_CommandHandler.Dispose();
+                            ISP_CommandHandler = null;
+
+                            break;
+                        }                        
+                    }
+                } while (!bSuccess);
+                //private IProtocolHandler ServerProtocolHandler;
+                //private FPS_ISP_CommandHandler ISP_CommandHandler;
+
+                return bSuccess;
+            }
+
+            private void RequestFlashMode()
+            {
+                UNAC unacCmdHandler = new UNAC(ServerHandler.ProtocolHandler, LogTS);                
+
+                unacCmdHandler.EnterFlash(FileName.Split('\\').Last(), null);                
+            }
+
+            private void ReconnectToUNAC()
+            {
+                //1. reconnect to the server.
+                ServerHandler.Dispose();
+                ReconnectOpperation = new LoginToServer(BasicInfo.userName, BasicInfo.password, BasicInfo.serverAddress, BasicInfo.serverCN, BasicInfo.serverPort, BasicInfo.serverCert, LogTS);
+                ReconnectOpperation.Start();
+                while ((ReconnectOpperation.Status != CompletionCode.FinishedError) &&
+                        (ReconnectOpperation.Status != CompletionCode.FinishedSuccess) &&
+                        (ReconnectOpperation.Status != CompletionCode.UserCancelFinish))
+                {
+                    if (Status == CompletionCode.UserCancelReq)
+                        ReconnectOpperation.Cancel();
+                    else
+                        Thread.Sleep(ReconnectOpperation.RefreshInterval);
+                }
+                //was the reconnect operation to server successful?
+                if (ReconnectOpperation.Status != CompletionCode.FinishedSuccess)
+                    throw new InvalidOperationException("Unable to reconnect to the login server after instructing the UNAC to enter flash mode.\r\nError: " + ReconnectOpperation.StatusMessage);
+                ServerHandler = ((LoginToServer)ReconnectOpperation).ServerConnection;
+
+                //2. if successfully reconnected to the server, reconnect to the UNAC:
+                ReconnectOpperation = new EstabilishPassthroughConnection(BasicInfo.UNAC_ID, BasicInfo.UNAC_IDType, ServerHandler, LogTS);
+                ReconnectOpperation.Start();
+                while ((ReconnectOpperation.Status != CompletionCode.FinishedError) &&
+                        (ReconnectOpperation.Status != CompletionCode.FinishedSuccess) &&
+                        (ReconnectOpperation.Status != CompletionCode.UserCancelFinish))
+                {
+                    if (Status == CompletionCode.UserCancelReq)
+                        ReconnectOpperation.Cancel();
+                    else
+                        Thread.Sleep(ReconnectOpperation.RefreshInterval);
+                }
+
+                //was the reconnect operation successful?
+                if (ReconnectOpperation.Status != CompletionCode.FinishedSuccess)
+                    throw new InvalidOperationException("Unable to reconnect to the UNAC after instructing it to enter flash mode.");
+            }
+
+            private void FlashTheUNAC()
+            {         
+                bool TryAgain = false, assignedFirstSector = false;       
+                int RetriesRemain = 3;
+                uint firstSector = 0;
+                uint DeviceRAMaddr = 0x81030000;  
+
+                //setup the status registers
+                SectorsFlashed = 0;
+                for (uint i = 0; i < FlashFile.NumberOfSectors; i++)
+                {
+                    if (!FlashFile.SectorEmpty(i))
+                    {
+                        if (!assignedFirstSector)
+                        {
+                            assignedFirstSector = true;
+                            firstSector = i;
+                        }
+                        SectorsToFlash++;
+                        FinalSectorToFlash = (int) i;
+                    }
+                }
+
+            //CONFIGURE FLASHER SETTINGS
+                do
+                {
+                    try
+                    {
+                        //turn echo off
+                        ISP_CommandHandler.Echo(false);
+
+                        //Send the unlock command (only needs to be sent once per ISP session):
+                        ISP_CommandHandler.Unlock(UnlockCode);
+
+                        TryAgain = false; //success!
+                    }
+                    catch (Exception ex)
+                    {
+                        LogMsg(TraceEventType.Error, "Caught the following exception while trying to send commands to setup flasher.\r\n" + ex.ToString());
+                        RetriesRemain--;
+                        if (!ISP_CommandHandler.ProtocolHandler.CommContext.bConnected)
+                        {
+                            LogMsg(TraceEventType.Error, "Connection terminated. Aborting flash attempt.");
+                            throw ex;   //connection lost or out of retries, re-throw exception and abort
+                        }
+                        else if (RetriesRemain <= 0)
+                        {
+                            LogMsg(TraceEventType.Error, "Out of retries for this sector. Aborting flash attempt.");
+                            throw ex;   //connection lost or out of retries, re-throw exception and abort
+                        }
+                        else
+                        {
+                            LogMsg(TraceEventType.Error, "Delaying 1 second and then retrying. " + RetriesRemain.ToString() + " retries remain.");
+                            TryAgain = true;
+                            Thread.Sleep(1000);
+                        }
+                    }
+                } while (TryAgain);
+
+            //DO THE FLASHING
+                for (uint i = 0; i < FlashFile.NumberOfSectors; i++)    //temporarily skip first sector for debugging.
+                {
+                    CurrentSector = (int)i;     //status info
+
+                    if (!FlashFile.SectorEmpty(i))
+                    {
+                        RetriesRemain = 3;
+                        TryAgain = false;
+                        do
+                        {
+                            try
+                            {
+                                //does it have a valid md5 hash?
+                                byte[] found_hash;
+                                ISP_CommandHandler.GenerateHashOfData(FlashFile.SectorAddress(i), FlashFile.SectorSize(i), out found_hash);
+                                byte[] calc_hash = FlashFile.GetSectorMD5Hash(i);
+                                if (!found_hash.SequenceEqual(FlashFile.GetSectorMD5Hash(i)))
+                                {
+                                    //The sector needs to be flashed
+
+                                    //Surprisingly, it appears that data copied to internal flash must be stored in internal RAM:
+                                    if (i < FirstExternalSector)
+                                        DeviceRAMaddr = InternalDeviceRAMaddr;
+                                    else
+                                        DeviceRAMaddr = ExternalDeviceRAMaddr;                                    
+                                    
+                                    //1. Copy to RAM (optionally use compression)
+                                    ISP_CommandHandler.WriteToRAM(DeviceRAMaddr, FlashFile.GetSectorData(i));                                    
+
+                                    //2. Prepare sector for erasing
+                                    ISP_CommandHandler.PrepareSectors(i, i);
+
+                                    //3. Erase the sector
+                                    ISP_CommandHandler.EraseSectors(i, i);                                    
+
+                                    //4. Copy the RAM into the sector
+                                    ISP_CommandHandler.CopyRAMtoSector(FlashFile.SectorAddress(i), i, DeviceRAMaddr, FlashFile.SectorSize(i));
+
+                                    //5. Verify the flash
+                                    ISP_CommandHandler.GenerateHashOfData(FlashFile.SectorAddress(i), FlashFile.SectorSize(i), out found_hash);
+                                    if ( (!found_hash.SequenceEqual(FlashFile.GetSectorMD5Hash(i))) && (i != firstSector))
+                                        throw new InvalidOperationException("Hash verification failed for sector " + i.ToString() + ".");
+
+                                    //6. sector complete
+                                    TryAgain = false;
+                                    SectorsFlashed++;   //status info: indicate another sector has been flashed.
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                LogMsg(TraceEventType.Error, "Caught the following exception while flashing sector " + i.ToString() + ".\r\n" + ex.ToString());                                                                
+                                RetriesRemain--;
+                                if (!ISP_CommandHandler.ProtocolHandler.CommContext.bConnected)
+                                {
+                                    LogMsg(TraceEventType.Error, "Connection terminated. Aborting flash attempt.");
+                                    throw ex;   //connection lost or out of retries, re-throw exception and abort
+                                }
+                                else if (RetriesRemain <= 0)
+                                {
+                                    LogMsg(TraceEventType.Error, "Out of retries for this sector. Aborting flash attempt.");
+                                    throw ex;   //connection lost or out of retries, re-throw exception and abort
+                                }
+                                else
+                                {
+                                    LogMsg(TraceEventType.Error, "Delaying 1 second and then retrying. " + RetriesRemain.ToString() + " retries remain for this sector.");
+                                    TryAgain = true;
+                                    Thread.Sleep(1000);
+                                }
+                            }
+                        } while (TryAgain);
+                    }
+                }
+            }
+
+
+            private void ExitFlashMode()
+            {
+                int RetriesRemain = 3;
+                do
+                {
+                    try
+                    {
+                        ISP_CommandHandler.Go(0, 'A');
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        if (--RetriesRemain <= 0)
+                        {
+                            LogMsg(TraceEventType.Error, "Failed to exit flash mode, giving up. Error: " + ex.ToString());
+                            throw ex;
+                        }
+                        else
+                            LogMsg(TraceEventType.Error, "Failed to exit flash mode, retrying. Error: " + ex.ToString());
+                    }
+                } while (RetriesRemain >= 0);
+            }
+            #endregion
         }
     }
 

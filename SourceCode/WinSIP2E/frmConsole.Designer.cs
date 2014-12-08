@@ -31,6 +31,7 @@
             this.txtTerminal = new System.Windows.Forms.TextBox();
             this.cboTraceLevel = new System.Windows.Forms.ComboBox();
             this.label1 = new System.Windows.Forms.Label();
+            this.cmdCopy = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // txtTerminal
@@ -47,7 +48,7 @@
             // 
             this.cboTraceLevel.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.cboTraceLevel.FormattingEnabled = true;
-            this.cboTraceLevel.Location = new System.Drawing.Point(127, 613);
+            this.cboTraceLevel.Location = new System.Drawing.Point(14, 614);
             this.cboTraceLevel.Name = "cboTraceLevel";
             this.cboTraceLevel.Size = new System.Drawing.Size(139, 21);
             this.cboTraceLevel.TabIndex = 25;
@@ -56,17 +57,28 @@
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(124, 597);
+            this.label1.Location = new System.Drawing.Point(11, 598);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(98, 13);
             this.label1.TabIndex = 26;
             this.label1.Text = "Log message level:";
+            // 
+            // cmdCopy
+            // 
+            this.cmdCopy.Location = new System.Drawing.Point(443, 598);
+            this.cmdCopy.Name = "cmdCopy";
+            this.cmdCopy.Size = new System.Drawing.Size(129, 37);
+            this.cmdCopy.TabIndex = 27;
+            this.cmdCopy.Text = "Copy to Clipboard";
+            this.cmdCopy.UseVisualStyleBackColor = true;
+            this.cmdCopy.Click += new System.EventHandler(this.cmdCopy_Click);
             // 
             // frmConsole
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(584, 661);
+            this.Controls.Add(this.cmdCopy);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.cboTraceLevel);
             this.Controls.Add(this.txtTerminal);
@@ -84,5 +96,6 @@
         private System.Windows.Forms.TextBox txtTerminal;
         private System.Windows.Forms.ComboBox cboTraceLevel;
         private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.Button cmdCopy;
     }
 }
