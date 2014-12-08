@@ -1388,7 +1388,7 @@ namespace ForwardLibrary
                         uint checksum = 0;
                         foreach (byte by in data)
                             checksum += by;
-                        while (NumRetries > 0)
+                        while (NumRetries >= 0)
                         {
                             //2. break the data up into 45 byte segments, UU encode, and send
                             int i = 0;
@@ -1433,6 +1433,10 @@ namespace ForwardLibrary
                             {
                                 //failure... send the bytes again
                                 NumRetries--;
+
+                                //Sometimes the flasher gets overwhelmed and needs time to settle
+                                Thread.Sleep(500);
+                                while (ProtocolHandler.ReceiveData(out response, Timeout)) ;
                             }
                             else
                             {
@@ -1440,7 +1444,7 @@ namespace ForwardLibrary
                                 throw new ResponseException("Unexpected response to data checksum.", checksum.ToString(), response);
                             }
                         }
-                        if (NumRetries <= 0)                        
+                        if (NumRetries < 0)                        
                             throw new ResponseErrorCodeException("Unable to get an OK response to sending the data checksum.", command, response);
                         
                     }
@@ -1597,6 +1601,7 @@ namespace ForwardLibrary
                         throw new ResponseException("Did not receive a valid synchronized response to '?' character.", data, Responses);
 
                 //4. send the synchronized string back
+                    while (ProtocolHandler.ReceiveData(out dummy, 0)) ;
                     string command = "Synchronized";
                     SendCommand(command);
 
@@ -1630,6 +1635,10 @@ namespace ForwardLibrary
                         throw new ResponseException("Did not receive a valid synchronized response to the clock frequency.", data, Responses);
 
                     //looks like we made it!
+                    //Sometimes an OK comes in to synchronized and an OK comes in for the the clock frequency. So just request
+                    //an aditional response here as a means of keeping the pipeline clean going forward.
+                    while (ProtocolHandler.ReceiveData(out dummy, optionalTimeoutms)) ;
+
                 }
                 
 
@@ -1692,7 +1701,7 @@ namespace ForwardLibrary
                 /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
                 /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>                
                 /// <exception cref="System.ArgumentException">Thrown when address is invalid or the data is an invalid length</exception>
-                public void WriteToRAM(uint address, byte[] data)
+                public void WriteToRAM(uint address, byte[] data, int optionalRetries = 2)
                 {
                     if (data.Length % 4 != 0)
                         throw new ArgumentException("The data length is invalid.", "data");
@@ -1711,10 +1720,36 @@ namespace ForwardLibrary
                         Array.Copy(data, CurPos, dataToSend, 0, Length);
                         CurPos += Length;
 
-                        WriteRamCMD(address, Length);
+                        int Retries = optionalRetries;
+                        do
+                        {
+                            try
+                            {
+                                WriteRamCMD(address, Length);
 
-                        //break data up into 45 byte segments and send:
-                        UUEncodeSendData(dataToSend, 3, DefaultTimeout);
+                                //break data up into 45 byte segments and send:
+                                UUEncodeSendData(dataToSend, 3, DefaultTimeout);
+
+                                break;
+                            }
+                            catch (Exception ex)
+                            {
+                                if (ProtocolHandler.CommContext.bConnected && Retries > 0)
+                                {
+                                    LogMsg(TraceEventType.Error, "Encountered an error trying to copy data to RAM. Retrying.\r\n" + ex.ToString());
+                                    Retries--;
+                                    Thread.Sleep(250);
+                                }
+                                else
+                                {
+                                    LogMsg(TraceEventType.Error, "Encountered an error trying to copy data to RAM.\r\n" + ex.ToString());
+                                    throw ex;
+                                }
+                            }
+                        } while (true);
+
+
+                        address += (uint) Length;
                     }
 
                     
@@ -1795,6 +1830,85 @@ namespace ForwardLibrary
                     if (retCode != ReturnCodes.CMD_SUCCESS)
                         throw new ResponseErrorCodeException("Received an error code when trying to copy RAM to flash: " + retCode, command, resps);                    
                 }
+
+                /// <summary>
+                /// This command automates calls to PrepareSectors and CopyRAMtoFlash
+                /// to flash the RAM contents of an entire sector. 
+                /// </summary>
+                /// <param name="flashAddress">Destination Flash address where data bytes are to be
+                /// written. The destination address should be a 256 byte boundary.</param>
+                /// <param name="ramAddress">Source RAM address from where data bytes are to be read. 
+                /// Must be on a word boundary.</param>
+                /// <param name="numberOfBytes">Number of bytes to be written. Should be divisible by 256.</param>
+                /// <exception cref="CommandHandlers.ResponseException">Thrown when an invalid or unexpected response is received from the device</exception>
+                /// <exception cref="CommandHandlers.ResponseErrorCodeException">Thrown when the device responds with an error code</exception>
+                /// <exception cref="CommandHandlers.UnresponsiveConnectionException">Thrown when a timeout occurs waiting for the connection to the device to complete an operation</exception>                
+                /// <exception cref="System.ArgumentException">Thrown one of the parameters breaks the described rules.</exception>
+                public void CopyRAMtoSector(uint flashAddress, uint sectorNumber, uint ramAddress, uint numberOfBytes, int optionalRetries = 2)
+                {
+                    if (flashAddress % 256 != 0)
+                        throw new ArgumentException("The flash address must be on a 256 byte boundary.", "flashAddress");
+                    else if (ramAddress % 4 != 0)
+                        throw new ArgumentException("The RAM address must be on a word boundary.", "ramAddress");
+                    else if (numberOfBytes % 256 != 0) 
+                        throw new ArgumentException("The number of bytes must be dvisible by 256.", "numberOfBytes");
+
+                    while (numberOfBytes > 0)
+                    {
+                        uint packetBytes = numberOfBytes;
+
+                        //0. Determine how many bytes to copy in this operation
+                        if (packetBytes % 4096 == 0)
+                            packetBytes = 4096;
+                        else if (packetBytes % 1024 == 0)
+                            packetBytes = 1024;
+                        else if (packetBytes % 512 == 0)
+                            packetBytes = 512;
+                        else if (packetBytes % 256 == 0)
+                            packetBytes = 256;
+                        else
+                            throw new InvalidOperationException("Invalid number of bytes remaining: " + numberOfBytes.ToString());  //should not happen
+
+                        int Retries = optionalRetries;
+                        do
+                        {
+                            try
+                            {
+                                //1. Prepare sector for flashing
+                                PrepareSectors(sectorNumber, sectorNumber);
+
+                                //2. Copy the RAM into the sector
+                                CopyRAMtoFlash(flashAddress, ramAddress, packetBytes);
+
+                                break;
+                            }
+                            catch (Exception ex)
+                            {
+                                if (ProtocolHandler.CommContext.bConnected && optionalRetries > 0)
+                                {
+                                    LogMsg(TraceEventType.Error, "Error while trying to copy RAM to flash. Retrying.\r\n" + ex.ToString());
+                                    optionalRetries--;
+                                }
+                                else
+                                {
+                                    LogMsg(TraceEventType.Error, "Error while trying to copy RAM to flash.\r\n" + ex.ToString());
+                                    throw ex;
+                                }
+                            }
+
+                        } while (true);
+
+                        //3. Update pointers
+                        flashAddress += packetBytes;
+                        ramAddress += packetBytes;
+                        numberOfBytes -= packetBytes;
+                    }
+                }
+
+                
+                                    
+
+                                    
 
                 /// <summary>
                 /// This command is used to execute a program residing in RAM or Flash memory. It
@@ -2115,7 +2229,7 @@ namespace ForwardLibrary
                         //2. calculate the first checksum                                    
                         //this is the first sector, so we want to start checksumming after Checksum2_Address
                         firstSector = sector;
-                        valCheck1Start = SectorAddress(firstSector) + Checksum2End_Address + 4;
+                        valCheck1Start = SectorAddress(firstSector) + Checksum2_Address + 4;
                         PrepareChecksum(valCheck1Start, out valCheck1End, out valCheck1);
 
                         //3. find the next sector occupied
