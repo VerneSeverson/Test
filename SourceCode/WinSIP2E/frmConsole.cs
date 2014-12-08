@@ -94,5 +94,12 @@ namespace WinSIP2E
         {
             Program.WinSIP_TS.Switch.Level = (SourceLevels) cboTraceLevel.SelectedItem;
         }
+
+        private void cmdCopy_Click(object sender, EventArgs e)
+        {
+            txtTerminal.SelectAll();
+            txtTerminal.Copy();
+            txtTerminal.Select(0, 0);
+        }
     }
 }
