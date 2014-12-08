@@ -1993,7 +1993,8 @@ namespace WinSIP2E
                         if ( (_CurrentState == WorkState.ReconnectToUNAC) && (ReconnectOpperation != null) )
                             return GetStatusOkMsg(CurrentState) + "\r\n" + ReconnectOpperation.StatusMessage;
                         else if (_CurrentState == WorkState.FlashInProgress)
-                            return GetStatusOkMsg(CurrentState) + " Currently flashing sector " + CurrentSector.ToString() + ".";
+                            return GetStatusOkMsg(CurrentState) + " Currently flashing sector " + CurrentSector.ToString() 
+                                + " of " + FinalSectorToFlash.ToString() + ".";
                         else
                             return GetStatusOkMsg(CurrentState);
                     }
@@ -2038,9 +2039,23 @@ namespace WinSIP2E
             Operation ReconnectOpperation = null;
 
             /// <summary>
-            /// The RAM address where flash data should be stored before writing to flash
+            /// The RAM address where flash data should be stored before writing to external flash
             /// </summary>
-            public uint DeviceRAMaddr = 0x81030000;  
+            public uint ExternalDeviceRAMaddr = 0x81030000;
+
+            /// <summary>
+            /// The RAM address where flash data should be stored before writing to internal flash
+            /// </summary>
+            public uint InternalDeviceRAMaddr = 0x40002000;
+
+            /// <summary>
+            /// The first sector in external flash (for sectors below this, InternalDeviceRAMaddr 
+            /// will be used. for sectors equal or greater than this, ExternalDeviceRAMaddr will be
+            /// used).
+            /// 
+            /// </summary>
+            public uint FirstExternalSector = 28;
+            
 
             /// <summary>
             /// The unlock code sent ot the device to unlock the flash commands
@@ -2052,7 +2067,8 @@ namespace WinSIP2E
             private string FileName;
             private int CurrentSector = 0;
             private int SectorsFlashed = 0;
-            private int SectorsToFlash = 0;            
+            private int SectorsToFlash = 0;
+            private int FinalSectorToFlash = 0;
 
             private WorkState _CurrentState = WorkState.Idle;
             private WorkState CurrentState
@@ -2168,6 +2184,10 @@ namespace WinSIP2E
                 StatusErrorMsg("Failed to send flash file."),
                 StatusCompletionPercent(6)]
                 FlashInProgress,
+                [StatusOkMsg("Exiting flash mode."),
+                StatusErrorMsg("Flash was successful, but UNAC failed to exit flash mode."),
+                StatusCompletionPercent(100)]
+                ExitFlash,
                 [StatusOkMsg("Flash successful."),
                 StatusErrorMsg("Should not see this message."),
                 StatusCompletionPercent(100)]
@@ -2205,10 +2225,14 @@ namespace WinSIP2E
                     CurrentState = WorkState.FlashInProgress;
                     FlashTheUNAC();
 
-                    //7. Done
+                    //7. Exit flash mode
+                    CurrentState = WorkState.ExitFlash;
+                    ExitFlashMode();
+
+                    //8. Done
                     CurrentState = WorkState.Finish;
 
-                    //8. Mark completed
+                    //9. Mark completed
                     _Status = CompletionCode.FinishedSuccess;
 
                 }
@@ -2404,14 +2428,25 @@ namespace WinSIP2E
 
             private void FlashTheUNAC()
             {         
-                bool TryAgain = false;       
+                bool TryAgain = false, assignedFirstSector = false;       
                 int RetriesRemain = 3;
+                uint firstSector = 0;
+                uint DeviceRAMaddr = 0x81030000;  
+
                 //setup the status registers
                 SectorsFlashed = 0;
                 for (uint i = 0; i < FlashFile.NumberOfSectors; i++)
                 {
                     if (!FlashFile.SectorEmpty(i))
+                    {
+                        if (!assignedFirstSector)
+                        {
+                            assignedFirstSector = true;
+                            firstSector = i;
+                        }
                         SectorsToFlash++;
+                        FinalSectorToFlash = (int) i;
+                    }
                 }
 
             //CONFIGURE FLASHER SETTINGS
@@ -2451,7 +2486,7 @@ namespace WinSIP2E
                 } while (TryAgain);
 
             //DO THE FLASHING
-                for (uint i = 0; i < FlashFile.NumberOfSectors; i++)
+                for (uint i = 0; i < FlashFile.NumberOfSectors; i++)    //temporarily skip first sector for debugging.
                 {
                     CurrentSector = (int)i;     //status info
 
@@ -2467,31 +2502,34 @@ namespace WinSIP2E
                                 byte[] found_hash;
                                 ISP_CommandHandler.GenerateHashOfData(FlashFile.SectorAddress(i), FlashFile.SectorSize(i), out found_hash);
                                 byte[] calc_hash = FlashFile.GetSectorMD5Hash(i);
-                                if (found_hash != FlashFile.GetSectorMD5Hash(i))
+                                if (!found_hash.SequenceEqual(FlashFile.GetSectorMD5Hash(i)))
                                 {
-                                    //needs to be flashed
+                                    //The sector needs to be flashed
 
+                                    //Surprisingly, it appears that data copied to internal flash must be stored in internal RAM:
+                                    if (i < FirstExternalSector)
+                                        DeviceRAMaddr = InternalDeviceRAMaddr;
+                                    else
+                                        DeviceRAMaddr = ExternalDeviceRAMaddr;                                    
+                                    
                                     //1. Copy to RAM (optionally use compression)
-                                    ISP_CommandHandler.WriteToRAM(DeviceRAMaddr, FlashFile.GetSectorData(i));
+                                    ISP_CommandHandler.WriteToRAM(DeviceRAMaddr, FlashFile.GetSectorData(i));                                    
 
                                     //2. Prepare sector for erasing
                                     ISP_CommandHandler.PrepareSectors(i, i);
 
                                     //3. Erase the sector
-                                    /*ISP_CommandHandler.EraseSectors(i, i);
+                                    ISP_CommandHandler.EraseSectors(i, i);                                    
 
-                                    //4. Prepare sector for flashing
-                                    ISP_CommandHandler.PrepareSectors(i, i);
+                                    //4. Copy the RAM into the sector
+                                    ISP_CommandHandler.CopyRAMtoSector(FlashFile.SectorAddress(i), i, DeviceRAMaddr, FlashFile.SectorSize(i));
 
-                                    //5. Copy the RAM into the sector
-                                    ISP_CommandHandler.CopyRAMtoFlash(FlashFile.SectorAddress(i), DeviceRAMaddr, FlashFile.SectorSize(i));*/
-
-                                    //6. Verify the flash
-                                    ISP_CommandHandler.GenerateHashOfData(DeviceRAMaddr, FlashFile.SectorSize(i), out found_hash);
-                                    if (found_hash != FlashFile.GetSectorMD5Hash(i))
+                                    //5. Verify the flash
+                                    ISP_CommandHandler.GenerateHashOfData(FlashFile.SectorAddress(i), FlashFile.SectorSize(i), out found_hash);
+                                    if ( (!found_hash.SequenceEqual(FlashFile.GetSectorMD5Hash(i))) && (i != firstSector))
                                         throw new InvalidOperationException("Hash verification failed for sector " + i.ToString() + ".");
 
-                                    //7. sector complete
+                                    //6. sector complete
                                     TryAgain = false;
                                     SectorsFlashed++;   //status info: indicate another sector has been flashed.
                                 }
@@ -2522,6 +2560,29 @@ namespace WinSIP2E
                 }
             }
 
+
+            private void ExitFlashMode()
+            {
+                int RetriesRemain = 3;
+                do
+                {
+                    try
+                    {
+                        ISP_CommandHandler.Go(0, 'A');
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        if (--RetriesRemain <= 0)
+                        {
+                            LogMsg(TraceEventType.Error, "Failed to exit flash mode, giving up. Error: " + ex.ToString());
+                            throw ex;
+                        }
+                        else
+                            LogMsg(TraceEventType.Error, "Failed to exit flash mode, retrying. Error: " + ex.ToString());
+                    }
+                } while (RetriesRemain >= 0);
+            }
             #endregion
         }
     }
