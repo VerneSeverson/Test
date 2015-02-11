@@ -959,8 +959,6 @@ namespace ForwardLibrary
                                             //process the parsed command
                                             ProcessCommand(ReceivedData);
 
-                                            //protocol only allows one command and then an ack, so toss the rest of the data                                        
-                                            bEnd = true;
                                             break;
                                         }
                                         else if (theByte == 0x02)                                        
