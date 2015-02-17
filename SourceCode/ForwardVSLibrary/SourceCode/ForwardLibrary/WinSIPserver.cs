@@ -179,7 +179,7 @@ namespace ForwardLibrary
                 //MAC
                 else if (ID.Length == 12)
                 {
-                    newID = ID;
+                    newID = ID.ToLower();   //convert MAC to lower case because this is how it is stored
                     idType = ID_Type.MAC;
                 }
                 //SIM
@@ -229,7 +229,7 @@ namespace ForwardLibrary
                             throw new ArgumentException("Length for a MAC-type ID must be 12 digits", "origID");
                         if (!System.Text.RegularExpressions.Regex.IsMatch(origID, @"\A\b[0-9a-fA-F]+\b\Z"))
                             throw new ArgumentException("A MAC-type ID may contain only hexidecimal digits (0-9, a-z, A-Z)", "origID");
-                        retVal = origID;
+                        retVal = origID.ToLower();      //MAC address is always lower case
                         break;
 
                     case ID_Type.SIM:
@@ -296,7 +296,7 @@ namespace ForwardLibrary
                             case 2:
                                 if (val.Length > 1)
                                     CreateID(val, ID_Type.MAC);   //causes an argument exception if the field is invalid
-                                MAC = val;
+                                MAC = val.ToLower();    //always store the MAC address in lower case
                                 break;
 
                             case 3:
