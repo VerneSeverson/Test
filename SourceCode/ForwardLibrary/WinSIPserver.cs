@@ -3,6 +3,7 @@ using ForwardLibrary.Crypto;
 using ForwardLibrary.Default;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Security;
 using System.Security.Cryptography;
@@ -137,7 +138,17 @@ namespace ForwardLibrary
 
         public class BNAC_Table
         {
-            public enum ID_Type : int { Index, UID, MAC, SIM };
+            public enum ID_Type  
+            {
+                [FriendlyName("Index")]
+                Index,
+                [FriendlyName("Unit ID")]
+                UID,
+                [FriendlyName("MAC Address")]
+                MAC,
+                [FriendlyName("SIM Number")]
+                SIM 
+            }
 
             /// <summary>
             /// Function to determine the ID type and extract the string field
@@ -168,7 +179,7 @@ namespace ForwardLibrary
                 //MAC
                 else if (ID.Length == 12)
                 {
-                    newID = ID;
+                    newID = ID.ToLower();   //convert MAC to lower case because this is how it is stored
                     idType = ID_Type.MAC;
                 }
                 //SIM
@@ -218,7 +229,7 @@ namespace ForwardLibrary
                             throw new ArgumentException("Length for a MAC-type ID must be 12 digits", "origID");
                         if (!System.Text.RegularExpressions.Regex.IsMatch(origID, @"\A\b[0-9a-fA-F]+\b\Z"))
                             throw new ArgumentException("A MAC-type ID may contain only hexidecimal digits (0-9, a-z, A-Z)", "origID");
-                        retVal = origID;
+                        retVal = origID.ToLower();      //MAC address is always lower case
                         break;
 
                     case ID_Type.SIM:
@@ -285,7 +296,7 @@ namespace ForwardLibrary
                             case 2:
                                 if (val.Length > 1)
                                     CreateID(val, ID_Type.MAC);   //causes an argument exception if the field is invalid
-                                MAC = val;
+                                MAC = val.ToLower();    //always store the MAC address in lower case
                                 break;
 
                             case 3:
@@ -410,6 +421,87 @@ namespace ForwardLibrary
             public enum BNAC_Status :int
             { IDLE = 0, RDNS_REQUEST = 1 };
 
+            static public BNAC_Status ParseBNAC_Status(string code)
+            {
+                code = code.Trim();
+                if (code == "W")
+                    return BNAC_Status.IDLE;
+                else if (code == "B")
+                    return BNAC_Status.RDNS_REQUEST;
+                else
+                    throw new ArgumentException("Unrecognized status code '" + code + "'.", code);
+            }
+
+			static public string BNAC_StatusToCode(BNAC_Status status)
+            {
+                if (status == BNAC_Status.IDLE)
+                    return "W";
+                else if (status == BNAC_Status.RDNS_REQUEST)
+                    return "B";
+                else
+                    throw new NotImplementedException("Status code not implemented"); //should never happen
+            }
+
+            /// <summary>
+            /// Converts mmddyyhhmmdss to a DateTime
+            /// </summary>
+            /// <param name="datetime"></param>
+            /// <returns></returns>
+            static public DateTime ConvertBNAC_DateTime(string datetime)
+            {
+                if (datetime.Length != "mmddyyhhmmdss".Length)
+                    throw new ArgumentException("Invalid date time string.", datetime);
+                
+                //add year 2000 padding
+                datetime = datetime.Substring(0, "mmdd".Length) + "20" + datetime.Substring("mmdd".Length);
+                
+                //remove day of week
+                datetime = datetime.Substring(0,"mmddyyyyhhmm".Length) + datetime.Substring("mmddyyyyhhmmd".Length);
+
+                //see: http://msdn.microsoft.com/en-us/library/8kb3ddd4(v=vs.110).aspx
+                return DateTime.ParseExact(datetime, "MMddyyyyHHmmss", CultureInfo.InvariantCulture);
+            }            
+
+            /// <summary>
+            /// Get date time string as mmddyyhhmmdss
+            /// </summary>
+            /// <param name="date">the datetime object</param>
+            /// <returns>The mmddyyhhmmdss formatted string</returns>
+            public static string ConvertDateTimeToBNAC_String(DateTime date)
+            {
+                string Month, Day, Year, Hour, Minute, DayOfWeek, Second;
+
+                Month = date.Month.ToString();
+                if (Month.Length < 2)
+                    Month = "0" + Month;
+
+                Day = date.Day.ToString();
+                if (Day.Length < 2)
+                    Day = "0" + Day;
+
+                Year = date.Year.ToString();
+                if (Year.Length == 4)
+                    Year = Year.Substring(2);
+
+                Hour = date.Hour.ToString();
+                if (Hour.Length < 2)
+                    Hour = "0" + Hour;
+
+                Minute = date.Minute.ToString();
+                if (Minute.Length < 2)
+                    Minute = "0" + Minute;
+
+                DayOfWeek = ((int)date.DayOfWeek).ToString();
+
+                Second = date.Second.ToString();
+                if (Second.Length < 2)
+                    Second = "0" + Second;
+
+                String retString = Month + Day + Year + Hour + Minute + DayOfWeek + Second;
+
+                return retString;
+            }
+
             public class Entry
             {
 
@@ -419,8 +511,10 @@ namespace ForwardLibrary
                 protected BNAC_Status _PendingRequest = BNAC_Status.IDLE;
                 public virtual BNAC_Status PendingRequest { get {return _PendingRequest;} set{ _PendingRequest = value;} }                     
 
-                protected string _LastCheckin = "1231002359000"; //mmddyyhhmmddss
-                public virtual string LastCheckin {get {return _LastCheckin; } set {_LastCheckin = value; } } 
+                protected string _LastCheckin = "1231002359000"; //mmddyyhhmmdss
+                public virtual string LastCheckin {get {return _LastCheckin; } set {_LastCheckin = value; } }
+
+                public virtual DateTime LastCheckinDateTime { get { return ConvertBNAC_DateTime(LastCheckin); } }
 
                 //public string RequestKey = null;
                 //public ClientContext contextOn = null;        //the context used to communicate to this BNAC
@@ -429,6 +523,33 @@ namespace ForwardLibrary
                 public Entry(long i)
                 {
                     index = i;
+                }
+
+                /// <summary>
+                /// Creates an entry with the specified index and the
+                /// fields populated from an array of strings
+                /// </summary>
+                /// <param name="index"></param>
+                /// <param name="fields"></param>
+                public Entry(long index, string [] fields)
+                {                    
+                    PendingRequest = BNAC_StateTable.ParseBNAC_Status(fields[0]);
+                    
+                    LastCheckin = fields[1];
+                    if (LastCheckin.Length != "mmddyyhhmmdss".Length)
+                        throw new ArgumentException("Invalid date time of last checkin", "fields");
+                    try
+                    {
+                        ConvertBNAC_DateTime(LastCheckin);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new ArgumentException("Invalid date time of last checkin", "fields", ex);
+                    }
+
+                    this.index = index;
+
+                    //haven't yet implemented SMS_REMAINING sms_remaining = int.Parse(fields[2]);              
                 }
 
                 public override string ToString()

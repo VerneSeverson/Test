@@ -9,6 +9,7 @@ using System.Text;
 
 using CERTENROLLLib;
 using CERTCLILib;
+using System.Runtime.InteropServices;
 
 namespace ForwardLibrary
 {
@@ -425,12 +426,13 @@ namespace ForwardLibrary
             /// </summary>
             /// <param name="loc">The name of the certificate store location</param>
             /// <param name="substrSubject">The substring to search for</param>
-            public CStoredCertificate(StoreLocation loc, string substrSubject)
+            /// <param name="ValidCertsOnly">If true, only a valid certificate will be loaded</param>
+            public CStoredCertificate(StoreLocation loc, string substrSubject, bool ValidCertsOnly = true)
             {
                 _Location = loc;
 
                 //now find the certificate
-                _Certificate = GetCertificateFromStore(loc, substrSubject);
+                _Certificate = GetCertificateFromStore(loc, substrSubject, ValidCertsOnly);
 
                 //now attempt to build the chain, but catch any exception found and do not report it
                 //as this does not need to succeed:
@@ -524,7 +526,7 @@ namespace ForwardLibrary
                 X509Certificate2Collection collection = GetCertCollectionFromPEM(PEM_string);
 
                 if (collection.Count == 0)
-                    throw new CryptographicException("NoCertFound: No valid certificates found");
+                    throw new CryptographicException("No valid certificates found in the certificate chain.");
 
                 //now verifiy that the certificates sign each other
                 if (checkChain)                    
@@ -605,12 +607,12 @@ namespace ForwardLibrary
                 //and assembles a chain from wherever it can find valid certs from (whether that is ExtraStore or in the 
                 //main certificate store
                 if (!chain.Build(primary_certificate))
-                    throw new CryptographicException("ChainBuildFail: chain.Build() failed, status of element 0 is: " + chain.ChainStatus[0].ToString());
+                    throw new CryptographicException("Failed to build the certificate chain, status of element 0 is: " + chain.ChainStatus[0].ToString());
                 //return false;
 
                 //see if the number of elements in the newly assembled chain matches the number that added            
                 if (chain.ChainElements.Count != chain.ChainPolicy.ExtraStore.Count + 1)
-                    throw new CryptographicException("SignerCountMismatch: The constructed chain consists of "
+                    throw new CryptographicException("Incorrect or incomplete certificate chain. The constructed chain consists of "
                         + (chain.ChainElements.Count - 1).ToString() + " signers but "
                             + chain.ChainPolicy.ExtraStore.Count.ToString() + " signers were expected");
 
@@ -619,13 +621,13 @@ namespace ForwardLibrary
                 //The first one should be 'primaryCert', leading up to the root CA.
                 for (int i = 1; i < chain.ChainElements.Count; i++)
                     if (chain.ChainElements[i].Certificate.Thumbprint != chain.ChainPolicy.ExtraStore[i - 1].Thumbprint)
-                        throw new CryptographicException("IncorrectSigner: an incorrect (or out of order) signer was included, expected: "
+                        throw new CryptographicException("An incorrect (or out of order) signer was included, expected: "
                         + chain.ChainElements[i].Certificate.Subject + " but found "
                             + chain.ChainPolicy.ExtraStore[i - 1].Subject);
 
                 //now make sure that the last certificate signed itself
                 if (chain.ChainElements[chain.ChainElements.Count - 1].Certificate.Issuer != chain.ChainElements[chain.ChainElements.Count - 1].Certificate.Subject)
-                    throw new CryptographicException("MissingRootCert: the final issuer did not sign itself: "
+                    throw new CryptographicException("The root certificate is missing from the chain. The final issuer did not sign itself: "
                         + chain.ChainElements[chain.ChainElements.Count - 1].Certificate.Issuer + " is not the same as "
                             + chain.ChainElements[chain.ChainElements.Count - 1].Certificate.Subject);
 
@@ -650,7 +652,7 @@ namespace ForwardLibrary
 
                 }
                 else
-                    throw new CryptographicException("ChainBuildFail: unable to construct a certificate chain for the certificate");
+                    throw new CryptographicException("Unable to construct a certificate chain for the certificate.");
 
                 return theSigners;
             }
@@ -773,6 +775,23 @@ namespace ForwardLibrary
                     pw.AppendChar(c);
                 return pw;
             }
+
+            public static string ConvertToUnsecureString(SecureString securePassword)
+            {
+                if (securePassword == null)
+                    throw new ArgumentNullException("securePassword");
+
+                IntPtr unmanagedString = IntPtr.Zero;
+                try
+                {
+                    unmanagedString = Marshal.SecureStringToGlobalAllocUnicode(securePassword);
+                    return Marshal.PtrToStringUni(unmanagedString);
+                }
+                finally
+                {
+                    Marshal.ZeroFreeGlobalAllocUnicode(unmanagedString);
+                }
+            }
             #endregion
 
             #region Helper functions
@@ -785,24 +804,25 @@ namespace ForwardLibrary
             /// has a subject name that contains the search string.
             /// </summary>
             /// <param name="loc"></param>
-            /// <param name="substrSubject"></param>
+            /// <param name="substrSubject">The substring in the common name to search for</param>
+            /// <param name="ValidOnly">Should only valid certificates be considered?</param>
             /// <returns></returns>
-            protected X509Certificate2 GetCertificateFromStore(StoreLocation loc, string substrSubject)
+            protected X509Certificate2 GetCertificateFromStore(StoreLocation loc, string substrSubject, bool ValidOnly = true)
             {
                 X509Certificate2 cert;
                 X509Store store = new X509Store(loc);
                 store.Open(OpenFlags.ReadOnly);
-                X509Certificate2Collection col = store.Certificates.Find(X509FindType.FindBySubjectName, substrSubject, true);
+                X509Certificate2Collection col = store.Certificates.Find(X509FindType.FindBySubjectName, substrSubject, ValidOnly);
                 store.Close();
 
                 //more than one found?
                 if (col.Count > 1)
-                    throw new CryptographicException("MultipleCertsFound: " + col.Count.ToString() + " certificates found in "
-                        + loc.ToString() + " store which contain \"" + substrSubject + "\" in their subject line");
+                    throw new CryptographicException("Multiple matching certificates found: " + col.Count.ToString() + " certificates in "
+                        + loc.ToString() + " store contain \"" + substrSubject + "\" in their subject line");
 
                 //no certs found?
                 if (col.Count == 0)
-                    throw new CryptographicException("NoCertFound: no certificate found in " + loc.ToString() + " store which contains \"" +
+                    throw new CryptographicException("No certificate found in " + loc.ToString() + " store which contains \"" +
                         substrSubject + "\" in the subject line");
 
                 //we got it
@@ -844,7 +864,7 @@ namespace ForwardLibrary
                                 X509BasicConstraintsExtension bext = (X509BasicConstraintsExtension)ext;
                                 bCA = bext.CertificateAuthority;
                                 if (!bCA)
-                                    throw new CryptographicException("CertMissingPriviliges: found a certificate in the signers collection that does not have permission to sign another certificate: " +
+                                    throw new CryptographicException("Invalid certificate chain: a certificate in the signers collection does not have permission to sign another certificate: " +
                                         cert.Subject); //Console.WriteLine("WARNING -- non certificate authority certificate found, ignoring this certificate");
                             }
                         }
