@@ -9,6 +9,7 @@ namespace ForwardLibrary
 {
     /// <summary>
     /// a namespace to tuck library functions in that don't belong elsewhere
+	/// we should eventually find namespace locations for these library functions.
     /// </summary>
     namespace Default
     {
