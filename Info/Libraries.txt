@@ -6,7 +6,9 @@ Repo SSH address: ssh://git_forwardpay@forwardpay.git.cloudforge.com/forwardvsli
 	
 --------------Library usage guidelines--------------
 --> Push/pull from the library's master branch
---> Do not "squash" merges in either direction
+--> Do not "squash" merges when pushing
+--> Do "squash" merges when pulling
+--> Always do a pull after a push
 --> When editing the library from within this project, use separate commits to the ForwardVSLibrary; for example, if you edit files in the FowardVSLibrary as well as in this project and you are ready to commit all of them, commit the ForwardVSLibrary files in one commit and the main project files in a separate commit.
 
 --------------SourceTree usage--------------
@@ -21,23 +23,25 @@ SourceTree instructions with screenshots can also be found in Subtree.docx.
 Subtree workflow in SourceTree:
 --> To pull in changes made in the library outside of this project:
 ---1) Right click on Subtrees->SourceCode->ForwardVSLibrary
----2) Click Pull ForwardVSLibrary (deselect "Squash commits?")
+---2) Click Pull ForwardVSLibrary (check "Squash commits?")
 
 --> To push in changes made to the library from inside this project:
 ---1) Right click on Subtrees->SourceCode->ForwardVSLibrary
 ---2) Click Push ForwardVSLibrary (deselect "Squash commits?")
+---3) Click Pull ForwardVSLibrary (check "Squash commits?")
 
 --------------Git Bash usage--------------
 -->To link to a subtree
 git remote add vslib ssh://git_forwardpay@forwardpay.git.cloudforge.com/forwardvslibrary.git
-#ONLY needed if subtree's files/folders doesn't currently exist in repo: git subtree add --prefix=SourceCode/ForwardVSLibrary vslib master
+#ONLY needed if subtree's files/folders doesn't currently exist in repo: git subtree add --squash --prefix=SourceCode/ForwardVSLibrary vslib master
 
 Subtree workflow in Git Bash:
 --> To pull in changes made in the library outside of this project:
-git subtree pull --prefix=SourceCode/ForwardVSLibrary vslib master
+git subtree pull --squash --prefix=SourceCode/ForwardVSLibrary vslib master
 
 --> To push in changes made to the library from inside this project:
 git subtree push --prefix=SourceCode/ForwardVSLibrary vslib master
+**Always do a pull immediately after a push to avoid future merge conflicts if the contents of what was just pushed are modified later
 
 --> To see differences before doing a pull:
 git fetch vslib
