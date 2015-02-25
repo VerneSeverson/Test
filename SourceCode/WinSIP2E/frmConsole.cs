@@ -71,6 +71,9 @@ namespace WinSIP2E
                 Program.WinSIP_TS.Listeners.Add(thisListener);                
                 foreach (var item in Enum.GetValues(typeof(SourceLevels)))
                     cboTraceLevel.Items.Add(item);
+
+                //set the switch level to verbose (since we opened a console, we probably want to see all the logging info)
+                Program.WinSIP_TS.Switch.Level = SourceLevels.Verbose;
                 cboTraceLevel.SelectedItem = Program.WinSIP_TS.Switch.Level;
 
             }
