@@ -20,7 +20,7 @@ namespace WinSIP2E
         class ConsoleTraceListener : ForwardTraceListener
         {
             private frmConsole frm;  //reference to the parent form
-            public ConsoleTraceListener(frmConsole frm, ForwardLog log)
+            public ConsoleTraceListener(frmConsole frm, LogContainer log)
                 : base(log)
             {
                 this.frm = frm;
@@ -28,8 +28,8 @@ namespace WinSIP2E
 
             protected override void LogUpdated()
             {
-                LogEntry[] lEntries = theLog.Entries;
-                LogEntry newest = lEntries[lEntries.Length - 1];
+                AppLogEntry[] lEntries = (AppLogEntry[]) theLog.Entries;
+                AppLogEntry newest = lEntries[lEntries.Length - 1];
 
                 if (newest.Msg != null && newest.DateTime != null && newest.Timestamp != null)
                 {
@@ -66,7 +66,7 @@ namespace WinSIP2E
         {
             try
             {
-                thisListener = new ConsoleTraceListener(this, new ForwardLog());
+                thisListener = new ConsoleTraceListener(this, new LogContainer());
                 thisListener.TraceOutputOptions |= TraceOptions.DateTime | TraceOptions.Timestamp;
                 Program.WinSIP_TS.Listeners.Add(thisListener);                
                 foreach (var item in Enum.GetValues(typeof(SourceLevels)))

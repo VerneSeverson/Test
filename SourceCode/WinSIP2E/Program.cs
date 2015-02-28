@@ -17,7 +17,7 @@ namespace WinSIP2E
 {
     static class Program
     {
-        //Look at using this in ForwardLog object...
+        //Look at using this in LogContainer object...
         public static TraceSource WinSIP_TS = new TraceSource("WinSIP");
         public static CStoredCertificate WinSIP_Cert;
         

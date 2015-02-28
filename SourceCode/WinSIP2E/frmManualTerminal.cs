@@ -91,7 +91,7 @@ namespace WinSIP2E
                 };
 
                 //2. set up the trace source for grabbing communications info
-                thisListener = new ManualTraceListener(this, new ForwardLog());
+                thisListener = new ManualTraceListener(this, new LogContainer());
                 thisListener.TraceOutputOptions |= TraceOptions.DateTime | TraceOptions.Timestamp;
                 Program.WinSIP_TS.Listeners.Add(thisListener);
                 oldSourceLevel = Program.WinSIP_TS.Switch.Level;
@@ -560,7 +560,7 @@ namespace WinSIP2E
         {
             private int EventID_Filter = -1;
             private frmManualTerminal frm;  //reference to the parent form
-            public ManualTraceListener(frmManualTerminal frm, ForwardLog log)
+            public ManualTraceListener(frmManualTerminal frm, LogContainer log)
                 : base(log)
             {
                 this.frm = frm;
@@ -568,8 +568,8 @@ namespace WinSIP2E
 
             protected override void LogUpdated()
             {
-                LogEntry[] lEntries = theLog.Entries;
-                LogEntry newest = lEntries[lEntries.Length - 1];
+                AppLogEntry[] lEntries = (AppLogEntry[]) theLog.Entries;
+                AppLogEntry newest = lEntries[lEntries.Length - 1];
                 
                 if (newest.Msg != null && newest.DateTime != null && newest.Timestamp != null)
                 {
