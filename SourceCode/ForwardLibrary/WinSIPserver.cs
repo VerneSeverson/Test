@@ -122,8 +122,8 @@ namespace ForwardLibrary
                         break;
 
                     case ID_Type.UID:
-                        if (!System.Text.RegularExpressions.Regex.IsMatch(origID, @"\A\b[0-9a-zA-Z]+\b\Z"))
-                            throw new ArgumentException("A UID-type ID may only contain alpha-numeric characters (0-9, a-z, A-Z)", "origID");
+                        if (!System.Text.RegularExpressions.Regex.IsMatch(origID, @"\A\b[0-9a-zA-Z-]+\b\Z"))
+                            throw new ArgumentException("A UID-type ID may only contain alpha-numeric characters (0-9, a-z, A-Z) and -", "origID");
                         if (origID.Length > 13)
                             throw new ArgumentException("Length for a UID-type ID cannot exceed 13 digits", "origID");
                         retVal = "UID" + origID;
