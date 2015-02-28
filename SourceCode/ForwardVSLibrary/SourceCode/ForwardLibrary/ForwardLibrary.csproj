@@ -47,13 +47,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CryptoRandom.cs" />
+    <Compile Include="Exceptions.cs" />
     <Compile Include="Flash.cs" />
     <Compile Include="WinSIPserver.cs" />
     <Compile Include="Class1.cs" />
     <Compile Include="CommandHandler.cs" />
     <Compile Include="Communications.cs" />
     <Compile Include="Crypto.cs" />
-    <Compile Include="ForwardLog.cs" />
+    <Compile Include="Log.cs" />
     <Compile Include="LifeStatusManager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="StxEtxHandler.cs" />

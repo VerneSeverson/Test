@@ -1,6 +1,7 @@
 ﻿using ForwardLibrary.Communications;
 using ForwardLibrary.Communications.CommandHandlers;
 using ForwardLibrary.Default;
+using ForwardLibrary.Exceptions;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -17,44 +18,7 @@ namespace ForwardLibrary
     namespace Flash
     {
 
-        public class HexLineException : Exception
-        {
-            public string HexLine;                        
-
-            public HexLineException(string message, string hexLine)
-                : base(message)
-            {
-                HexLine = hexLine;                
-            }
-
-            public HexLineException(string message, string hexLine, Exception innerException)
-                : base(message, innerException)
-            {
-                HexLine = hexLine;                 
-            }
-
-            
-            public override string ToString()
-            {
-                StringBuilder description = new StringBuilder();
-                description.AppendFormat("{0}: {1}", this.GetType().Name, this.Message);
-                description.AppendFormat("\r\nHex Line: {0}", HexLine);
-                
-                if (this.InnerException != null)
-                {
-                    description.AppendFormat(" ---> {0}", this.InnerException);
-                    description.AppendFormat(
-                        "{0}   --- End of inner exception stack trace ---{0}",
-                        Environment.NewLine);
-                }
-
-                description.Append(this.StackTrace);
-
-                return description.ToString();
-            }
-
-        }
-
+        
         public class HexFile
         {
             public enum HexRecordType : byte

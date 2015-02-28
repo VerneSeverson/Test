@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace ForwardLibrary
@@ -12,7 +15,9 @@ namespace ForwardLibrary
 	/// we should eventually find namespace locations for these library functions.
     /// </summary>
     namespace Default
-    {
+    {        
+
+
         /// <summary>
         /// Attribute for enums to allow them to have a friendly name
         /// </summary>
@@ -77,10 +82,86 @@ namespace ForwardLibrary
             /// <returns>the hex byte array</returns>
             public static byte[] AsciiEncodedHexStringToByteArray(string hex)
             {
+                hex = hex.Trim();
+                //1. test that it conly contains a-f, A-F, 0-9 characters
+                Regex rg = new Regex(@"^[a-fA-F0-9]*$"); //allow only alphanumeric, '\', '/', and '-' characters
+                if (!rg.IsMatch(hex))
+                    throw new ArgumentException("Non-hex characters found");
+                if (hex.Length % 2 != 0)
+                    throw new ArgumentException("Invalid hex string length found: must have an even number of characters");
+
+                //2. convert it
                 return Enumerable.Range(0, hex.Length)
                                  .Where(x => x % 2 == 0)
                                  .Select(x => Convert.ToByte(hex.Substring(x, 2), 16))
                                  .ToArray();
+            }
+
+            /// <summary>
+            /// Converts a byte array to an ascii-coded hex string
+            /// </summary>
+            /// <param name="dat"></param>
+            /// <returns></returns>
+            public static string AsciiEncodeHexByteArray(byte[] dat)
+            {
+                return System.BitConverter.ToString(dat).Replace("-", "");
+            }
+            
+
+        }
+
+
+        /// <summary>
+        /// class for compression
+        /// </summary>
+        public class Compression
+        {
+
+            private static int BUFFER_SIZE = 64 * 1024; //64kB
+
+            /// <summary>
+            /// Compress a byte array
+            /// </summary>
+            /// <param name="inputData"></param>
+            /// <returns></returns>
+            public static byte[] CompressData(byte[] data)
+            {
+                if (data == null)
+                    throw new ArgumentNullException("data");
+
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    using (BufferedStream bs = new BufferedStream(new GZipStream(ms,
+                     CompressionMode.Compress), BUFFER_SIZE))
+                    {
+                        bs.Write(data, 0, data.Length);
+                    }
+                    return ms.ToArray();
+                }
+            }
+
+            /// <summary>
+            /// Decompress a byte array
+            /// </summary>
+            /// <param name="inputData"></param>
+            /// <returns></returns>
+            public static byte[] DecompressData(byte[] compData)
+            {
+                if (compData == null)
+                    throw new ArgumentNullException("compData");
+
+                using (MemoryStream comp_ms = new MemoryStream(compData))
+                {
+                    using (MemoryStream dms = new MemoryStream())
+                    {
+                        using (BufferedStream bs = new BufferedStream(new GZipStream(comp_ms,
+                         CompressionMode.Decompress), BUFFER_SIZE))
+                        {
+                            bs.CopyTo(dms);
+                        }
+                        return dms.ToArray();
+                    }
+                }
             }
         }
 
