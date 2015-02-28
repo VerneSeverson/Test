@@ -567,9 +567,8 @@ namespace WinSIP2E
             }
 
             protected override void LogUpdated()
-            {
-                AppLogEntry[] lEntries = (AppLogEntry[]) theLog.Entries;
-                AppLogEntry newest = lEntries[lEntries.Length - 1];
+            {                
+                AppLogEntry newest = (AppLogEntry)theLog.Entries.Last();                
                 
                 if (newest.Msg != null && newest.DateTime != null && newest.Timestamp != null)
                 {
